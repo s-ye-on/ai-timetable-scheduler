@@ -93,6 +93,45 @@ class AuthIntegrationTest {
 	}
 
 	@Test
+	void refreshIgnoresAccessTokenAuthorizationHeader() throws Exception {
+		mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "Dora",
+					  "email": "dora@example.com",
+					  "password": "password123"
+					}
+					"""))
+			.andExpect(status().isCreated());
+
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "email": "dora@example.com",
+					  "password": "password123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		String refreshToken = jsonField(loginResult.getResponse().getContentAsString(), "refreshToken");
+
+		mockMvc.perform(post("/api/auth/refresh")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer malformed-access-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "refreshToken": "%s"
+					}
+					""".formatted(refreshToken)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.accessToken").isString())
+			.andExpect(jsonPath("$.refreshToken").isString());
+	}
+
+	@Test
 	void logoutInvalidatesRefreshToken() throws Exception {
 		MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)

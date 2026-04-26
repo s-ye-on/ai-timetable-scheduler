@@ -23,9 +23,21 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+	private static final String REGISTER_PATH = "/api/auth/register";
+	private static final String LOGIN_PATH = "/api/auth/login";
+	private static final String REFRESH_PATH = "/api/auth/refresh";
+
 	private final JwtTokenService jwtTokenService;
 	private final CustomUserDetailsService customUserDetailsService;
 	private final AuthenticationEntryPoint authenticationEntryPoint;
+
+	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		String path = request.getRequestURI();
+		return REGISTER_PATH.equals(path)
+			|| LOGIN_PATH.equals(path)
+			|| REFRESH_PATH.equals(path);
+	}
 
 	@Override
 	protected void doFilterInternal(
