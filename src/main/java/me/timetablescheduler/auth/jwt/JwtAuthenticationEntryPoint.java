@@ -3,18 +3,23 @@ package me.timetablescheduler.auth.jwt;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.OffsetDateTime;
+import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.global.exception.AuthException;
+import me.timetablescheduler.global.exception.ErrorResponse;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 // 401 응답
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
 	public static final String AUTH_ERROR_ATTRIBUTE = "authError";
+
+	private final ObjectMapper objectMapper;
 
 	@Override
 	public void commence(
@@ -26,7 +31,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
 		response.setStatus(exceptionCode.getStatus().value());
 		response.setContentType("application/json;charset=UTF-8");
-		response.getWriter().write(createErrorBody(exceptionCode, request.getRequestURI()));
+		objectMapper.writeValue(response.getWriter(), ErrorResponse.of(exceptionCode, request.getRequestURI()));
 	}
 
 	private ExceptionCode resolveExceptionCode(HttpServletRequest request) {
@@ -35,24 +40,5 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 			return authException.getExceptionCode();
 		}
 		return ExceptionCode.UNAUTHORIZED;
-	}
-
-	private String createErrorBody(ExceptionCode exceptionCode, String path) {
-		return """
-			{
-			  "code": "%s",
-			  "message": "%s",
-			  "status": %d,
-			  "timestamp": "%s",
-			  "path": "%s",
-			  "fieldErrors": []
-			}
-			""".formatted(
-			exceptionCode.name(),
-			exceptionCode.getMessage(),
-			exceptionCode.getStatus().value(),
-			OffsetDateTime.now(),
-			path
-		);
 	}
 }

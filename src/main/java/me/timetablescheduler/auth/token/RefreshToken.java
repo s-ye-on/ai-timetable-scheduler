@@ -24,6 +24,7 @@ public class RefreshToken {
 	@Column(nullable = false, unique = true, length = 512)
 	private String token;
 
+	// userEmail
 	@Column(nullable = false, length = 50)
 	private String username;
 

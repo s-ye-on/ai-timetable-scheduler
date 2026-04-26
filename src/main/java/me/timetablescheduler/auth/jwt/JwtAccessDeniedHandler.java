@@ -3,15 +3,20 @@ package me.timetablescheduler.auth.jwt;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.OffsetDateTime;
+import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.global.exception.ErrorResponse;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 // 403 응답
 @Component
+@RequiredArgsConstructor
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
+
+	private final ObjectMapper objectMapper;
 
 	@Override
 	public void handle(HttpServletRequest request,
@@ -22,25 +27,6 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 		ExceptionCode exceptionCode = ExceptionCode.FORBIDDEN;
 		response.setStatus(exceptionCode.getStatus().value());
 		response.setContentType("application/json;charset=UTF-8");
-		response.getWriter().write(createErrorBody(exceptionCode, request.getRequestURI()));
-	}
-
-	private String createErrorBody(ExceptionCode exceptionCode, String path) {
-		return """
-			{
-			  "code": "%s",
-			  "message": "%s",
-			  "status": %d,
-			  "timestamp": "%s",
-			  "path": "%s",
-			  "fieldErrors": []
-			}
-			""".formatted(
-			exceptionCode.name(),
-			exceptionCode.getMessage(),
-			exceptionCode.getStatus().value(),
-			OffsetDateTime.now(),
-			path
-		);
+		objectMapper.writeValue(response.getWriter(), ErrorResponse.of(exceptionCode, request.getRequestURI()));
 	}
 }
