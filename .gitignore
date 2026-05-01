@@ -40,4 +40,5 @@ out/
 AGENTS.md
 
 ### *.md ###
+/src/main/java/me.timetablescheduler/llm/llm.md
 llm.md
