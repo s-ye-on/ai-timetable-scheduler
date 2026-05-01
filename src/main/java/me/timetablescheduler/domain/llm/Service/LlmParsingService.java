@@ -22,6 +22,12 @@ public class LlmParsingService {
 		return validateAndNormalize(parsed);
 	}
 
+	private void validate(ParsedTaskResponse response) {
+		if (response.title() == null || response.title().isBlank()) {
+			throw new IllegalArgumentException("제목이 필요합니다");
+		}
+	}
+
 	private ParsedTaskResponse validateAndNormalize(ParsedTaskResponse parsed) {
 		int duration = parsed.durationMinutes() == null ? 60 : parsed.durationMinutes();
 
