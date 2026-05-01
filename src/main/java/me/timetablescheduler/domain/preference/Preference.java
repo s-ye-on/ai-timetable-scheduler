@@ -14,11 +14,4 @@ public class Preference {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	Long id;
 
-	public enum PreferredTimeRange {
-		MORNING, // 09:00 ~ 12:00
-		LUNCH, // 12:00 ~ 14:00
-		AFTERNOON, //14:00 ~ 18:00
-		EVENING, // 18:00 ~ 22:00
-		ANYTIME
-	}
 }

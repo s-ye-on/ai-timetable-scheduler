@@ -12,7 +12,4 @@ public class Task {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	public enum Category {
-		SCHEDULED,
-	}
 }
