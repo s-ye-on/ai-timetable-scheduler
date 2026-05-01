@@ -2,11 +2,11 @@ package me.timetablescheduler.domain.llm.dto;
 
 import java.time.LocalDate;
 
-public record DateRage(
+public record DateRange(
 	LocalDate startDate,
 	LocalDate endDate
 ) {
-	public DateRage {
+	public DateRange {
 		if (startDate == null || endDate == null) {
 			throw new IllegalArgumentException("시작 날짜와 종료 날짜가 필요합니다");
 		}
