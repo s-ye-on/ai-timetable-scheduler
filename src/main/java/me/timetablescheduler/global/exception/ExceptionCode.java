@@ -16,6 +16,10 @@ public enum ExceptionCode {
 	INVALID_LLM_DURATION(HttpStatus.BAD_REQUEST, "일정 소요 시간은 30분, 60분, 90분처럼 30분 단위로 입력해주세요."),
 	INVALID_LLM_DATE_RANGE(HttpStatus.BAD_REQUEST, "날짜 범위가 올바르지 않습니다. 시작일은 종료일과 같거나 더 빨라야 합니다."),
 
+	MISSING_LLM_TITLE(HttpStatus.BAD_REQUEST, "일정 제목을 해석하지 못했습니다. 어떤 일을 할지 조금 더 명확히 입력해주세요."),
+	MISSING_LLM_CATEGORY(HttpStatus.BAD_REQUEST, "일정 종류를 해석하지 못했습니다. 공부, 과제, 약속, 개인 업무 중 어떤 결정인지 입력해주세요."),
+	MISSING_LLM_DURATION(HttpStatus.BAD_REQUEST, "일정 소요 시간을 해석하지 못했습니다. 예: 30분, 1시간, 2시간처럼 입력해주세요."),
+
 	// 401 인증 안됨
 	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "유효하지 않는 이메일 또는 비밀번호 입니다."),
