@@ -26,7 +26,7 @@ public class LlmParsingService {
 		ParsedTaskResponse parsed = openAiClient.parseTask(request.message());
 
 		// NPE 방지
-		if(parsed == null) {
+		if (parsed == null) {
 			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
 		}
 
@@ -39,19 +39,19 @@ public class LlmParsingService {
 	// 검증
 	private void validate(ParsedTaskResponse response) {
 		if (response.title() == null || response.title().isBlank()) {
-			throw new IllegalArgumentException("제목이 필요합니다");
+			throw new LlmException(ExceptionCode.MISSING_LLM_TITLE);
 		}
 
 		if (response.category() == null) {
-			throw new IllegalArgumentException("카테고리가 필요합니다");
+			throw new LlmException(ExceptionCode.MISSING_LLM_CATEGORY);
 		}
 
 		if (response.durationMinutes() == null || response.durationMinutes() <= 0) {
-			throw new IllegalArgumentException("소요 시간이 필요합니다.");
+			throw new LlmException(ExceptionCode.MISSING_LLM_DURATION);
 		}
 
 		if (response.durationMinutes() % TIME_SLOT_MINUTES != 0) {
-			throw new IllegalArgumentException("소요 시간은 30분 단위여야 합니다.");
+			throw new LlmException(ExceptionCode.INVALID_LLM_DURATION);
 		}
 
 		int dateConditionCount = 0;
@@ -69,9 +69,7 @@ public class LlmParsingService {
 		}
 
 		if (dateConditionCount != 1) {
-			throw new IllegalArgumentException(
-				"preferredDate, preferredDayOfWeek, preferredDateRange 중 정확히 하나만 필요합니다."
-			);
+			throw new LlmException(ExceptionCode.INVALID_LLM_DATE_CONDITION);
 		}
 	}
 

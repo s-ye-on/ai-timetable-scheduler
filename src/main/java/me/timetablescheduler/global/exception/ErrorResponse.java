@@ -2,6 +2,7 @@ package me.timetablescheduler.global.exception;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+
 import lombok.Builder;
 import org.springframework.http.HttpStatus;
 
