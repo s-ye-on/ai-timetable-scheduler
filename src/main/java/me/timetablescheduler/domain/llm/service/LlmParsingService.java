@@ -1,4 +1,4 @@
-package me.timetablescheduler.domain.llm.Service;
+package me.timetablescheduler.domain.llm.service;
 
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
@@ -74,7 +74,7 @@ public class LlmParsingService {
 			? FALLBACK_DURATION_MINUTES
 			: parsed.durationMinutes();
 
-		TaskPriority priority = parsed.priority() == null ? TaskPriority.Normal : parsed.priority();
+		TaskPriority priority = parsed.priority() == null ? TaskPriority.NORMAL : parsed.priority();
 
 		PreferredTimeRange timeRange = parsed.preferredTimeRange() == null
 			? PreferredTimeRange.ANYTIME
