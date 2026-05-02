@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.llm.service;
 
 import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.external.OpenAiClient;
@@ -41,6 +42,7 @@ public class LlmParsingService {
 		validateRequiredFields(response);
 		validateDuration(response.durationMinutes());
 		validateDateCondition(response);
+		validateDateRange(response.preferredDateRange());
 	}
 
 	private void validateRequiredFields(ParsedTaskResponse response) {
@@ -50,10 +52,6 @@ public class LlmParsingService {
 
 		if (response.category() == null) {
 			throw new LlmException(ExceptionCode.MISSING_LLM_CATEGORY);
-		}
-
-		if (response.durationMinutes() == null || response.durationMinutes() <= 0) {
-			throw new LlmException(ExceptionCode.MISSING_LLM_DURATION);
 		}
 	}
 
@@ -78,8 +76,26 @@ public class LlmParsingService {
 	}
 
 	private void validateDuration(Integer durationMinutes) {
+		if (durationMinutes <= 0) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_DURATION);
+		}
+
 		if (durationMinutes % TIME_SLOT_MINUTES != 0) {
 			throw new LlmException(ExceptionCode.INVALID_LLM_DURATION);
+		}
+	}
+
+	private void validateDateRange(DateRange dateRange) {
+		if (dateRange == null) { // 항상 필요한 필드 아님
+			return;
+		}
+
+		if (dateRange.startDate() == null || dateRange.endDate() == null) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_DATE_RANGE);
+		}
+
+		if (dateRange.startDate().isAfter(dateRange.endDate())) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_DATE_RANGE);
 		}
 	}
 
