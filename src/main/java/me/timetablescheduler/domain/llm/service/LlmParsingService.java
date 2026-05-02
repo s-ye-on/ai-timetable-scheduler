@@ -24,6 +24,11 @@ public class LlmParsingService {
 	private final OpenAiClient openAiClient;
 
 	public ParsedTaskResponse parseTask(LlmParseRequest request) {
+		// 가벼운 방어 코드
+		if (request == null || request.message() == null || request.message().isBlank()) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_REQUEST);
+		}
+
 		ParsedTaskResponse parsed = openAiClient.parseTask(request.message());
 
 		// NPE 방지
