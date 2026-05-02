@@ -42,3 +42,5 @@ JSON 형식으로 나오게 만들기
 ```
 LLM 결과 바로 저장x  
 한 번 검증 후 Task로 바꿔서 저장
+
+## 1차 구현에서는 PreferredTimeRange가 null인 경우 ANYTIME으로 보정 

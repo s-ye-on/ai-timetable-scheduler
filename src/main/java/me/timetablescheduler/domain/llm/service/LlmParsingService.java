@@ -6,6 +6,8 @@ import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.external.OpenAiClient;
 import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskPriority;
+import me.timetablescheduler.global.exception.ExceptionCode;
+import me.timetablescheduler.global.exception.LlmException;
 import org.springframework.stereotype.Service;
 
 // LLM 호출
@@ -22,6 +24,11 @@ public class LlmParsingService {
 
 	public ParsedTaskResponse parseTask(LlmParseRequest request) {
 		ParsedTaskResponse parsed = openAiClient.parseTask(request.message());
+
+		// NPE 방지
+		if(parsed == null) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
+		}
 
 		ParsedTaskResponse normalized = normalize(parsed, request.message());
 		validate(normalized);
