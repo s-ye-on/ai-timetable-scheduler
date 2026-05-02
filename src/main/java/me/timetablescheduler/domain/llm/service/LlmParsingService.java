@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LlmParsingService {
 	private static final int TIME_SLOT_MINUTES = 30;
-	private static final int FALLBACK_DURATION_MINUTES = 60; // LLM 파싱 실패 -> fallback
+	private static final int DEFAULT_DURATION_MINUTES = 60; // 소요 시간 없을 때 기본값
 
 	private final OpenAiClient openAiClient;
 
@@ -38,6 +38,12 @@ public class LlmParsingService {
 
 	// 검증
 	private void validate(ParsedTaskResponse response) {
+		validateRequiredFields(response);
+		validateDuration(response.durationMinutes());
+		validateDateCondition(response);
+	}
+
+	private void validateRequiredFields(ParsedTaskResponse response) {
 		if (response.title() == null || response.title().isBlank()) {
 			throw new LlmException(ExceptionCode.MISSING_LLM_TITLE);
 		}
@@ -49,11 +55,9 @@ public class LlmParsingService {
 		if (response.durationMinutes() == null || response.durationMinutes() <= 0) {
 			throw new LlmException(ExceptionCode.MISSING_LLM_DURATION);
 		}
+	}
 
-		if (response.durationMinutes() % TIME_SLOT_MINUTES != 0) {
-			throw new LlmException(ExceptionCode.INVALID_LLM_DURATION);
-		}
-
+	private void validateDateCondition(ParsedTaskResponse response) {
 		int dateConditionCount = 0;
 
 		if (response.preferredDate() != null) {
@@ -73,10 +77,16 @@ public class LlmParsingService {
 		}
 	}
 
+	private void validateDuration(Integer durationMinutes) {
+		if (durationMinutes % TIME_SLOT_MINUTES != 0) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_DURATION);
+		}
+	}
+
 	// 값 보정
 	private ParsedTaskResponse normalize(ParsedTaskResponse parsed, String originalMessage) {
 		int duration = parsed.durationMinutes() == null
-			? FALLBACK_DURATION_MINUTES
+			? DEFAULT_DURATION_MINUTES
 			: parsed.durationMinutes();
 
 		TaskPriority priority = parsed.priority() == null ? TaskPriority.NORMAL : parsed.priority();
