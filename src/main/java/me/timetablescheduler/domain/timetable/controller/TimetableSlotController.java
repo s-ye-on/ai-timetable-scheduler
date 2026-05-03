@@ -1,10 +1,13 @@
 package me.timetablescheduler.domain.timetable.controller;
 
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.auth.security.CustomUserDetails;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.timetable.service.TimetableSlotService;
 import me.timetablescheduler.global.dto.TimetableSlotRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +17,11 @@ import org.springframework.web.bind.annotation.*;
 public class TimetableSlotController {
 	private final TimetableSlotService timetableSlotService;
 
+	@GetMapping
+	public List<TimetableSlotResponse.Read> readAll(@AuthenticationPrincipal CustomUserDetails userDetails) {
+		return timetableSlotService.readAll(userDetails.getId());
+	}
+
 	@GetMapping("/{timetableSlotId}")
 	public TimetableSlotResponse.Read read(@PathVariable Long timetableSlotId,
 	                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -21,10 +29,29 @@ public class TimetableSlotController {
 	}
 
 	@PostMapping
-	public void create(
-		@RequestBody TimetableSlotRequest.Create request,
+	@ResponseStatus(HttpStatus.CREATED)
+	public TimetableSlotResponse.Read create(
+		@Valid @RequestBody TimetableSlotRequest.Create request,
 		@AuthenticationPrincipal CustomUserDetails userDetails
 	) {
-		timetableSlotService.create(request, userDetails.getId());
+		return timetableSlotService.create(request, userDetails.getId());
+	}
+
+	@PutMapping("/{timetableSlotId}")
+	public TimetableSlotResponse.Read update(
+		@PathVariable Long timetableSlotId,
+		@Valid @RequestBody TimetableSlotRequest.Update request,
+		@AuthenticationPrincipal CustomUserDetails userDetails
+	) {
+		return timetableSlotService.update(timetableSlotId, request, userDetails.getId());
+	}
+
+	@DeleteMapping("/{timetableSlotId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(
+		@PathVariable Long timetableSlotId,
+		@AuthenticationPrincipal CustomUserDetails userDetails
+	) {
+		timetableSlotService.delete(timetableSlotId, userDetails.getId());
 	}
 }

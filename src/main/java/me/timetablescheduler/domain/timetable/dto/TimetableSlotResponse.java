@@ -1,15 +1,16 @@
 package me.timetablescheduler.domain.timetable.dto;
 
 import java.time.DayOfWeek;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public sealed interface TimetableSlotResponse permits TimetableSlotResponse.Read {
 	record Read(
+		Long id,
 		String subjectName,
 		DayOfWeek dayOfWeek,
 		String location,
-		LocalDateTime startTime,
-		LocalDateTime endTime
+		LocalTime startTime,
+		LocalTime endTime
 	) implements TimetableSlotResponse {
 	}
 }

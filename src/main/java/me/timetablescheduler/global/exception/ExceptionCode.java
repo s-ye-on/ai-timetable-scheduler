@@ -11,6 +11,8 @@ public enum ExceptionCode {
 
 	// 400 입력값 문제
 	INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+	INVALID_TIMETABLE_SLOT(HttpStatus.BAD_REQUEST, "시간표 입력값이 올바르지 않습니다."),
+	INVALID_TIMETABLE_SLOT_TIME(HttpStatus.BAD_REQUEST, "시간표 시작 시간은 종료 시간보다 빨라야 합니다."),
 	// LLM이 반환한 구조화 결과가 비정상일 때 사용
 	INVALID_LLM_PARSE_RESULT(HttpStatus.BAD_REQUEST, "입력한 문장을 일정 요청으로 변환할 수 없습니다. 날짜, 시간대, 소요 시간을 조금 더 명확히 입력해주세요."),
 	INVALID_LLM_DATE_CONDITION(HttpStatus.BAD_REQUEST, "일정 날짜 조건은 특정 날짜, 특정 요일, 날짜 범위 중 하나만 지정해야 합니다."),
@@ -40,7 +42,8 @@ public enum ExceptionCode {
 	NOT_FOUND_TIMESLOT(HttpStatus.NOT_FOUND, "존재하지 않는 수업입니다"),
 
 	// 409 Conflict
-	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다");
+	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다"),
+	CONFLICT_TIMETABLE_SLOT(HttpStatus.CONFLICT, "이미 등록된 시간표와 시간이 겹칩니다.");
 
 	private final HttpStatus status;
 	private final String message;
