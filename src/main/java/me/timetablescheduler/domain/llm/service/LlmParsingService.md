@@ -7,4 +7,3 @@ preferredTimeRange == null → ANYTIME
 priority == null → NORMAL
 description == null/blank → originalMessage
 ```
-
