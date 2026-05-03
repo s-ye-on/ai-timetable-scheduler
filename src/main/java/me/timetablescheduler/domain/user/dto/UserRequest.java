@@ -1,4 +1,4 @@
-package me.timetablescheduler.global.dto;
+package me.timetablescheduler.domain.user.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

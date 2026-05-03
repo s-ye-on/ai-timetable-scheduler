@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.auth.security.CustomUserDetails;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.timetable.service.TimetableSlotService;
-import me.timetablescheduler.global.dto.TimetableSlotRequest;
+import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

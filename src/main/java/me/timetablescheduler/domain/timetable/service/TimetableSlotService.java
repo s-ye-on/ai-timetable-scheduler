@@ -8,7 +8,7 @@ import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.UserRepository;
-import me.timetablescheduler.global.dto.TimetableSlotRequest;
+import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TimetableSlotException;
 import me.timetablescheduler.global.exception.UserException;
