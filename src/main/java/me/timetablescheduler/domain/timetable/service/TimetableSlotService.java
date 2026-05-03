@@ -1,8 +1,9 @@
 package me.timetablescheduler.domain.timetable.service;
 
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
-import me.timetablescheduler.domain.timetable.TimeTableSlotRepository;
+import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.user.User;
@@ -18,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TimetableSlotService {
-	private final TimeTableSlotRepository slotRepository;
+	private final TimetableSlotRepository slotRepository;
 	private final UserRepository userRepository;
 
 	@Transactional

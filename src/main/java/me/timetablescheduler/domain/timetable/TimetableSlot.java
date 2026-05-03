@@ -45,7 +45,7 @@ public class TimetableSlot {
 		LocalTime startTime,
 		LocalTime endTime
 	) {
-		validateRequired(user, subjectName, dayOfWeek, startTime, endTime);
+		validateRequiredFields(user, subjectName, dayOfWeek, startTime, endTime);
 		validateTimeRange(startTime, endTime);
 
 		this.user = user;
@@ -76,7 +76,7 @@ public class TimetableSlot {
 		LocalTime startTime,
 		LocalTime endTime
 	) {
-		validateRequired(this.user, subjectName, dayOfWeek, startTime, endTime);
+		validateRequiredFields(this.user, subjectName, dayOfWeek, startTime, endTime);
 		validateTimeRange(startTime, endTime);
 
 		this.subjectName = subjectName;
@@ -87,7 +87,7 @@ public class TimetableSlot {
 		this.updateTime = OffsetDateTime.now();
 	}
 
-	private void validateRequired(
+	private void validateRequiredFields(
 		User user,
 		String subjectName,
 		DayOfWeek dayOfWeek,

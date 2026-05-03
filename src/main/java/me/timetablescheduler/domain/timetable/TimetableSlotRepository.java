@@ -5,11 +5,12 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface TimeTableSlotRepository extends JpaRepository<TimetableSlot, Long> {
+public interface TimetableSlotRepository extends JpaRepository<TimetableSlot, Long> {
 	Optional<TimetableSlot> findByIdAndUserId(Long id, Long userId);
 
 	List<TimetableSlot> findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(Long userId);

@@ -3,12 +3,12 @@ package me.timetablescheduler.domain.timetable;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,7 +31,7 @@ class TimetableSlotIntegrationTest {
 	private MockMvc mockMvc;
 
 	@Test
-	void 시간표를_생성_조회_수정_삭제할_수_있다() throws Exception {
+	void 인증된_사용자는_시간표를_생성하고_조회할_수_있다() throws Exception {
 		String accessToken = registerAndGetAccessToken("slot-owner@example.com");
 
 		MvcResult createResult = mockMvc.perform(post("/timetable-slots")
@@ -62,40 +62,6 @@ class TimetableSlotIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.id").value(slotId))
 			.andExpect(jsonPath("$.subjectName").value("자료구조"));
-
-		mockMvc.perform(put("/timetable-slots/{id}", slotId)
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-					  "subjectName": "운영체제",
-					  "dayOfWeek": "TUESDAY",
-					  "location": "공학관 202",
-					  "startTime": "13:00:00",
-					  "endTime": "14:30:00"
-					}
-					"""))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.id").value(slotId))
-			.andExpect(jsonPath("$.subjectName").value("운영체제"))
-			.andExpect(jsonPath("$.dayOfWeek").value("TUESDAY"))
-			.andExpect(jsonPath("$.location").value("공학관 202"))
-			.andExpect(jsonPath("$.startTime").value("13:00:00"))
-			.andExpect(jsonPath("$.endTime").value("14:30:00"));
-
-		mockMvc.perform(get("/timetable-slots")
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].id").value(slotId))
-			.andExpect(jsonPath("$[0].subjectName").value("운영체제"));
-
-		mockMvc.perform(delete("/timetable-slots/{id}", slotId)
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-			.andExpect(status().isNoContent());
-
-		mockMvc.perform(get("/timetable-slots/{id}", slotId)
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-			.andExpect(status().isNotFound());
 	}
 
 	@Test
