@@ -33,8 +33,8 @@ class TimetableSlotTest {
 		assertEquals("공학관 101", slot.getLocation());
 		assertEquals(LocalTime.of(9, 0), slot.getStartTime());
 		assertEquals(LocalTime.of(10, 30), slot.getEndTime());
-		assertNotNull(slot.getCreateTime());
-		assertNotNull(slot.getUpdateTime());
+		assertNotNull(slot.getCreateAt());
+		assertNotNull(slot.getUpdateAt());
 	}
 
 	@Test

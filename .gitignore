@@ -42,6 +42,7 @@ AGENTS.md
 ### *.md ###
 /src/main/java/me.timetablescheduler/llm/llm.md
 src/main/java/me/timetablescheduler/domain/llm/service/LlmParsingService.md
+src/main/java/me/timetablescheduler/domain/timetable/timetable.md
 llm.md
 
 ### memo.md ###

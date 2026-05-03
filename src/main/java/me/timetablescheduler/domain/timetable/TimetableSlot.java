@@ -26,16 +26,27 @@ public class TimetableSlot {
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
+	@Column(nullable = false, length = 100)
 	private String subjectName;
 
 	@Enumerated(EnumType.STRING) //0,1 이렇게 말고 enum으로 db에 저장되게
+	@Column(nullable = false, length = 10)
 	private DayOfWeek dayOfWeek;
 
+	@Column(length = 100)
 	private String location;
+
+	@Column(nullable = false)
 	private LocalTime startTime;
+
+	@Column(nullable = false)
 	private LocalTime endTime;
-	private OffsetDateTime createTime;
-	private OffsetDateTime updateTime;
+
+	@Column(nullable = false, updatable = false)
+	private OffsetDateTime createAt;
+
+	@Column(nullable = false)
+	private OffsetDateTime updateAt;
 
 	private TimetableSlot(
 		User user,
@@ -54,8 +65,8 @@ public class TimetableSlot {
 		this.location = location;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.createTime = OffsetDateTime.now();
-		this.updateTime = OffsetDateTime.now();
+		this.createAt = OffsetDateTime.now();
+		this.updateAt = OffsetDateTime.now();
 	}
 
 	public static TimetableSlot create(
@@ -84,7 +95,7 @@ public class TimetableSlot {
 		this.location = location;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.updateTime = OffsetDateTime.now();
+		this.updateAt = OffsetDateTime.now();
 	}
 
 	private void validateRequiredFields(
