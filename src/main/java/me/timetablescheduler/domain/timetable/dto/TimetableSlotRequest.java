@@ -2,10 +2,13 @@ package me.timetablescheduler.domain.timetable.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 
-public sealed interface TimetableSlotRequest permits TimetableSlotRequest.Create, TimetableSlotRequest.Update {
+public sealed interface TimetableSlotRequest
+	permits TimetableSlotRequest.Create,
+	TimetableSlotRequest.Update {
 	record Create(
 		@NotBlank(message = "과목명은 필수입니다.")
 		String subjectName,

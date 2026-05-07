@@ -47,6 +47,7 @@ llm.md
 
 ### memo.md ###
 memo.md
+study.md
 
 # Spring 설정 파일
 src/main/resources/application.properties

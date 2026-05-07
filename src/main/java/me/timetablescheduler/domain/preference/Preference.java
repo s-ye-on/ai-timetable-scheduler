@@ -14,4 +14,5 @@ public class Preference {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	Long id;
 
+	// User와 1:1 매핑
 }
