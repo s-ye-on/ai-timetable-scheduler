@@ -43,10 +43,10 @@ public class TimetableSlot {
 	private LocalTime endTime;
 
 	@Column(nullable = false, updatable = false)
-	private OffsetDateTime createAt;
+	private OffsetDateTime createdAt;
 
 	@Column(nullable = false)
-	private OffsetDateTime updateAt;
+	private OffsetDateTime updatedAt;
 
 	private TimetableSlot(
 		User user,
@@ -65,8 +65,8 @@ public class TimetableSlot {
 		this.location = location;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.createAt = OffsetDateTime.now();
-		this.updateAt = OffsetDateTime.now();
+		this.createdAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	public static TimetableSlot create(
@@ -95,7 +95,7 @@ public class TimetableSlot {
 		this.location = location;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	private void validateRequiredFields(

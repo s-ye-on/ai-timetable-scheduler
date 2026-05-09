@@ -23,6 +23,8 @@ import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
 
+/// todo : Task에 추천 조건 저장해야 함 아직 안되어 있음
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
