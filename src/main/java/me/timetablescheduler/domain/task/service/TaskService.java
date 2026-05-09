@@ -9,11 +9,9 @@ import me.timetablescheduler.domain.task.TaskRepository;
 import me.timetablescheduler.domain.task.dto.TaskRequest;
 import me.timetablescheduler.domain.task.dto.TaskResponse;
 import me.timetablescheduler.domain.user.User;
-import me.timetablescheduler.domain.user.UserRepository;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
-import me.timetablescheduler.global.exception.UserException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class TaskService {
 	private final TaskRepository taskRepository;
-	private final UserRepository userRepository;
 	private final LlmParsingService llmParsingService;
 	private final UserReader userReader;
 
 	@Transactional
 	public TaskResponse.Create createFromNaturalLanguage(Long userId, TaskRequest.NaturalLanguage request) {
 		ParsedTaskResponse response = llmParsingService.parseTask(new LlmParseRequest(request.message()));
-		User user = findUser(userId);
+		User user = userReader.read(userId);
 
 		Task task = Task.create(
 			user,
@@ -72,11 +69,6 @@ public class TaskService {
 	public void delete(Long taskId, Long userId) {
 		Task task = findTask(taskId, userId);
 		taskRepository.delete(task);
-	}
-
-	private User findUser(Long userId) {
-		return userRepository.findById(userId)
-			.orElseThrow(() -> new UserException(ExceptionCode.NOT_FOUND_USER));
 	}
 
 	private Task findTask(Long taskId, Long userId) {
