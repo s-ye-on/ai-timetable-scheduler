@@ -9,6 +9,7 @@ import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.UserRepository;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
+import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TimetableSlotException;
 import me.timetablescheduler.global.exception.UserException;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TimetableSlotService {
 	private final TimetableSlotRepository slotRepository;
 	private final UserRepository userRepository;
+	// private final UserReader userReader;
 
 	@Transactional
 	public TimetableSlotResponse.Read create(TimetableSlotRequest.Create request, Long userId) {
