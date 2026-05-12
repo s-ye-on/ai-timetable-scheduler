@@ -36,7 +36,6 @@ public sealed interface TaskRequest
 
 		LocalDate preferredEndDate,
 
-		@NotNull(message = "선호 시간대는 필수입니다.")
 		PreferredTimeRange preferredTimeRange,
 
 		LocalDate deadline,

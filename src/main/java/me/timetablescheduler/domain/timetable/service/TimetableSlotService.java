@@ -1,20 +1,20 @@
 package me.timetablescheduler.domain.timetable.service;
 
-import java.util.List;
-import java.time.DayOfWeek;
-import java.time.LocalTime;
-
 import lombok.RequiredArgsConstructor;
-import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
+import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
+import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.user.User;
-import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TimetableSlotException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor

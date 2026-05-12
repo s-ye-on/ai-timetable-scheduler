@@ -3,7 +3,7 @@
 durationMinutes == null → 60분으로 보정
 durationMinutes <= 0 → INVALID_LLM_DURATION
 durationMinutes % 30 != 0 → INVALID_LLM_DURATION
-preferredTimeRange == null → ANYTIME
+preferredTimeRange == null → null 유지
 priority == null → NORMAL
 description == null/blank → originalMessage
 ```

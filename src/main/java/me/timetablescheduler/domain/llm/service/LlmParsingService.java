@@ -5,7 +5,6 @@ import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.external.OpenAiClient;
-import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.LlmException;
@@ -112,11 +111,6 @@ public class LlmParsingService {
 
 		TaskPriority priority = parsed.priority() == null ? TaskPriority.NORMAL : parsed.priority();
 
-		/// todo : Task 저장에는 null도 허용하니 보정 코드 삭제
-		PreferredTimeRange timeRange = parsed.preferredTimeRange() == null
-			? PreferredTimeRange.ANYTIME
-			: parsed.preferredTimeRange();
-
 		String description = parsed.description() == null || parsed.description().isBlank()
 			? originalMessage
 			: parsed.description();
@@ -128,7 +122,7 @@ public class LlmParsingService {
 			parsed.preferredDate(),
 			parsed.preferredDayOfWeek(),
 			parsed.preferredDateRange(),
-			timeRange,
+			parsed.preferredTimeRange(),
 			parsed.deadline(),
 			priority,
 			description

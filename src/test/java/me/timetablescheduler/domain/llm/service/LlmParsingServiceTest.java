@@ -1,10 +1,5 @@
 package me.timetablescheduler.domain.llm.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.time.DayOfWeek;
-import java.time.LocalDate;
 import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
@@ -15,6 +10,11 @@ import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.LlmException;
 import org.junit.jupiter.api.Test;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class LlmParsingServiceTest {
 
@@ -54,7 +54,7 @@ class LlmParsingServiceTest {
 	}
 
 	@Test
-	void 선호시간대가_없으면_ANYTIME으로_보정한다() {
+	void 선호시간대가_없으면_null로_유지한다() {
 		ParsedTaskResponse parsed = responseBuilder()
 			.preferredDayOfWeek(DayOfWeek.TUESDAY)
 			.preferredTimeRange(null)
@@ -63,7 +63,7 @@ class LlmParsingServiceTest {
 
 		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("화요일에 과제할 시간 잡아줘"));
 
-		assertEquals(PreferredTimeRange.ANYTIME, result.preferredTimeRange());
+		assertNull(result.preferredTimeRange());
 	}
 
 	@Test
@@ -258,7 +258,7 @@ class LlmParsingServiceTest {
 		private LocalDate preferredDate;
 		private DayOfWeek preferredDayOfWeek;
 		private DateRange preferredDateRange;
-		private PreferredTimeRange preferredTimeRange = PreferredTimeRange.ANYTIME;
+		private PreferredTimeRange preferredTimeRange;
 		private LocalDate deadline;
 		private TaskPriority priority = TaskPriority.NORMAL;
 		private String description = "과제할 시간 잡아줘";

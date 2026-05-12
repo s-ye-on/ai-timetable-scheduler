@@ -1,6 +1,5 @@
 package me.timetablescheduler.domain.task.service;
 
-import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
@@ -16,6 +15,8 @@ import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor

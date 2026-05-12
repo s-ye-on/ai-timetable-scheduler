@@ -59,7 +59,7 @@ public class Task {
 	private LocalDate preferredEndDate;
 
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = true)
+	@Column(length = 20)
 	// preferredTimeRange가 Task에 있을 때 의미:
 	// - 이번 Task에서 사용자가 명시한 선호 시간대
 	// "이번 주 안에 과제할 시간을 추천해줘" : 이 문장에서는 특정 시간대 선호가 없음
@@ -103,7 +103,7 @@ public class Task {
 		TaskPriority priority,
 		String description
 	) {
-		validateRequiredFields(user, title, category, durationMinutes, preferredTimeRange, priority);
+		validateRequiredFields(user, title, category, durationMinutes, priority);
 		validateDuration(durationMinutes);
 		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
 
@@ -167,7 +167,7 @@ public class Task {
 		TaskPriority priority,
 		String description
 	) {
-		validateRequiredFields(this.user, title, category, durationMinutes, preferredTimeRange, priority);
+		validateRequiredFields(this.user, title, category, durationMinutes, priority);
 		validateDuration(durationMinutes);
 		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
 
@@ -216,11 +216,10 @@ public class Task {
 		String title,
 		TaskCategory category,
 		Integer durationMinutes,
-		PreferredTimeRange preferredTimeRange,
 		TaskPriority priority
 	) {
 		if (user == null || title == null || title.isBlank()
-			|| category == null || durationMinutes == null || preferredTimeRange == null || priority == null) {
+			|| category == null || durationMinutes == null || priority == null) {
 			throw new TaskException(ExceptionCode.INVALID_TASK);
 		}
 	}

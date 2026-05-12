@@ -1,29 +1,27 @@
 package me.timetablescheduler.domain.timetable.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import me.timetablescheduler.domain.timetable.TimetableSlot;
+import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
+import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
+import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
+import me.timetablescheduler.domain.user.User;
+import me.timetablescheduler.domain.user.reader.UserReader;
+import me.timetablescheduler.global.exception.ExceptionCode;
+import me.timetablescheduler.global.exception.TimetableSlotException;
+import me.timetablescheduler.global.exception.UserException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
-import me.timetablescheduler.domain.timetable.TimetableSlot;
-import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
-import me.timetablescheduler.domain.user.User;
-import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
-import me.timetablescheduler.global.exception.ExceptionCode;
-import me.timetablescheduler.global.exception.TimetableSlotException;
-import me.timetablescheduler.global.exception.UserException;
-import me.timetablescheduler.domain.user.reader.UserReader;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class TimetableSlotServiceTest {
 
