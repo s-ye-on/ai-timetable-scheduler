@@ -10,20 +10,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskCategory;
 import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.domain.task.type.TaskStatus;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
-
-/// todo : Task에 추천 조건 저장해야 함 아직 안되어 있음
 
 @Entity
 @Getter
@@ -47,6 +47,24 @@ public class Task {
 
 	@Column(nullable = false)
 	private Integer durationMinutes;
+
+	private LocalDate preferredDate;
+
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10)
+	private DayOfWeek preferredDayOfWeek;
+
+	private LocalDate preferredStartDate;
+
+	private LocalDate preferredEndDate;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = true)
+	// preferredTimeRange가 Task에 있을 때 의미:
+	// - 이번 Task에서 사용자가 명시한 선호 시간대
+	// "이번 주 안에 과제할 시간을 추천해줘" : 이 문장에서는 특정 시간대 선호가 없음
+	// Task.preferredTimeRange는 비어 있을 수 있음
+	private PreferredTimeRange preferredTimeRange;
 
 	private LocalDate deadline;
 
@@ -76,17 +94,28 @@ public class Task {
 		String title,
 		TaskCategory category,
 		Integer durationMinutes,
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate,
+		PreferredTimeRange preferredTimeRange,
 		LocalDate deadline,
 		TaskPriority priority,
 		String description
 	) {
-		validateRequiredFields(user, title, category, durationMinutes, priority);
+		validateRequiredFields(user, title, category, durationMinutes, preferredTimeRange, priority);
 		validateDuration(durationMinutes);
+		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
 
 		this.user = user;
 		this.title = title;
 		this.category = category;
 		this.durationMinutes = durationMinutes;
+		this.preferredDate = preferredDate;
+		this.preferredDayOfWeek = preferredDayOfWeek;
+		this.preferredStartDate = preferredStartDate;
+		this.preferredEndDate = preferredEndDate;
+		this.preferredTimeRange = preferredTimeRange;
 		this.deadline = deadline;
 		this.priority = priority;
 		this.description = description;
@@ -100,27 +129,56 @@ public class Task {
 		String title,
 		TaskCategory category,
 		Integer durationMinutes,
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate,
+		PreferredTimeRange preferredTimeRange,
 		LocalDate deadline,
 		TaskPriority priority,
 		String description
 	) {
-		return new Task(user, title, category, durationMinutes, deadline, priority, description);
+		return new Task(
+			user,
+			title,
+			category,
+			durationMinutes,
+			preferredDate,
+			preferredDayOfWeek,
+			preferredStartDate,
+			preferredEndDate,
+			preferredTimeRange,
+			deadline,
+			priority,
+			description
+		);
 	}
 
 	public void updateDetails(
 		String title,
 		TaskCategory category,
 		Integer durationMinutes,
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate,
+		PreferredTimeRange preferredTimeRange,
 		LocalDate deadline,
 		TaskPriority priority,
 		String description
 	) {
-		validateRequiredFields(this.user, title, category, durationMinutes, priority);
+		validateRequiredFields(this.user, title, category, durationMinutes, preferredTimeRange, priority);
 		validateDuration(durationMinutes);
+		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
 
 		this.title = title;
 		this.category = category;
 		this.durationMinutes = durationMinutes;
+		this.preferredDate = preferredDate;
+		this.preferredDayOfWeek = preferredDayOfWeek;
+		this.preferredStartDate = preferredStartDate;
+		this.preferredEndDate = preferredEndDate;
+		this.preferredTimeRange = preferredTimeRange;
 		this.deadline = deadline;
 		this.priority = priority;
 		this.description = description;
@@ -158,10 +216,11 @@ public class Task {
 		String title,
 		TaskCategory category,
 		Integer durationMinutes,
+		PreferredTimeRange preferredTimeRange,
 		TaskPriority priority
 	) {
 		if (user == null || title == null || title.isBlank()
-			|| category == null || durationMinutes == null || priority == null) {
+			|| category == null || durationMinutes == null || preferredTimeRange == null || priority == null) {
 			throw new TaskException(ExceptionCode.INVALID_TASK);
 		}
 	}
@@ -169,6 +228,37 @@ public class Task {
 	private void validateDuration(Integer durationMinutes) {
 		if (durationMinutes <= 0 || durationMinutes % 30 != 0) {
 			throw new TaskException(ExceptionCode.INVALID_TASK_DURATION);
+		}
+	}
+
+	private void validateDateCondition(
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate
+	) {
+		boolean hasPreferredDate = preferredDate != null;
+		boolean hasPreferredDayOfWeek = preferredDayOfWeek != null;
+		boolean hasPreferredDateRange = preferredStartDate != null || preferredEndDate != null;
+
+		int dateConditionCount = 0;
+		if (hasPreferredDate) {
+			dateConditionCount++;
+		}
+		if (hasPreferredDayOfWeek) {
+			dateConditionCount++;
+		}
+		if (hasPreferredDateRange) {
+			dateConditionCount++;
+		}
+
+		if (dateConditionCount != 1) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+
+		if (hasPreferredDateRange && (preferredStartDate == null || preferredEndDate == null
+			|| preferredStartDate.isAfter(preferredEndDate))) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
 		}
 	}
 

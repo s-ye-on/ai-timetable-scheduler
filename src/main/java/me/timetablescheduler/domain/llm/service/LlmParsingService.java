@@ -112,6 +112,7 @@ public class LlmParsingService {
 
 		TaskPriority priority = parsed.priority() == null ? TaskPriority.NORMAL : parsed.priority();
 
+		/// todo : Task 저장에는 null도 허용하니 보정 코드 삭제
 		PreferredTimeRange timeRange = parsed.preferredTimeRange() == null
 			? PreferredTimeRange.ANYTIME
 			: parsed.preferredTimeRange();

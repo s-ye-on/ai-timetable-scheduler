@@ -1,6 +1,8 @@
 package me.timetablescheduler.domain.task.service;
 
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.service.LlmParsingService;
@@ -33,6 +35,11 @@ public class TaskService {
 			response.title(),
 			response.category(),
 			response.durationMinutes(),
+			response.preferredDate(),
+			response.preferredDayOfWeek(),
+			getPreferredStartDate(response.preferredDateRange()),
+			getPreferredEndDate(response.preferredDateRange()),
+			response.preferredTimeRange(),
 			response.deadline(),
 			response.priority(),
 			response.description()
@@ -57,6 +64,11 @@ public class TaskService {
 			request.title(),
 			request.category(),
 			request.durationMinutes(),
+			request.preferredDate(),
+			request.preferredDayOfWeek(),
+			request.preferredStartDate(),
+			request.preferredEndDate(),
+			request.preferredTimeRange(),
 			request.deadline(),
 			request.priority(),
 			request.description()
@@ -82,6 +94,11 @@ public class TaskService {
 			task.getTitle(),
 			task.getCategory(),
 			task.getDurationMinutes(),
+			task.getPreferredDate(),
+			task.getPreferredDayOfWeek(),
+			task.getPreferredStartDate(),
+			task.getPreferredEndDate(),
+			task.getPreferredTimeRange(),
 			task.getDeadline(),
 			task.getPriority(),
 			task.getDescription(),
@@ -95,6 +112,11 @@ public class TaskService {
 			task.getTitle(),
 			task.getCategory(),
 			task.getDurationMinutes(),
+			task.getPreferredDate(),
+			task.getPreferredDayOfWeek(),
+			task.getPreferredStartDate(),
+			task.getPreferredEndDate(),
+			task.getPreferredTimeRange(),
 			task.getDeadline(),
 			task.getPriority(),
 			task.getDescription(),
@@ -102,5 +124,21 @@ public class TaskService {
 			task.getScheduledEndAt(),
 			task.getStatus()
 		);
+	}
+
+	private LocalDate getPreferredStartDate(DateRange dateRange) {
+		if (dateRange == null) {
+			return null;
+		}
+
+		return dateRange.startDate();
+	}
+
+	private LocalDate getPreferredEndDate(DateRange dateRange) {
+		if (dateRange == null) {
+			return null;
+		}
+
+		return dateRange.endDate();
 	}
 }

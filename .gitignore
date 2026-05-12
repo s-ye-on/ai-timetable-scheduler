@@ -45,6 +45,7 @@ src/main/java/me/timetablescheduler/domain/llm/service/LlmParsingService.md
 src/main/java/me/timetablescheduler/domain/timetable/timetable.md
 src/main/java/me/timetablescheduler/domain/task/task.md
 llm.md
+src/main/java/me/timetablescheduler/domain/recommendation/recommendation.md
 
 ### memo.md ###
 memo.md

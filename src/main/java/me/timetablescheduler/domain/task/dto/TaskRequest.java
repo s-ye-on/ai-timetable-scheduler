@@ -2,7 +2,9 @@ package me.timetablescheduler.domain.task.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskCategory;
 import me.timetablescheduler.domain.task.type.TaskPriority;
 
@@ -25,6 +27,17 @@ public sealed interface TaskRequest
 
 		@NotNull(message = "할 일 소요 시간은 필수입니다.")
 		Integer durationMinutes,
+
+		LocalDate preferredDate,
+
+		DayOfWeek preferredDayOfWeek,
+
+		LocalDate preferredStartDate,
+
+		LocalDate preferredEndDate,
+
+		@NotNull(message = "선호 시간대는 필수입니다.")
+		PreferredTimeRange preferredTimeRange,
 
 		LocalDate deadline,
 
