@@ -7,12 +7,10 @@ import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotResponse;
 import me.timetablescheduler.domain.user.User;
-import me.timetablescheduler.domain.user.UserRepository;
 import me.timetablescheduler.domain.timetable.dto.TimetableSlotRequest;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TimetableSlotException;
-import me.timetablescheduler.global.exception.UserException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,12 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class TimetableSlotService {
 	private final TimetableSlotRepository slotRepository;
-	private final UserRepository userRepository;
-	// private final UserReader userReader;
+	private final UserReader userReader;
 
 	@Transactional
 	public TimetableSlotResponse.Read create(TimetableSlotRequest.Create request, Long userId) {
-		User user = findUser(userId);
+		User user = userReader.read(userId);
 		validateNoOverlap(userId, request.dayOfWeek(), request.startTime(), request.endTime());
 
 		TimetableSlot timetableSlot = TimetableSlot.create(
@@ -75,11 +72,6 @@ public class TimetableSlotService {
 	public void delete(Long slotId, Long userId) {
 		TimetableSlot timetableSlot = findSlot(slotId, userId);
 		slotRepository.delete(timetableSlot);
-	}
-
-	private User findUser(Long userId) {
-		return userRepository.findById(userId)
-			.orElseThrow(() -> new UserException(ExceptionCode.NOT_FOUND_USER));
 	}
 
 	private TimetableSlot findSlot(Long slotId, Long userId) {
