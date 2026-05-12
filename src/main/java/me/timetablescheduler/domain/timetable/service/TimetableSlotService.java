@@ -1,6 +1,8 @@
 package me.timetablescheduler.domain.timetable.service;
 
 import java.util.List;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
@@ -81,9 +83,9 @@ public class TimetableSlotService {
 
 	private void validateNoOverlap(
 		Long userId,
-		java.time.DayOfWeek dayOfWeek,
-		java.time.LocalTime startTime,
-		java.time.LocalTime endTime
+		DayOfWeek dayOfWeek,
+		LocalTime startTime,
+		LocalTime endTime
 	) {
 		if (slotRepository.existsOverlappingSlot(userId, dayOfWeek, startTime, endTime)) {
 			throw new TimetableSlotException(ExceptionCode.CONFLICT_TIMETABLE_SLOT);
@@ -93,9 +95,9 @@ public class TimetableSlotService {
 	private void validateNoOverlapExcept(
 		Long slotId,
 		Long userId,
-		java.time.DayOfWeek dayOfWeek,
-		java.time.LocalTime startTime,
-		java.time.LocalTime endTime
+		DayOfWeek dayOfWeek,
+		LocalTime startTime,
+		LocalTime endTime
 	) {
 		if (slotRepository.existsOverlappingSlotExcept(userId, slotId, dayOfWeek, startTime, endTime)) {
 			throw new TimetableSlotException(ExceptionCode.CONFLICT_TIMETABLE_SLOT);
