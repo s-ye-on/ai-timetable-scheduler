@@ -46,6 +46,7 @@ src/main/java/me/timetablescheduler/domain/timetable/timetable.md
 src/main/java/me/timetablescheduler/domain/task/task.md
 llm.md
 src/main/java/me/timetablescheduler/domain/recommendation/recommendation.md
+src/main/java/me/timetablescheduler/domain/preference/preference.md
 
 ### memo.md ###
 memo.md
