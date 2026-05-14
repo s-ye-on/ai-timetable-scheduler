@@ -65,6 +65,9 @@ public class Preference {
 	@Column(nullable = false, length = 20)
 	private DeadlineTiming deadlineTiming;
 
+	@Column(nullable = false)
+	private boolean customized;
+
 	@Column(nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
@@ -78,7 +81,8 @@ public class Preference {
 		LocalTime scheduleEndTime,
 		Integer minimumGapMinutes,
 		ScheduleDensity scheduleDensity,
-		DeadlineTiming deadlineTiming
+		DeadlineTiming deadlineTiming,
+		boolean customized
 	) {
 		validateRequiredFields(
 			user,
@@ -99,6 +103,7 @@ public class Preference {
 		this.minimumGapMinutes = minimumGapMinutes;
 		this.scheduleDensity = scheduleDensity;
 		this.deadlineTiming = deadlineTiming;
+		this.customized = customized;
 		this.createdAt = OffsetDateTime.now();
 		this.updatedAt = OffsetDateTime.now();
 	}
@@ -111,7 +116,8 @@ public class Preference {
 			DEFAULT_SCHEDULE_END_TIME,
 			DEFAULT_MINIMUM_GAP_MINUTES,
 			DEFAULT_SCHEDULE_DENSITY,
-			DEFAULT_DEADLINE_TIMING
+			DEFAULT_DEADLINE_TIMING,
+			false
 		);
 	}
 
@@ -131,7 +137,8 @@ public class Preference {
 			scheduleEndTime,
 			minimumGapMinutes,
 			scheduleDensity,
-			deadlineTiming
+			deadlineTiming,
+			true
 		);
 	}
 
@@ -161,6 +168,18 @@ public class Preference {
 		this.minimumGapMinutes = minimumGapMinutes;
 		this.scheduleDensity = scheduleDensity;
 		this.deadlineTiming = deadlineTiming;
+		this.customized = true;
+		this.updatedAt = OffsetDateTime.now();
+	}
+
+	public void resetToDefault() {
+		this.preferredTimeRange = DEFAULT_PREFERRED_TIME_RANGE;
+		this.scheduleStartTime = DEFAULT_SCHEDULE_START_TIME;
+		this.scheduleEndTime = DEFAULT_SCHEDULE_END_TIME;
+		this.minimumGapMinutes = DEFAULT_MINIMUM_GAP_MINUTES;
+		this.scheduleDensity = DEFAULT_SCHEDULE_DENSITY;
+		this.deadlineTiming = DEFAULT_DEADLINE_TIMING;
+		this.customized = false;
 		this.updatedAt = OffsetDateTime.now();
 	}
 
@@ -185,7 +204,6 @@ public class Preference {
 		}
 	}
 
-	/// todo : 현재 음수와 5분 단위인지만 검증함. 최소 시간 상한선 추가하기
 	private void validateMinimumGapMinutes(Integer minimumGapMinutes) {
 		if (minimumGapMinutes < 0 || minimumGapMinutes % GAP_MINUTE_UNIT != 0) {
 			throw new PreferenceException(ExceptionCode.INVALID_PREFERENCE_GAP);

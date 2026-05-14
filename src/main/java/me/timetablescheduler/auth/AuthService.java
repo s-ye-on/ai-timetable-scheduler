@@ -9,6 +9,7 @@ import me.timetablescheduler.auth.dto.UserProfileResponse;
 import me.timetablescheduler.auth.jwt.JwtTokenService;
 import me.timetablescheduler.auth.token.RefreshToken;
 import me.timetablescheduler.auth.token.RefreshTokenRepository;
+import me.timetablescheduler.domain.preference.service.PreferenceService;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.UserRepository;
 import me.timetablescheduler.global.exception.AuthException;
@@ -28,6 +29,7 @@ public class AuthService {
 	private final JwtTokenService jwtTokenService;
 	private final PasswordEncoder passwordEncoder;
 	private final Clock clock;
+	private final PreferenceService preferenceService;
 
 	public AuthResponse register(AuthRequest.Register request) {
 		if (userRepository.existsByEmail(request.email())) {
@@ -37,6 +39,8 @@ public class AuthService {
 		User user = userRepository.save(
 			new User(request.name(), request.email(), passwordEncoder.encode(request.password()))
 		);
+		preferenceService.createDefault(user);
+
 		return issueTokens(user);
 	}
 

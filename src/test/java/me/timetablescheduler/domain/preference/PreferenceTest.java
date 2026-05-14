@@ -1,7 +1,9 @@
 package me.timetablescheduler.domain.preference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalTime;
 import me.timetablescheduler.domain.preference.type.DeadlineTiming;
@@ -24,6 +26,7 @@ class PreferenceTest {
 		assertEquals(10, preference.getMinimumGapMinutes());
 		assertEquals(ScheduleDensity.BALANCED, preference.getScheduleDensity());
 		assertEquals(DeadlineTiming.BALANCED, preference.getDeadlineTiming());
+		assertFalse(preference.isCustomized());
 	}
 
 	@Test
@@ -44,6 +47,7 @@ class PreferenceTest {
 		assertEquals(15, preference.getMinimumGapMinutes());
 		assertEquals(ScheduleDensity.RELAXED, preference.getScheduleDensity());
 		assertEquals(DeadlineTiming.ASAP, preference.getDeadlineTiming());
+		assertTrue(preference.isCustomized());
 	}
 
 	@Test
@@ -65,6 +69,30 @@ class PreferenceTest {
 		assertEquals(20, preference.getMinimumGapMinutes());
 		assertEquals(ScheduleDensity.COMPACT, preference.getScheduleDensity());
 		assertEquals(DeadlineTiming.NEAR_DEADLINE, preference.getDeadlineTiming());
+		assertTrue(preference.isCustomized());
+	}
+
+	@Test
+	void 사용자_선호를_기본값으로_되돌린다() {
+		Preference preference = Preference.create(
+			user(),
+			PreferredTimeRange.EVENING,
+			LocalTime.of(10, 0),
+			LocalTime.of(21, 0),
+			15,
+			ScheduleDensity.RELAXED,
+			DeadlineTiming.ASAP
+		);
+
+		preference.resetToDefault();
+
+		assertEquals(PreferredTimeRange.ANYTIME, preference.getPreferredTimeRange());
+		assertEquals(LocalTime.of(9, 0), preference.getScheduleStartTime());
+		assertEquals(LocalTime.of(22, 0), preference.getScheduleEndTime());
+		assertEquals(10, preference.getMinimumGapMinutes());
+		assertEquals(ScheduleDensity.BALANCED, preference.getScheduleDensity());
+		assertEquals(DeadlineTiming.BALANCED, preference.getDeadlineTiming());
+		assertFalse(preference.isCustomized());
 	}
 
 	@Test

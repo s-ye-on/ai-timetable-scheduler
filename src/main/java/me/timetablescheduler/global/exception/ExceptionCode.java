@@ -48,6 +48,7 @@ public enum ExceptionCode {
 	NOT_FOUND_EMAIL(HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
 	NOT_FOUND_TIMESLOT(HttpStatus.NOT_FOUND, "존재하지 않는 수업입니다."),
 	NOT_FOUND_TASK(HttpStatus.NOT_FOUND, "존재하지 않는 할 일 입니다."),
+	NOT_FOUND_PREFERENCE(HttpStatus.NOT_FOUND, "존재하지 않는 사용자 선호입니다."),
 
 	// 409 Conflict
 	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다"),
