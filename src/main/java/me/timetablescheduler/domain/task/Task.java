@@ -10,10 +10,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -84,10 +86,10 @@ public class Task {
 	private TaskStatus status;
 
 	@Column(nullable = false, updatable = false)
-	private OffsetDateTime createAt;
+	private OffsetDateTime createdAt;
 
 	@Column(nullable = false)
-	private OffsetDateTime updateAt;
+	private OffsetDateTime updatedAt;
 
 	private Task(
 		User user,
@@ -120,8 +122,8 @@ public class Task {
 		this.priority = priority;
 		this.description = description;
 		this.status = TaskStatus.UNSCHEDULED;
-		this.createAt = OffsetDateTime.now();
-		this.updateAt = OffsetDateTime.now();
+		this.createdAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	public static Task create(
@@ -182,33 +184,43 @@ public class Task {
 		this.deadline = deadline;
 		this.priority = priority;
 		this.description = description;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	public void schedule(LocalDateTime scheduledStartAt, LocalDateTime scheduledEndAt) {
+		validateStatus(TaskStatus.UNSCHEDULED);
 		validateScheduleTime(scheduledStartAt, scheduledEndAt);
 
 		this.scheduledStartAt = scheduledStartAt;
 		this.scheduledEndAt = scheduledEndAt;
 		this.status = TaskStatus.SCHEDULED;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	public void unschedule() {
+		validateStatus(TaskStatus.SCHEDULED);
+
 		this.scheduledStartAt = null;
 		this.scheduledEndAt = null;
 		this.status = TaskStatus.UNSCHEDULED;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
-	public void complete() {
+	public void complete(LocalDateTime now) {
+		validateStatus(TaskStatus.SCHEDULED);
+		validateCompleteTime(now);
+
 		this.status = TaskStatus.COMPLETED;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	public void cancel() {
+		if (status != TaskStatus.UNSCHEDULED && status != TaskStatus.SCHEDULED) {
+			throw new TaskException(ExceptionCode.INVALID_TASK_STATUS_TRANSITION);
+		}
+
 		this.status = TaskStatus.CANCELED;
-		this.updateAt = OffsetDateTime.now();
+		this.updatedAt = OffsetDateTime.now();
 	}
 
 	private void validateRequiredFields(
@@ -264,6 +276,22 @@ public class Task {
 	private void validateScheduleTime(LocalDateTime scheduledStartAt, LocalDateTime scheduledEndAt) {
 		if (scheduledStartAt == null || scheduledEndAt == null || !scheduledStartAt.isBefore(scheduledEndAt)) {
 			throw new TaskException(ExceptionCode.INVALID_TASK_SCHEDULE_TIME);
+		}
+
+		if (Duration.between(scheduledStartAt, scheduledEndAt).toMinutes() != durationMinutes) {
+			throw new TaskException(ExceptionCode.INVALID_TASK_SCHEDULE_TIME);
+		}
+	}
+
+	private void validateCompleteTime(LocalDateTime now) {
+		if (now == null || now.isBefore(scheduledEndAt)) {
+			throw new TaskException(ExceptionCode.INVALID_TASK_STATUS_TRANSITION);
+		}
+	}
+
+	private void validateStatus(TaskStatus expectedStatus) {
+		if (status != expectedStatus) {
+			throw new TaskException(ExceptionCode.INVALID_TASK_STATUS_TRANSITION);
 		}
 	}
 }

@@ -14,6 +14,7 @@ public enum ExceptionCode {
 	INVALID_TASK(HttpStatus.BAD_REQUEST, "할 일 입력값이 올바르지 않습니다."),
 	INVALID_TASK_DURATION(HttpStatus.BAD_REQUEST, "할 일 소요 시간은 30분 단위의 양수여야 합니다."),
 	INVALID_TASK_SCHEDULE_TIME(HttpStatus.BAD_REQUEST, "할 일 시작 시간은 종료 시간보다 빨라야 합니다."),
+	INVALID_TASK_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "현재 할 일 상태에서는 요청한 상태 변경을 할 수 없습니다."),
 	INVALID_TIMETABLE_SLOT(HttpStatus.BAD_REQUEST, "시간표 입력값이 올바르지 않습니다."),
 	INVALID_TIMETABLE_SLOT_TIME(HttpStatus.BAD_REQUEST, "시간표 시작 시간은 종료 시간보다 빨라야 합니다."),
 	// LLM이 반환한 구조화 결과가 비정상일 때 사용
