@@ -2,7 +2,6 @@ package me.timetablescheduler.domain.preference.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -20,8 +19,6 @@ import me.timetablescheduler.domain.preference.type.ScheduleDensity;
 import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
-import me.timetablescheduler.global.exception.ExceptionCode;
-import me.timetablescheduler.global.exception.PreferenceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -83,12 +80,17 @@ class PreferenceServiceTest {
 	}
 
 	@Test
-	void 사용자_선호가_없으면_조회할_수_없다() {
+	void 사용자_선호가_없으면_조회시_기본값으로_복구한다() {
+		User user = user(1L);
+		when(userReader.read(1L)).thenReturn(user);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
+		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		PreferenceException exception = assertThrows(PreferenceException.class, () -> preferenceService.read(1L));
+		PreferenceResponse.Read response = preferenceService.read(1L);
 
-		assertEquals(ExceptionCode.NOT_FOUND_PREFERENCE, exception.getExceptionCode());
+		assertEquals(PreferredTimeRange.ANYTIME, response.preferredTimeRange());
+		assertFalse(response.customized());
+		verify(preferenceRepository).save(any(Preference.class));
 	}
 
 	@Test
@@ -109,6 +111,26 @@ class PreferenceServiceTest {
 	}
 
 	@Test
+	void 사용자_선호가_없으면_수정시_기본값으로_복구한_뒤_수정한다() {
+		User user = user(1L);
+		PreferenceRequest.Update request = updateRequest();
+		when(userReader.read(1L)).thenReturn(user);
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
+		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		PreferenceResponse.Read response = preferenceService.update(1L, request);
+
+		assertEquals(PreferredTimeRange.EVENING, response.preferredTimeRange());
+		assertEquals(LocalTime.of(10, 0), response.scheduleStartTime());
+		assertEquals(LocalTime.of(21, 0), response.scheduleEndTime());
+		assertEquals(15, response.minimumGapMinutes());
+		assertEquals(ScheduleDensity.RELAXED, response.scheduleDensity());
+		assertEquals(DeadlineTiming.NEAR_DEADLINE, response.deadlineTiming());
+		assertTrue(response.customized());
+		verify(preferenceRepository).save(any(Preference.class));
+	}
+
+	@Test
 	void 사용자_선호를_기본값으로_되돌리면_customized가_false가_된다() {
 		User user = user(1L);
 		Preference preference = Preference.create(
@@ -120,7 +142,6 @@ class PreferenceServiceTest {
 			ScheduleDensity.RELAXED,
 			DeadlineTiming.NEAR_DEADLINE
 		);
-		when(userReader.read(1L)).thenReturn(user);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 
 		PreferenceResponse.Read response = preferenceService.resetToDefault(1L);
