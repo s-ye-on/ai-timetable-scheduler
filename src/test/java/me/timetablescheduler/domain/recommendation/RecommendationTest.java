@@ -29,9 +29,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보_시간이_Task_소요시간과_다르면_생성할_수_없다() {
+		User user = user();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
-			user(),
-			task(),
+			user,
+			task(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 30),
 			1,
@@ -44,9 +45,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보_종료시간이_시작시간보다_빠르거나_같으면_생성할_수_없다() {
+		User user = user();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
-			user(),
-			task(),
+			user,
+			task(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			1,
@@ -59,9 +61,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_순위는_1이상이어야_한다() {
+		User user = user();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
-			user(),
-			task(),
+			user,
+			task(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			0,
@@ -74,9 +77,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_점수는_0이상이어야_한다() {
+		User user = user();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
-			user(),
-			task(),
+			user,
+			task(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			1,
@@ -144,9 +148,10 @@ class RecommendationTest {
 	}
 
 	private Recommendation recommendation() {
+		User user = user();
 		return Recommendation.create(
-			user(),
-			task(),
+			user,
+			task(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			1,
@@ -155,9 +160,9 @@ class RecommendationTest {
 		);
 	}
 
-	private Task task() {
+	private Task task(User user) {
 		return Task.create(
-			user(),
+			user,
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,

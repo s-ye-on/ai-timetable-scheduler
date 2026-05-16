@@ -74,6 +74,7 @@ public class Recommendation {
 		String reason
 	) {
 		validateRequiredFields(user, task, recommendedStartAt, recommendedEndAt, rank, score, reason);
+		validateSameUser(user, task);
 		validateRank(rank);
 		validateScore(score);
 		validateRecommendedTime(task, recommendedStartAt, recommendedEndAt);
@@ -128,6 +129,19 @@ public class Recommendation {
 
 		this.status = RecommendationStatus.SYNCED;
 		this.updatedAt = OffsetDateTime.now();
+	}
+
+	private void validateSameUser(User user, Task task) {
+		if (task.getUser().getId() != null && user.getId() != null) {
+			if (!task.getUser().getId().equals(user.getId())) {
+				throw new RecommendationException(ExceptionCode.INVALID_RECOMMENDATION);
+			}
+			return;
+		}
+
+		if (task.getUser() != user) {
+			throw new RecommendationException(ExceptionCode.INVALID_RECOMMENDATION);
+		}
 	}
 
 	private void validateRequiredFields(
