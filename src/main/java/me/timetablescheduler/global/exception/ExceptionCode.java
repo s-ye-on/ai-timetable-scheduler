@@ -18,6 +18,9 @@ public enum ExceptionCode {
 	INVALID_PREFERENCE(HttpStatus.BAD_REQUEST, "사용자 선호 입력값이 올바르지 않습니다."),
 	INVALID_PREFERENCE_TIME_RANGE(HttpStatus.BAD_REQUEST, "추천 가능 시작 시간은 종료 시간보다 빨라야 합니다."),
 	INVALID_PREFERENCE_GAP(HttpStatus.BAD_REQUEST, "최소 여유 시간은 5분 단위의 0 이상 값이어야 합니다."),
+	INVALID_RECOMMENDATION(HttpStatus.BAD_REQUEST, "추천 후보 입력값이 올바르지 않습니다."),
+	INVALID_RECOMMENDATION_TIME(HttpStatus.BAD_REQUEST, "추천 후보 시간은 할 일 소요 시간과 일치해야 합니다."),
+	INVALID_RECOMMENDATION_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "현재 추천 후보 상태에서는 요청한 상태 변경을 할 수 없습니다."),
 	INVALID_TIMETABLE_SLOT(HttpStatus.BAD_REQUEST, "시간표 입력값이 올바르지 않습니다."),
 	INVALID_TIMETABLE_SLOT_TIME(HttpStatus.BAD_REQUEST, "시간표 시작 시간은 종료 시간보다 빨라야 합니다."),
 	// LLM이 반환한 구조화 결과가 비정상일 때 사용
