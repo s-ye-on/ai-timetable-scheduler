@@ -59,6 +59,8 @@ public class PreferenceService {
 		return toReadResponse(preference);
 	}
 
+	/// 이 부분 회원가입 시 기본값 생성 정책을 택했기 때문에 read에서도 없으면
+	/// 기본값 생성으로 복구하는 것이 더 사용자 친화적일 수도 있겠다 생각이 듬
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseThrow(() -> new PreferenceException(ExceptionCode.NOT_FOUND_PREFERENCE));

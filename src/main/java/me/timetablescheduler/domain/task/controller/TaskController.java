@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.task.controller;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.auth.security.CustomUserDetails;
 import me.timetablescheduler.domain.task.dto.TaskRequest;
@@ -15,6 +16,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/tasks")
 public class TaskController {
 	private final TaskService taskService;
+
+	@GetMapping
+	public List<TaskResponse.Read> readAll(@AuthenticationPrincipal CustomUserDetails userDetails) {
+		return taskService.readAll(userDetails.getId());
+	}
 
 	@GetMapping("/{taskId}")
 	public TaskResponse.Read read(

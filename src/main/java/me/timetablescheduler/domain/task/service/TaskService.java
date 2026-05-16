@@ -1,5 +1,7 @@
 package me.timetablescheduler.domain.task.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
@@ -15,8 +17,6 @@ import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +55,13 @@ public class TaskService {
 		Task task = findTask(taskId, userId);
 
 		return toReadResponse(task);
+	}
+
+	public List<TaskResponse.Read> readAll(Long userId) {
+		return taskRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+			.stream()
+			.map(this::toReadResponse)
+			.toList();
 	}
 
 	@Transactional

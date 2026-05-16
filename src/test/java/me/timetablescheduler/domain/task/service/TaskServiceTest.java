@@ -18,8 +18,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.time.DayOfWeek;
+import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -82,6 +84,20 @@ class TaskServiceTest {
 		assertNull(response.preferredTimeRange());
 	}
 
+	@Test
+	void 사용자의_Task_목록을_최신순으로_조회한다() {
+		Task firstTask = taskWithTitle("첫 번째 과제");
+		Task secondTask = taskWithTitle("두 번째 과제");
+		when(taskRepository.findAllByUserIdOrderByCreatedAtDesc(1L))
+			.thenReturn(List.of(secondTask, firstTask));
+
+		List<TaskResponse.Read> responses = taskService.readAll(1L);
+
+		assertEquals(2, responses.size());
+		assertEquals("두 번째 과제", responses.get(0).title());
+		assertEquals("첫 번째 과제", responses.get(1).title());
+	}
+
 	private ParsedTaskResponse parsedResponse(PreferredTimeRange preferredTimeRange) {
 		return new ParsedTaskResponse(
 			"과제",
@@ -98,9 +114,17 @@ class TaskServiceTest {
 	}
 
 	private Task taskWithPreferredTimeRange(PreferredTimeRange preferredTimeRange) {
+		return taskWithTitleAndPreferredTimeRange("과제", preferredTimeRange);
+	}
+
+	private Task taskWithTitle(String title) {
+		return taskWithTitleAndPreferredTimeRange(title, null);
+	}
+
+	private Task taskWithTitleAndPreferredTimeRange(String title, PreferredTimeRange preferredTimeRange) {
 		return Task.create(
 			user(),
-			"과제",
+			title,
 			TaskCategory.ASSIGNMENT,
 			60,
 			null,
