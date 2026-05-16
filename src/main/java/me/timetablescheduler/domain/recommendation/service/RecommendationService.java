@@ -1,6 +1,5 @@
 package me.timetablescheduler.domain.recommendation.service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -9,6 +8,9 @@ import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
+import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
+import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
+import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
@@ -30,6 +32,7 @@ public class RecommendationService {
 	private final PreferenceRepository preferenceRepository;
 	private final TimetableSlotRepository timetableSlotRepository;
 	private final UserReader userReader;
+	private final RecommendationPolicy recommendationPolicy;
 
 	@Transactional
 	public List<Recommendation> recommend(Long userId, Long taskId) {
@@ -38,7 +41,9 @@ public class RecommendationService {
 		Preference preference = findPreference(userId);
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
 
-		List<CandidateSlot> candidates = generateCandidateSlots(task, preference, timetableSlots);
+		expireExistingProposedRecommendations(taskId, userId);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, timetableSlots);
 
 		List<CandidateSlot> topCandidates = candidates.stream()
 			.sorted(Comparator.comparingInt(CandidateSlot::score).reversed())
@@ -61,15 +66,13 @@ public class RecommendationService {
 			));
 		}
 
+		/// todo : list 그대로 반환중 RecommendationResponse.Read로 반환
 		return recommendationRepository.saveAll(recommendations);
 	}
 
-	private List<CandidateSlot> generateCandidateSlots(
-		Task task,
-		Preference preference,
-		List<TimetableSlot> timetableSlots
-	) {
-		return List.of();
+	private void expireExistingProposedRecommendations(Long taskId, Long userId) {
+		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
+			.forEach(Recommendation::expire);
 	}
 
 	private Task findTask(Long taskId, Long userId) {
@@ -80,13 +83,5 @@ public class RecommendationService {
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseThrow(() -> new PreferenceException(ExceptionCode.NOT_FOUND_PREFERENCE));
-	}
-
-	private record CandidateSlot(
-		LocalDateTime startAt,
-		LocalDateTime endAt,
-		int score,
-		String reason
-	) {
 	}
 }
