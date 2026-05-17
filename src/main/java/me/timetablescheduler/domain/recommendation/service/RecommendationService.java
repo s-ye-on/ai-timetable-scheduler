@@ -40,6 +40,7 @@ public class RecommendationService {
 	public List<RecommendationResponse.Read> recommend(Long userId, Long taskId) {
 		User user = userReader.read(userId);
 		Task task = findTask(taskId, userId);
+		task.validateRecommendable();
 		Preference preference = findPreference(userId);
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
 

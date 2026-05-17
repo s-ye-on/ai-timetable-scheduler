@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.recommendation.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import java.time.DayOfWeek;
@@ -23,6 +24,8 @@ import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
+import me.timetablescheduler.global.exception.ExceptionCode;
+import me.timetablescheduler.global.exception.TaskException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -130,6 +133,26 @@ class RecommendationServiceTest {
 		assertEquals(2, savedRecommendations.get(1).getRank());
 		assertEquals(70, savedRecommendations.get(2).getScore());
 		assertEquals(3, savedRecommendations.get(2).getRank());
+	}
+
+	@Test
+	void 이미_스케줄된_Task는_추천을_생성할_수_없다() {
+		User user = user(1L);
+		Task task = task(user);
+		task.schedule(
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0)
+		);
+
+		when(userReader.read(1L)).thenReturn(user);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+
+		TaskException exception = assertThrows(
+			TaskException.class,
+			() -> recommendationService.recommend(1L, 10L)
+		);
+
+		assertEquals(ExceptionCode.INVALID_TASK_STATUS_TRANSITION, exception.getExceptionCode());
 	}
 
 	@Test

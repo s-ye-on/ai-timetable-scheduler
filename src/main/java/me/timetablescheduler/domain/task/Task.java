@@ -226,6 +226,12 @@ public class Task {
 		this.updatedAt = OffsetDateTime.now();
 	}
 
+	public void validateRecommendable() {
+		if (status != TaskStatus.UNSCHEDULED) {
+			throw new TaskException(ExceptionCode.INVALID_TASK_STATUS_TRANSITION);
+		}
+	}
+
 	private void validateRequiredFields(
 		User user,
 		String title,
