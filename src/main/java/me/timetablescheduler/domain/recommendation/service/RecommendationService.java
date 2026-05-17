@@ -8,6 +8,7 @@ import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
+import me.timetablescheduler.domain.recommendation.dto.RecommendationResponse;
 import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
 import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
@@ -19,6 +20,7 @@ import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.PreferenceException;
+import me.timetablescheduler.global.exception.RecommendationException;
 import me.timetablescheduler.global.exception.TaskException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +37,7 @@ public class RecommendationService {
 	private final RecommendationPolicy recommendationPolicy;
 
 	@Transactional
-	public List<Recommendation> recommend(Long userId, Long taskId) {
+	public List<RecommendationResponse.Read> recommend(Long userId, Long taskId) {
 		User user = userReader.read(userId);
 		Task task = findTask(taskId, userId);
 		Preference preference = findPreference(userId);
@@ -66,8 +68,35 @@ public class RecommendationService {
 			));
 		}
 
-		/// todo : list 그대로 반환중 RecommendationResponse.Read로 반환
-		return recommendationRepository.saveAll(recommendations);
+		return recommendationRepository.saveAll(recommendations)
+			.stream()
+			.map(this::toReadResponse)
+			.toList();
+	}
+
+	public List<RecommendationResponse.Read> readProposedByTask(Long userId, Long taskId) {
+		findTask(taskId, userId);
+
+		return recommendationRepository.findAllByTaskIdAndUserIdAndStatusOrderByRankAsc(
+				taskId,
+				userId,
+				RecommendationStatus.PROPOSED
+			)
+			.stream()
+			.map(this::toReadResponse)
+			.toList();
+	}
+
+	@Transactional
+	public RecommendationResponse.Read select(Long userId, Long recommendationId) {
+		Recommendation recommendation = findRecommendation(recommendationId, userId);
+		Task task = recommendation.getTask();
+
+		recommendation.select();
+		task.schedule(recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
+		expireExistingProposedRecommendations(task.getId(), userId);
+
+		return toReadResponse(recommendation);
 	}
 
 	private void expireExistingProposedRecommendations(Long taskId, Long userId) {
@@ -80,8 +109,28 @@ public class RecommendationService {
 			.orElseThrow(() -> new TaskException(ExceptionCode.NOT_FOUND_TASK));
 	}
 
+	private Recommendation findRecommendation(Long recommendationId, Long userId) {
+		return recommendationRepository.findByIdAndUserId(recommendationId, userId)
+			.orElseThrow(() -> new RecommendationException(ExceptionCode.NOT_FOUND_RECOMMENDATION));
+	}
+
+	/// todo : preference 없을 시 예외를 던지는데, preferenceService에서는 기본값 생성으로 복구
+	/// 여기 부분도 기본값 생성으로 복구하도록 만들자
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseThrow(() -> new PreferenceException(ExceptionCode.NOT_FOUND_PREFERENCE));
+	}
+
+	private RecommendationResponse.Read toReadResponse(Recommendation recommendation) {
+		return new RecommendationResponse.Read(
+			recommendation.getId(),
+			recommendation.getTask().getId(),
+			recommendation.getRecommendedStartAt(),
+			recommendation.getRecommendedEndAt(),
+			recommendation.getRank(),
+			recommendation.getScore(),
+			recommendation.getReason(),
+			recommendation.getStatus()
+		);
 	}
 }

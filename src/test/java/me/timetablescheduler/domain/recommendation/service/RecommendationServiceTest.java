@@ -11,9 +11,11 @@ import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
+import me.timetablescheduler.domain.recommendation.dto.RecommendationResponse;
 import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
 import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
+import me.timetablescheduler.domain.task.type.TaskStatus;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
 import me.timetablescheduler.domain.task.type.TaskCategory;
@@ -87,12 +89,12 @@ class RecommendationServiceTest {
 		when(recommendationPolicy.generateCandidates(task, preference, List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
-		List<Recommendation> recommendations = recommendationService.recommend(1L, 10L);
+		List<RecommendationResponse.Read> recommendations = recommendationService.recommend(1L, 10L);
 
 		assertEquals(RecommendationStatus.EXPIRED, existingRecommendation.getStatus());
 		assertEquals(1, recommendations.size());
-		assertEquals(1, recommendations.get(0).getRank());
-		assertEquals(90, recommendations.get(0).getScore());
+		assertEquals(1, recommendations.get(0).rank());
+		assertEquals(90, recommendations.get(0).score());
 	}
 
 	@Test
@@ -128,6 +130,43 @@ class RecommendationServiceTest {
 		assertEquals(2, savedRecommendations.get(1).getRank());
 		assertEquals(70, savedRecommendations.get(2).getScore());
 		assertEquals(3, savedRecommendations.get(2).getRank());
+	}
+
+	@Test
+	void 추천_후보를_선택하면_Task가_스케줄되고_기존_PROPOSED_후보를_만료한다() {
+		User user = user(1L);
+		Task task = task(user);
+		ReflectionTestUtils.setField(task, "id", 10L);
+		Recommendation recommendation = Recommendation.create(
+			user,
+			task,
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0),
+			1,
+			90,
+			"선택할 추천"
+		);
+		Recommendation otherRecommendation = Recommendation.create(
+			user,
+			task,
+			LocalDateTime.of(2026, 5, 18, 10, 0),
+			LocalDateTime.of(2026, 5, 18, 11, 0),
+			2,
+			80,
+			"다른 추천"
+		);
+
+		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of(otherRecommendation));
+
+		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
+
+		assertEquals(RecommendationStatus.SELECTED, recommendation.getStatus());
+		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
+		assertEquals(RecommendationStatus.EXPIRED, otherRecommendation.getStatus());
+		assertEquals(RecommendationStatus.SELECTED, response.status());
+		assertEquals(LocalDateTime.of(2026, 5, 18, 9, 0), response.recommendedStartAt());
 	}
 
 	private CandidateSlot candidate(int score, int hour) {

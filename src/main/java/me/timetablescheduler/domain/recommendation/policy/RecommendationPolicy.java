@@ -144,6 +144,8 @@ public class RecommendationPolicy {
 			&& !end.toLocalTime().isAfter(preferredTimeRange.getEndTime());
 	}
 
+	///todo: 추천 날짜가 deadLine보다 이후라면 score 계산을 할 것이 아니라, 이 추천 날짜는 폐기해야함
+	/// 마감 당일날 배치는 위험함 마감 하루전 또는 이틀전이 안전할 것이라 생각됨
 	private int calculateDeadlineScore(Task task, Preference preference, LocalDate candidateDate) {
 		if (candidateDate.isAfter(task.getDeadline())) {
 			return 0;
@@ -162,6 +164,7 @@ public class RecommendationPolicy {
 		return Math.max(0, DEADLINE_BALANCED_MAX_SCORE - Math.abs((int) daysUntilDeadline - 2));
 	}
 
+	/// 우선 순위 점수 계산도 방식이 뭔가 좀 이상한 것 같음
 	private int calculatePriorityScore(Task task) {
 		if (task.getPriority() == TaskPriority.HIGH) {
 			return PRIORITY_HIGH_SCORE;
@@ -174,6 +177,7 @@ public class RecommendationPolicy {
 		return 0;
 	}
 
+	/// todo : 시간표와의 거리 기반으로 계산하는 것으로 변경
 	private int calculateDensityScore(Preference preference, LocalDateTime start, LocalDateTime end) {
 		int durationMinutes = (int) java.time.Duration.between(start, end).toMinutes();
 
