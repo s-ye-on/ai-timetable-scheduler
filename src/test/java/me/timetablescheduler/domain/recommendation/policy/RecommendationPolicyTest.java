@@ -18,6 +18,7 @@ import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.user.User;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class RecommendationPolicyTest {
 
@@ -109,6 +110,50 @@ class RecommendationPolicyTest {
 	}
 
 	@Test
+	void 우선순위가_높으면_기준일에_가까운_후보가_더_높은_점수를_받는다() {
+		User user = user();
+		LocalDate today = LocalDate.now();
+		Task task = Task.create(
+			user,
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			null,
+			null,
+			today,
+			today.plusDays(2),
+			null,
+			null,
+			TaskPriority.HIGH,
+			"이번 주 안에 과제할 시간 잡아줘"
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(10, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
+
+		int todayScore = candidates.stream()
+			.filter(candidate -> candidate.startAt().toLocalDate().equals(today))
+			.findFirst()
+			.orElseThrow()
+			.score();
+		int laterScore = candidates.stream()
+			.filter(candidate -> candidate.startAt().toLocalDate().equals(today.plusDays(2)))
+			.findFirst()
+			.orElseThrow()
+			.score();
+
+		assertTrue(todayScore > laterScore);
+	}
+
+	@Test
 	void deadline_이후_날짜의_추천_후보는_생성하지_않는다() {
 		User user = user();
 		Task task = Task.create(
@@ -168,6 +213,33 @@ class RecommendationPolicyTest {
 
 		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 0))));
 		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 30))));
+	}
+
+	@Test
+	void scheduledTasks에_현재_Task가_포함되어도_자기_자신은_충돌_대상에서_제외한다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		ReflectionTestUtils.setField(task, "id", 1L);
+		ReflectionTestUtils.setField(task, "scheduledStartAt", LocalDate.of(2026, 5, 18).atTime(10, 0));
+		ReflectionTestUtils.setField(task, "scheduledEndAt", LocalDate.of(2026, 5, 18).atTime(11, 0));
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(12, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(),
+			List.of(task)
+		);
+
+		assertEquals(5, candidates.size());
 	}
 
 	private Task taskWithPreferredDate(User user, LocalDate preferredDate) {

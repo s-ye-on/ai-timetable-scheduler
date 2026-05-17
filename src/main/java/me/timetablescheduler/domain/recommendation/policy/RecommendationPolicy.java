@@ -2,6 +2,7 @@ package me.timetablescheduler.domain.recommendation.policy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,7 +11,6 @@ import me.timetablescheduler.domain.preference.type.DeadlineTiming;
 import me.timetablescheduler.domain.preference.type.ScheduleDensity;
 import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.Task;
-import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
 import org.springframework.stereotype.Component;
 
@@ -18,8 +18,6 @@ import org.springframework.stereotype.Component;
 public class RecommendationPolicy {
 	private static final int BASE_SCORE = 50;
 	private static final int PREFERRED_TIME_RANGE_SCORE = 30;
-	private static final int PRIORITY_HIGH_SCORE = 15;
-	private static final int PRIORITY_NORMAL_SCORE = 5;
 	private static final int DENSITY_COMPACT_SCORE = 10;
 	private static final int DENSITY_RELAXED_SCORE = 10;
 	private static final int DEADLINE_ASAP_MAX_SCORE = 20;
@@ -32,6 +30,7 @@ public class RecommendationPolicy {
 		List<TimetableSlot> timetableSlots,
 		List<Task> scheduledTasks
 	) {
+		LocalDate baseDate = LocalDate.now();
 		List<LocalDate> dates = resolveCandidateDates(task);
 
 		List<CandidateSlot> candidates = new ArrayList<>();
@@ -47,13 +46,20 @@ public class RecommendationPolicy {
 			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(endLimit)) {
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 
-				if (!conflictsWithTimetable(start, end, timetableSlots, preference.getMinimumGapMinutes())
-					&& !conflictsWithScheduledTask(start, end, scheduledTasks, preference.getMinimumGapMinutes())) {
-					int score = calculateScore(task, preference, start, end);
-					String reason = buildReason(task, preference, start, end, score);
-
-					candidates.add(new CandidateSlot(start, end, score, reason));
+				if (conflictsWithTimetable(start, end, timetableSlots, preference.getMinimumGapMinutes())) {
+					start = start.plusMinutes(30);
+					continue;
 				}
+
+				if (conflictsWithScheduledTask(task, start, end, scheduledTasks, preference.getMinimumGapMinutes())) {
+					start = start.plusMinutes(30);
+					continue;
+				}
+
+				int score = calculateScore(task, preference, start, end, baseDate);
+				String reason = buildReason(task, preference, start, end, score);
+
+				candidates.add(new CandidateSlot(start, end, score, reason));
 				start = start.plusMinutes(30);
 			}
 		}
@@ -112,12 +118,14 @@ public class RecommendationPolicy {
 	}
 
 	private boolean conflictsWithScheduledTask(
+		Task currentTask,
 		LocalDateTime start,
 		LocalDateTime end,
 		List<Task> scheduledTasks,
 		int minimumGapMinutes
 	) {
 		return scheduledTasks.stream()
+			.filter(task -> !isSameTask(task, currentTask))
 			.filter(task -> task.getScheduledStartAt() != null && task.getScheduledEndAt() != null)
 			.anyMatch(task -> {
 				LocalDateTime blockedStartAt = task.getScheduledStartAt().minusMinutes(minimumGapMinutes);
@@ -127,11 +135,20 @@ public class RecommendationPolicy {
 			});
 	}
 
+	private boolean isSameTask(Task task, Task currentTask) {
+		if (task.getId() != null && currentTask.getId() != null) {
+			return task.getId().equals(currentTask.getId());
+		}
+
+		return task == currentTask;
+	}
+
 	private int calculateScore(
 		Task task,
 		Preference preference,
 		LocalDateTime start,
-		LocalDateTime end
+		LocalDateTime end,
+		LocalDate baseDate
 	) {
 		int score = BASE_SCORE;
 
@@ -147,7 +164,7 @@ public class RecommendationPolicy {
 			score += calculateDeadlineScore(task, preference, start.toLocalDate());
 		}
 
-		score += calculatePriorityScore(task);
+		score += calculatePriorityScore(task, start.toLocalDate(), baseDate);
 		score += calculateDensityScore(preference, start, end);
 
 		return score;
@@ -189,17 +206,10 @@ public class RecommendationPolicy {
 		return task.getDeadline() != null && candidateDate.isAfter(task.getDeadline());
 	}
 
-	/// 우선 순위 점수 계산도 방식이 뭔가 좀 이상한 것 같음
-	private int calculatePriorityScore(Task task) {
-		if (task.getPriority() == TaskPriority.HIGH) {
-			return PRIORITY_HIGH_SCORE;
-		}
+	private int calculatePriorityScore(Task task, LocalDate candidateDate, LocalDate baseDate) {
+		long daysFromBase = ChronoUnit.DAYS.between(baseDate, candidateDate);
 
-		if (task.getPriority() == TaskPriority.NORMAL) {
-			return PRIORITY_NORMAL_SCORE;
-		}
-
-		return 0;
+		return task.getPriority().calculateDateScore(daysFromBase);
 	}
 
 	/// todo : 시간표와의 거리 기반으로 계산하는 것으로 변경
