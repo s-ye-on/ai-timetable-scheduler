@@ -87,9 +87,10 @@ class RecommendationServiceTest {
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of(existingRecommendation));
-		when(recommendationPolicy.generateCandidates(task, preference, List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		List<RecommendationResponse.Read> recommendations = recommendationService.recommend(1L, 10L);
@@ -116,9 +117,10 @@ class RecommendationServiceTest {
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(task, preference, List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		recommendationService.recommend(1L, 10L);
@@ -146,9 +148,15 @@ class RecommendationServiceTest {
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
 		when(preferenceRepository.save(Mockito.any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(Mockito.eq(task), Mockito.any(Preference.class), Mockito.eq(List.of())))
+		when(recommendationPolicy.generateCandidates(
+				Mockito.eq(task),
+				Mockito.any(Preference.class),
+				Mockito.eq(List.of()),
+				Mockito.eq(List.of())
+			))
 			.thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 

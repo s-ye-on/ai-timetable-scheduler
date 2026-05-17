@@ -29,7 +29,8 @@ public class RecommendationPolicy {
 	public List<CandidateSlot> generateCandidates(
 		Task task,
 		Preference preference,
-		List<TimetableSlot> timetableSlots
+		List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks
 	) {
 		List<LocalDate> dates = resolveCandidateDates(task);
 
@@ -46,7 +47,8 @@ public class RecommendationPolicy {
 			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(endLimit)) {
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 
-				if (!conflictsWithTimetable(start, end, timetableSlots, preference.getMinimumGapMinutes())) {
+				if (!conflictsWithTimetable(start, end, timetableSlots, preference.getMinimumGapMinutes())
+					&& !conflictsWithScheduledTask(start, end, scheduledTasks, preference.getMinimumGapMinutes())) {
 					int score = calculateScore(task, preference, start, end);
 					String reason = buildReason(task, preference, start, end, score);
 
@@ -104,6 +106,22 @@ public class RecommendationPolicy {
 					.minusMinutes(minimumGapMinutes);
 				LocalDateTime blockedEndAt = LocalDateTime.of(start.toLocalDate(), slot.getEndTime())
 					.plusMinutes(minimumGapMinutes);
+
+				return start.isBefore(blockedEndAt) && end.isAfter(blockedStartAt);
+			});
+	}
+
+	private boolean conflictsWithScheduledTask(
+		LocalDateTime start,
+		LocalDateTime end,
+		List<Task> scheduledTasks,
+		int minimumGapMinutes
+	) {
+		return scheduledTasks.stream()
+			.filter(task -> task.getScheduledStartAt() != null && task.getScheduledEndAt() != null)
+			.anyMatch(task -> {
+				LocalDateTime blockedStartAt = task.getScheduledStartAt().minusMinutes(minimumGapMinutes);
+				LocalDateTime blockedEndAt = task.getScheduledEndAt().plusMinutes(minimumGapMinutes);
 
 				return start.isBefore(blockedEndAt) && end.isAfter(blockedStartAt);
 			});
@@ -185,6 +203,8 @@ public class RecommendationPolicy {
 	}
 
 	/// todo : 시간표와의 거리 기반으로 계산하는 것으로 변경
+	/// todo : 이미 scheduled된 task와 google calendar의 일정도 같이 고려해야할 듯 함
+	/// 1차적으로는 google calendar 일정 고려는 제외
 	private int calculateDensityScore(Preference preference, LocalDateTime start, LocalDateTime end) {
 		int durationMinutes = (int) java.time.Duration.between(start, end).toMinutes();
 

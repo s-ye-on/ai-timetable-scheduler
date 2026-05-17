@@ -24,7 +24,7 @@ public class RecommendationController {
 		return recommendationService.recommend(userDetails.getId(), taskId);
 	}
 
-	@GetMapping("/tasks/{taskId}/recommendation")
+	@GetMapping("/tasks/{taskId}/recommendations")
 	public List<RecommendationResponse.Read> readProposedByTask(
 		@PathVariable Long taskId,
 		@AuthenticationPrincipal CustomUserDetails userDetails

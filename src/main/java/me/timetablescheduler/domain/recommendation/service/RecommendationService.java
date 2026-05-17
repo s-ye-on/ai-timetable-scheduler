@@ -15,6 +15,7 @@ import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
+import me.timetablescheduler.domain.task.type.TaskStatus;
 import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.user.User;
@@ -43,10 +44,16 @@ public class RecommendationService {
 		task.validateRecommendable();
 		Preference preference = findPreference(userId);
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
+		List<Task> scheduledTasks = taskRepository.findAllByUserIdAndStatus(userId, TaskStatus.SCHEDULED);
 
 		expireExistingProposedRecommendations(taskId, userId);
 
-		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, timetableSlots);
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			timetableSlots,
+			scheduledTasks
+		);
 
 		List<CandidateSlot> topCandidates = candidates.stream()
 			.sorted(Comparator.comparingInt(CandidateSlot::score).reversed())

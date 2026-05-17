@@ -37,7 +37,7 @@ class RecommendationPolicyTest {
 			DeadlineTiming.BALANCED
 		);
 
-		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of());
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
 		assertEquals(3, candidates.size());
 		assertEquals(LocalTime.of(9, 0), candidates.get(0).startAt().toLocalTime());
@@ -67,7 +67,12 @@ class RecommendationPolicyTest {
 			LocalTime.of(11, 0)
 		);
 
-		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(timetableSlot));
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(timetableSlot),
+			List.of()
+		);
 
 		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 0))));
 		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 30))));
@@ -87,7 +92,7 @@ class RecommendationPolicyTest {
 			DeadlineTiming.BALANCED
 		);
 
-		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of());
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
 		int morningScore = candidates.stream()
 			.filter(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(9, 0)))
@@ -130,9 +135,39 @@ class RecommendationPolicyTest {
 			DeadlineTiming.BALANCED
 		);
 
-		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of());
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
 		assertTrue(candidates.isEmpty());
+	}
+
+	@Test
+	void 이미_확정된_Task와_겹치는_추천_후보는_제외한다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		Task scheduledTask = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		scheduledTask.schedule(
+			LocalDate.of(2026, 5, 18).atTime(10, 0),
+			LocalDate.of(2026, 5, 18).atTime(11, 0)
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(12, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(),
+			List.of(scheduledTask)
+		);
+
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 0))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 30))));
 	}
 
 	private Task taskWithPreferredDate(User user, LocalDate preferredDate) {
