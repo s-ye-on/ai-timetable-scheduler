@@ -3,6 +3,7 @@ package me.timetablescheduler.domain.recommendation.service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
@@ -19,7 +20,6 @@ import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.ExceptionCode;
-import me.timetablescheduler.global.exception.PreferenceException;
 import me.timetablescheduler.global.exception.RecommendationException;
 import me.timetablescheduler.global.exception.TaskException;
 import org.springframework.stereotype.Service;
@@ -134,11 +134,12 @@ public class RecommendationService {
 			.orElseThrow(() -> new RecommendationException(ExceptionCode.NOT_FOUND_RECOMMENDATION));
 	}
 
-	/// todo : preference 없을 시 예외를 던지는데, preferenceService에서는 기본값 생성으로 복구
-	/// 여기 부분도 기본값 생성으로 복구하도록 만들자
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
-			.orElseThrow(() -> new PreferenceException(ExceptionCode.NOT_FOUND_PREFERENCE));
+			.orElseGet(() -> {
+				User user = userReader.read(userId);
+				return preferenceRepository.save(Preference.createDefault(user));
+			});
 	}
 
 	private RecommendationResponse.Read toReadResponse(Recommendation recommendation) {

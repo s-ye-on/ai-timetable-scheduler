@@ -36,6 +36,10 @@ public class RecommendationPolicy {
 		List<CandidateSlot> candidates = new ArrayList<>();
 
 		for (LocalDate date : dates) {
+			if (isAfterDeadline(task, date)) {
+				continue;
+			}
+
 			LocalDateTime start = LocalDateTime.of(date, preference.getScheduleStartTime());
 			LocalDateTime endLimit = LocalDateTime.of(date, preference.getScheduleEndTime());
 
@@ -144,7 +148,6 @@ public class RecommendationPolicy {
 			&& !end.toLocalTime().isAfter(preferredTimeRange.getEndTime());
 	}
 
-	///todo: 추천 날짜가 deadLine보다 이후라면 score 계산을 할 것이 아니라, 이 추천 날짜는 폐기해야함
 	/// 마감 당일날 배치는 위험함 마감 하루전 또는 이틀전이 안전할 것이라 생각됨
 	private int calculateDeadlineScore(Task task, Preference preference, LocalDate candidateDate) {
 		if (candidateDate.isAfter(task.getDeadline())) {
@@ -162,6 +165,10 @@ public class RecommendationPolicy {
 		}
 
 		return Math.max(0, DEADLINE_BALANCED_MAX_SCORE - Math.abs((int) daysUntilDeadline - 2));
+	}
+
+	private boolean isAfterDeadline(Task task, LocalDate candidateDate) {
+		return task.getDeadline() != null && candidateDate.isAfter(task.getDeadline());
 	}
 
 	/// 우선 순위 점수 계산도 방식이 뭔가 좀 이상한 것 같음

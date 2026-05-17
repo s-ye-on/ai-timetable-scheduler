@@ -103,6 +103,38 @@ class RecommendationPolicyTest {
 		assertTrue(morningScore > lunchScore);
 	}
 
+	@Test
+	void deadline_이후_날짜의_추천_후보는_생성하지_않는다() {
+		User user = user();
+		Task task = Task.create(
+			user,
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			LocalDate.of(2026, 5, 19),
+			null,
+			null,
+			null,
+			null,
+			LocalDate.of(2026, 5, 18),
+			TaskPriority.NORMAL,
+			"마감 이후 후보는 제외"
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(11, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of());
+
+		assertTrue(candidates.isEmpty());
+	}
+
 	private Task taskWithPreferredDate(User user, LocalDate preferredDate) {
 		return Task.create(
 			user,

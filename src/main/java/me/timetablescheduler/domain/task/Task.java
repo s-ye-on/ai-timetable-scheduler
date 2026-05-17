@@ -157,8 +157,6 @@ public class Task {
 		);
 	}
 
-	/// 상태 검증 없이 durationMinutes까지 변경 가능함
-	/// scheduled 상태에서는 duration을 바꾸면 불일치 문제가 있을 수 있어 제한이 필요함
 	public void updateDetails(
 		String title,
 		TaskCategory category,
@@ -172,6 +170,7 @@ public class Task {
 		TaskPriority priority,
 		String description
 	) {
+		validateStatus(TaskStatus.UNSCHEDULED);
 		validateRequiredFields(this.user, title, category, durationMinutes, priority);
 		validateDuration(durationMinutes);
 		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);

@@ -60,6 +60,27 @@ class TaskTest {
 	}
 
 	@Test
+	void 스케줄된_Task는_상세정보를_수정할_수_없다() {
+		Task task = scheduledTask();
+
+		TaskException exception = assertThrows(TaskException.class, () -> task.updateDetails(
+			"수정된 과제",
+			TaskCategory.ASSIGNMENT,
+			90,
+			null,
+			DayOfWeek.TUESDAY,
+			null,
+			null,
+			null,
+			null,
+			TaskPriority.NORMAL,
+			"수정 요청"
+		));
+
+		assertEquals(ExceptionCode.INVALID_TASK_STATUS_TRANSITION, exception.getExceptionCode());
+	}
+
+	@Test
 	void 날짜조건이_없으면_Task를_생성할_수_없다() {
 		TaskException exception = assertThrows(TaskException.class, () -> Task.create(
 			user(),

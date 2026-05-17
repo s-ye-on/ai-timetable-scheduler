@@ -136,6 +136,30 @@ class RecommendationServiceTest {
 	}
 
 	@Test
+	void 사용자_선호가_없으면_기본값을_생성해서_추천에_사용한다() {
+		User user = user(1L);
+		Task task = task(user);
+		List<CandidateSlot> candidateSlots = List.of(candidate(90, 10));
+
+		when(userReader.read(1L)).thenReturn(user);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
+		when(preferenceRepository.save(Mockito.any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of());
+		when(recommendationPolicy.generateCandidates(Mockito.eq(task), Mockito.any(Preference.class), Mockito.eq(List.of())))
+			.thenReturn(candidateSlots);
+		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		List<RecommendationResponse.Read> recommendations = recommendationService.recommend(1L, 10L);
+
+		assertEquals(1, recommendations.size());
+		assertEquals(90, recommendations.get(0).score());
+		Mockito.verify(preferenceRepository).save(Mockito.any(Preference.class));
+	}
+
+	@Test
 	void 이미_스케줄된_Task는_추천을_생성할_수_없다() {
 		User user = user(1L);
 		Task task = task(user);
