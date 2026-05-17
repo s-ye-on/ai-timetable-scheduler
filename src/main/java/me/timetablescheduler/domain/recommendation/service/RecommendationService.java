@@ -95,7 +95,7 @@ public class RecommendationService {
 
 		recommendation.select();
 		task.schedule(recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
-		expireExistingProposedRecommendations(task.getId(), userId);
+		rejectOtherProposedRecommendations(task.getId(), userId, recommendation);
 
 		return toReadResponse(recommendation);
 	}
@@ -103,6 +103,25 @@ public class RecommendationService {
 	private void expireExistingProposedRecommendations(Long taskId, Long userId) {
 		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
 			.forEach(Recommendation::expire);
+	}
+
+	private void rejectOtherProposedRecommendations(
+		Long taskId,
+		Long userId,
+		Recommendation selectedRecommendation
+	) {
+		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
+			.stream()
+			.filter(recommendation -> !isSameRecommendation(recommendation, selectedRecommendation))
+			.forEach(Recommendation::reject);
+	}
+
+	private boolean isSameRecommendation(Recommendation recommendation, Recommendation selectedRecommendation) {
+		if (recommendation.getId() != null && selectedRecommendation.getId() != null) {
+			return recommendation.getId().equals(selectedRecommendation.getId());
+		}
+
+		return recommendation == selectedRecommendation;
 	}
 
 	private Task findTask(Long taskId, Long userId) {

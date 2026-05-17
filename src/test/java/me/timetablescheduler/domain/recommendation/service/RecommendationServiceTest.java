@@ -156,7 +156,7 @@ class RecommendationServiceTest {
 	}
 
 	@Test
-	void 추천_후보를_선택하면_Task가_스케줄되고_기존_PROPOSED_후보를_만료한다() {
+	void 추천_후보를_선택하면_Task가_스케줄되고_나머지_PROPOSED_후보를_거절한다() {
 		User user = user(1L);
 		Task task = task(user);
 		ReflectionTestUtils.setField(task, "id", 10L);
@@ -187,7 +187,7 @@ class RecommendationServiceTest {
 
 		assertEquals(RecommendationStatus.SELECTED, recommendation.getStatus());
 		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
-		assertEquals(RecommendationStatus.EXPIRED, otherRecommendation.getStatus());
+		assertEquals(RecommendationStatus.REJECTED, otherRecommendation.getStatus());
 		assertEquals(RecommendationStatus.SELECTED, response.status());
 		assertEquals(LocalDateTime.of(2026, 5, 18, 9, 0), response.recommendedStartAt());
 	}
