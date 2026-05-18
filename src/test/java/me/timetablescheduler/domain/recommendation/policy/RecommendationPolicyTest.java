@@ -216,6 +216,49 @@ class RecommendationPolicyTest {
 	}
 
 	@Test
+	void 시간표와_이미_확정된_Task를_모두_고려해서_추천_후보를_생성한다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		TimetableSlot timetableSlot = TimetableSlot.create(
+			user,
+			"운영체제",
+			DayOfWeek.MONDAY,
+			"공학관",
+			LocalTime.of(10, 0),
+			LocalTime.of(11, 0)
+		);
+		Task scheduledTask = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		scheduledTask.schedule(
+			LocalDate.of(2026, 5, 18).atTime(12, 0),
+			LocalDate.of(2026, 5, 18).atTime(13, 0)
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(14, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(timetableSlot),
+			List.of(scheduledTask)
+		);
+
+		assertTrue(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(9, 0))));
+		assertTrue(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(11, 0))));
+		assertTrue(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(13, 0))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 0))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 30))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(12, 0))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(12, 30))));
+	}
+
+	@Test
 	void scheduledTasks에_현재_Task가_포함되어도_자기_자신은_충돌_대상에서_제외한다() {
 		User user = user();
 		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
