@@ -56,6 +56,7 @@ public class PreferenceService {
 		return toReadResponse(preference);
 	}
 
+	/// todo : 메서드 이름 더 명확히 변경 getOrCreateDefault()
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseGet(() -> {

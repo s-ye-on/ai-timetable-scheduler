@@ -117,6 +117,7 @@ public class RecommendationService {
 		return toReadResponse(recommendation);
 	}
 
+	// 새 추천 요청 시 기존 PROPOSED 후보는 최신 추천 결과가 아니므로 만료.
 	private void expireExistingProposedRecommendations(Long taskId, Long userId) {
 		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
 			.forEach(Recommendation::expire);
@@ -141,6 +142,9 @@ public class RecommendationService {
 		return recommendation == selectedRecommendation;
 	}
 
+	/// todo : reader로 만들면 좋을듯
+	/// taskId로 찾되, 현재 userId 소유여야하고, 없으면 예외를 던짐
+	/// 현재 TaskService에서도 똑같은 코드가 반복중
 	private Task findTask(Long taskId, Long userId) {
 		return taskRepository.findByIdAndUserId(taskId, userId)
 			.orElseThrow(() -> new TaskException(ExceptionCode.NOT_FOUND_TASK));
@@ -153,6 +157,7 @@ public class RecommendationService {
 
 	/// todo : preference가 없을 경우 같은 user를 두 번 조회하게 됨
 	/// 이미 recommend()에서 User를 읽었으므로 매개 변수로 바로 user를 넣어줘도 됨
+	/// todo : PreferenceService에도 같은 코드가 있음 이 부분을 provider로 빼던가 service걸 갖다 쓰는 것도
 	private Preference findPreference(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseGet(() -> {

@@ -48,6 +48,7 @@ llm.md
 src/main/java/me/timetablescheduler/domain/recommendation/recommendation.md
 src/main/java/me/timetablescheduler/domain/preference/preference.md
 src/main/java/me/timetablescheduler/domain/recommendation/calculateScore.md
+src/main/java/me/timetablescheduler/domain/calendar/calendar.md
 
 ### memo.md ###
 memo.md
