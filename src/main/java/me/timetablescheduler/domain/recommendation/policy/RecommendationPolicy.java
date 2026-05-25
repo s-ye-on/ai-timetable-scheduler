@@ -18,11 +18,19 @@ import org.springframework.stereotype.Component;
 public class RecommendationPolicy {
 	private static final int BASE_SCORE = 50;
 	private static final int PREFERRED_TIME_RANGE_SCORE = 30;
+	private static final int CANDIDATE_SEARCH_INTERVAL_MINUTES = 30;
 	private static final int DENSITY_COMPACT_SCORE = 10;
+	private static final int DENSITY_BALANCED_SCORE = 10;
 	private static final int DENSITY_RELAXED_SCORE = 10;
+	private static final int DENSITY_COMPACT_MAX_GAP_MINUTES = 30;
+	private static final int DENSITY_BALANCED_MIN_GAP_MINUTES = 30;
+	private static final int DENSITY_BALANCED_MAX_GAP_MINUTES = 90;
+	private static final int DENSITY_RELAXED_MIN_GAP_MINUTES = 90;
 	private static final int DEADLINE_ASAP_MAX_SCORE = 20;
 	private static final int DEADLINE_BALANCED_MAX_SCORE = 15;
 	private static final int DEADLINE_NEAR_MAX_SCORE = 20;
+	private static final int NEAR_DEADLINE_TARGET_DAYS_BEFORE = 1;
+	private static final int DEADLINE_SCORE_DAILY_PENALTY = 5;
 
 	public List<CandidateSlot> generateCandidates(
 		Task task,
@@ -31,39 +39,55 @@ public class RecommendationPolicy {
 		List<Task> scheduledTasks
 	) {
 		LocalDate baseDate = LocalDate.now();
-		List<LocalDate> dates = resolveCandidateDates(task);
-
+		List<LocalDate> candidateDates = resolveCandidateDates(task, baseDate);
 		List<CandidateSlot> candidates = new ArrayList<>();
 
-		for (LocalDate date : dates) {
+		for (LocalDate date : candidateDates) {
 			if (isAfterDeadline(task, date)) {
 				continue;
 			}
 
-			LocalDateTime start = LocalDateTime.of(date, preference.getScheduleStartTime());
-			LocalDateTime endLimit = LocalDateTime.of(date, preference.getScheduleEndTime());
-			List<BusyBlock> busyBlocks = buildBusyBlocks(date, timetableSlots, scheduledTasks, task);
+			List<BusyBlock> busyBlocks = buildBusyBlocks(
+				date,
+				timetableSlots,
+				scheduledTasks,
+				task
+			);
 
-			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(endLimit)) {
+			LocalDateTime start = LocalDateTime.of(date, preference.getScheduleStartTime());
+			LocalDateTime dayEndLimit = LocalDateTime.of(date, preference.getScheduleEndTime());
+
+			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(dayEndLimit)) {
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 
-				if (conflictsWithBusyBlocks(start, end, busyBlocks, preference.getMinimumGapMinutes())) {
-					start = start.plusMinutes(30);
-					continue;
+				if (!conflictsWithBusyBlocks(
+					start,
+					end,
+					busyBlocks,
+					preference.getMinimumGapMinutes()
+				)) {
+					int score = calculateScore(
+						task,
+						preference,
+						start,
+						end,
+						busyBlocks,
+						baseDate
+					);
+
+					String reason = buildReason(task, preference, start, end, busyBlocks, score);
+
+					candidates.add(new CandidateSlot(start, end, score, reason));
 				}
 
-				int score = calculateScore(task, preference, start, end, baseDate);
-				String reason = buildReason(task, preference, start, end, score);
-
-				candidates.add(new CandidateSlot(start, end, score, reason));
-				start = start.plusMinutes(30);
+				start = start.plusMinutes(CANDIDATE_SEARCH_INTERVAL_MINUTES);
 			}
 		}
 		return candidates;
 	}
 
 	// Task의 preferredDate / preferredDayOfWeek / preferredStartDate~EndDate를 실제 날짜 목록으로 변환
-	private List<LocalDate> resolveCandidateDates(Task task) {
+	private List<LocalDate> resolveCandidateDates(Task task, LocalDate baseDate) {
 		if (task.getPreferredDate() != null) {
 			return List.of(task.getPreferredDate());
 		}
@@ -80,11 +104,10 @@ public class RecommendationPolicy {
 		}
 
 		if (task.getPreferredDayOfWeek() != null) {
-			LocalDate today = LocalDate.now();
 			List<LocalDate> dates = new ArrayList<>();
 
 			for (int i = 0; i < 14; i++) {
-				LocalDate date = today.plusDays(i);
+				LocalDate date = baseDate.plusDays(i);
 				if (date.getDayOfWeek() == task.getPreferredDayOfWeek()) {
 					dates.add(date);
 				}
@@ -152,6 +175,7 @@ public class RecommendationPolicy {
 		Preference preference,
 		LocalDateTime start,
 		LocalDateTime end,
+		List<BusyBlock> busyBlocks,
 		LocalDate baseDate
 	) {
 		int score = BASE_SCORE;
@@ -160,18 +184,32 @@ public class RecommendationPolicy {
 			? task.getPreferredTimeRange()
 			: preference.getPreferredTimeRange();
 
-		if (matchesPreferredTimeRange(effectiveTimeRange, start, end)) {
-			score += PREFERRED_TIME_RANGE_SCORE;
-		}
+		score += calculatePreferredTimeRangeScore(effectiveTimeRange, start, end);
 
 		if (task.getDeadline() != null) {
 			score += calculateDeadlineScore(task, preference, start.toLocalDate());
 		}
 
 		score += calculatePriorityScore(task, start.toLocalDate(), baseDate);
-		score += calculateDensityScore(preference, start, end);
+		score += calculateDensityScore(preference, start, end, busyBlocks);
 
 		return score;
+	}
+
+	private int calculatePreferredTimeRangeScore(
+		PreferredTimeRange preferredTimeRange,
+		LocalDateTime start,
+		LocalDateTime end
+	) {
+		if (preferredTimeRange == null || preferredTimeRange == PreferredTimeRange.ANYTIME) {
+			return 0;
+		}
+
+		if (matchesPreferredTimeRange(preferredTimeRange, start, end)) {
+			return PREFERRED_TIME_RANGE_SCORE;
+		}
+
+		return 0;
 	}
 
 	private boolean matchesPreferredTimeRange(
@@ -180,7 +218,7 @@ public class RecommendationPolicy {
 		LocalDateTime end
 	) {
 		if (preferredTimeRange == null || preferredTimeRange == PreferredTimeRange.ANYTIME) {
-			return true;
+			return false;
 		}
 
 		return !start.toLocalTime().isBefore(preferredTimeRange.getStartTime())
@@ -193,14 +231,19 @@ public class RecommendationPolicy {
 			return 0;
 		}
 
-		long daysUntilDeadline = java.time.temporal.ChronoUnit.DAYS.between(candidateDate, task.getDeadline());
+		long daysUntilDeadline = ChronoUnit.DAYS.between(candidateDate, task.getDeadline());
 
 		if (preference.getDeadlineTiming() == DeadlineTiming.ASAP) {
 			return Math.max(0, DEADLINE_ASAP_MAX_SCORE - (int) daysUntilDeadline);
 		}
 
 		if (preference.getDeadlineTiming() == DeadlineTiming.NEAR_DEADLINE) {
-			return Math.max(0, DEADLINE_NEAR_MAX_SCORE - Math.abs((int) daysUntilDeadline));
+			return Math.max(
+				0,
+				DEADLINE_NEAR_MAX_SCORE
+					- Math.abs((int) daysUntilDeadline - NEAR_DEADLINE_TARGET_DAYS_BEFORE)
+					* DEADLINE_SCORE_DAILY_PENALTY
+			);
 		}
 
 		return Math.max(0, DEADLINE_BALANCED_MAX_SCORE - Math.abs((int) daysUntilDeadline - 2));
@@ -216,18 +259,54 @@ public class RecommendationPolicy {
 		return task.getPriority().calculateDateScore(daysFromBase);
 	}
 
-	/// todo : 시간표와의 거리 기반으로 계산하는 것으로 변경
-	/// todo : 이미 scheduled된 task와 google calendar의 일정도 같이 고려해야할 듯 함
-	/// 1차적으로는 google calendar 일정 고려는 제외
-	private int calculateDensityScore(Preference preference, LocalDateTime start, LocalDateTime end) {
-		int durationMinutes = (int) java.time.Duration.between(start, end).toMinutes();
+	private int calculateDensityScore(
+		Preference preference,
+		LocalDateTime start,
+		LocalDateTime end,
+		List<BusyBlock> busyBlocks
+	) {
+		Long nearestGapMinutes = findNearestGapMinutes(start, end, busyBlocks);
 
-		if (preference.getScheduleDensity() == ScheduleDensity.COMPACT && durationMinutes <= 60) {
+		if (preference.getScheduleDensity() == ScheduleDensity.COMPACT
+			&& nearestGapMinutes != null
+			&& nearestGapMinutes <= DENSITY_COMPACT_MAX_GAP_MINUTES) {
 			return DENSITY_COMPACT_SCORE;
 		}
 
-		if (preference.getScheduleDensity() == ScheduleDensity.RELAXED && durationMinutes >= 90) {
+		if (preference.getScheduleDensity() == ScheduleDensity.BALANCED
+			&& nearestGapMinutes != null
+			&& nearestGapMinutes >= DENSITY_BALANCED_MIN_GAP_MINUTES
+			&& nearestGapMinutes <= DENSITY_BALANCED_MAX_GAP_MINUTES) {
+			return DENSITY_BALANCED_SCORE;
+		}
+
+		if (preference.getScheduleDensity() == ScheduleDensity.RELAXED
+			&& (nearestGapMinutes == null || nearestGapMinutes >= DENSITY_RELAXED_MIN_GAP_MINUTES)) {
 			return DENSITY_RELAXED_SCORE;
+		}
+
+		return 0;
+	}
+
+	private Long findNearestGapMinutes(LocalDateTime start, LocalDateTime end, List<BusyBlock> busyBlocks) {
+		var nearestGapMinutes = busyBlocks.stream()
+			.mapToLong(busyBlock -> calculateGapMinutes(start, end, busyBlock))
+			.min();
+
+		if (nearestGapMinutes.isEmpty()) {
+			return null;
+		}
+
+		return nearestGapMinutes.getAsLong();
+	}
+
+	private long calculateGapMinutes(LocalDateTime start, LocalDateTime end, BusyBlock busyBlock) {
+		if (!end.isAfter(busyBlock.startAt())) {
+			return ChronoUnit.MINUTES.between(end, busyBlock.startAt());
+		}
+
+		if (!start.isBefore(busyBlock.endAt())) {
+			return ChronoUnit.MINUTES.between(busyBlock.endAt(), start);
 		}
 
 		return 0;
@@ -238,6 +317,7 @@ public class RecommendationPolicy {
 		Preference preference,
 		LocalDateTime start,
 		LocalDateTime end,
+		List<BusyBlock> busyBlocks,
 		int score
 	) {
 		List<String> reasons = new ArrayList<>();
@@ -246,7 +326,9 @@ public class RecommendationPolicy {
 			? task.getPreferredTimeRange()
 			: preference.getPreferredTimeRange();
 
-		if (matchesPreferredTimeRange(effectiveTimeRange, start, end)) {
+		if (effectiveTimeRange != null
+			&& effectiveTimeRange != PreferredTimeRange.ANYTIME
+			&& matchesPreferredTimeRange(effectiveTimeRange, start, end)) {
 			reasons.add("선호 시간대와 일치합니다");
 		}
 
@@ -256,6 +338,25 @@ public class RecommendationPolicy {
 
 		if (preference.getMinimumGapMinutes() > 0) {
 			reasons.add("일정 전후 최소 여유 시간을 반영했습니다");
+		}
+
+		Long nearestGapMinutes = findNearestGapMinutes(start, end, busyBlocks);
+		if (preference.getScheduleDensity() == ScheduleDensity.COMPACT
+			&& nearestGapMinutes != null
+			&& nearestGapMinutes <= DENSITY_COMPACT_MAX_GAP_MINUTES) {
+			reasons.add("기존 일정과 가까운 시간대를 우선 반영했습니다");
+		}
+
+		if (preference.getScheduleDensity() == ScheduleDensity.BALANCED
+			&& nearestGapMinutes != null
+			&& nearestGapMinutes >= DENSITY_BALANCED_MIN_GAP_MINUTES
+			&& nearestGapMinutes <= DENSITY_BALANCED_MAX_GAP_MINUTES) {
+			reasons.add("기존 일정과 적당한 간격이 있는 시간대를 반영했습니다");
+		}
+
+		if (preference.getScheduleDensity() == ScheduleDensity.RELAXED
+			&& (nearestGapMinutes == null || nearestGapMinutes >= DENSITY_RELAXED_MIN_GAP_MINUTES)) {
+			reasons.add("기존 일정과 충분히 떨어진 시간대를 우선 반영했습니다");
 		}
 
 		reasons.add("점수 " + score + "점");

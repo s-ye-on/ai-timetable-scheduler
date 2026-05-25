@@ -154,6 +154,40 @@ class RecommendationPolicyTest {
 	}
 
 	@Test
+	void 특정_요일_후보는_기준일부터_14일_범위에서_생성한다() {
+		User user = user();
+		LocalDate today = LocalDate.now();
+		Task task = Task.create(
+			user,
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			null,
+			today.getDayOfWeek(),
+			null,
+			null,
+			null,
+			null,
+			TaskPriority.NORMAL,
+			"오늘과 같은 요일에 과제할 시간 잡아줘"
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(10, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
+
+		assertTrue(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalDate().equals(today)));
+		assertTrue(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalDate().equals(today.plusDays(7))));
+	}
+
+	@Test
 	void deadline_이후_날짜의_추천_후보는_생성하지_않는다() {
 		User user = user();
 		Task task = Task.create(
@@ -183,6 +217,42 @@ class RecommendationPolicyTest {
 		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
 		assertTrue(candidates.isEmpty());
+	}
+
+	@Test
+	void near_deadline은_마감_당일보다_마감_하루_전_후보에_더_높은_점수를_준다() {
+		User user = user();
+		LocalDate deadline = LocalDate.of(2026, 5, 20);
+		Task task = Task.create(
+			user,
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			null,
+			null,
+			deadline.minusDays(1),
+			deadline,
+			null,
+			deadline,
+			TaskPriority.LOW,
+			"마감 근처에 과제할 시간 잡아줘"
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(10, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.NEAR_DEADLINE
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
+
+		int dayBeforeScore = scoreOf(candidates, deadline.minusDays(1), LocalTime.of(9, 0));
+		int deadlineDayScore = scoreOf(candidates, deadline, LocalTime.of(9, 0));
+
+		assertTrue(dayBeforeScore > deadlineDayScore);
 	}
 
 	@Test
@@ -259,6 +329,130 @@ class RecommendationPolicyTest {
 	}
 
 	@Test
+	void compact_밀도는_BusyBlock과_가까운_후보에_더_높은_점수를_준다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		TimetableSlot timetableSlot = TimetableSlot.create(
+			user,
+			"운영체제",
+			DayOfWeek.MONDAY,
+			"공학관",
+			LocalTime.of(10, 0),
+			LocalTime.of(11, 0)
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(15, 0),
+			0,
+			ScheduleDensity.COMPACT,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(timetableSlot),
+			List.of()
+		);
+
+		int nearScore = scoreOf(candidates, LocalTime.of(11, 0));
+		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+
+		assertTrue(nearScore > farScore);
+	}
+
+	@Test
+	void relaxed_밀도는_BusyBlock과_충분히_떨어진_후보에_더_높은_점수를_준다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		TimetableSlot timetableSlot = TimetableSlot.create(
+			user,
+			"운영체제",
+			DayOfWeek.MONDAY,
+			"공학관",
+			LocalTime.of(10, 0),
+			LocalTime.of(11, 0)
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(15, 0),
+			0,
+			ScheduleDensity.RELAXED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(timetableSlot),
+			List.of()
+		);
+
+		int nearScore = scoreOf(candidates, LocalTime.of(11, 0));
+		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+
+		assertTrue(farScore > nearScore);
+	}
+
+	@Test
+	void balanced_밀도는_BusyBlock과_적당한_간격의_후보에_더_높은_점수를_준다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		TimetableSlot timetableSlot = TimetableSlot.create(
+			user,
+			"운영체제",
+			DayOfWeek.MONDAY,
+			"공학관",
+			LocalTime.of(10, 0),
+			LocalTime.of(11, 0)
+		);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(15, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(timetableSlot),
+			List.of()
+		);
+
+		int balancedScore = scoreOf(candidates, LocalTime.of(11, 30));
+		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+
+		assertTrue(balancedScore > farScore);
+	}
+
+	@Test
+	void anytime은_선호_시간대_reason을_만들지_않는다() {
+		User user = user();
+		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(10, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
+
+		assertFalse(candidates.get(0).reason().contains("선호 시간대와 일치합니다"));
+	}
+
+	@Test
 	void scheduledTasks에_현재_Task가_포함되어도_자기_자신은_충돌_대상에서_제외한다() {
 		User user = user();
 		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
@@ -283,6 +477,23 @@ class RecommendationPolicyTest {
 		);
 
 		assertEquals(5, candidates.size());
+	}
+
+	private int scoreOf(List<CandidateSlot> candidates, LocalTime startTime) {
+		return candidates.stream()
+			.filter(candidate -> candidate.startAt().toLocalTime().equals(startTime))
+			.findFirst()
+			.orElseThrow()
+			.score();
+	}
+
+	private int scoreOf(List<CandidateSlot> candidates, LocalDate date, LocalTime startTime) {
+		return candidates.stream()
+			.filter(candidate -> candidate.startAt().toLocalDate().equals(date))
+			.filter(candidate -> candidate.startAt().toLocalTime().equals(startTime))
+			.findFirst()
+			.orElseThrow()
+			.score();
 	}
 
 	private Task taskWithPreferredDate(User user, LocalDate preferredDate) {
