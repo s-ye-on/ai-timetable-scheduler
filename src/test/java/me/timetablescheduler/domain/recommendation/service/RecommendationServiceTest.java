@@ -93,12 +93,13 @@ class RecommendationServiceTest {
 		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
-		List<RecommendationResponse.Read> recommendations = recommendationService.recommend(1L, 10L);
+		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
 
 		assertEquals(RecommendationStatus.EXPIRED, existingRecommendation.getStatus());
-		assertEquals(1, recommendations.size());
-		assertEquals(1, recommendations.get(0).rank());
-		assertEquals(90, recommendations.get(0).score());
+		assertEquals("추천 가능한 시간을 찾았습니다.", response.message());
+		assertEquals(1, response.recommendations().size());
+		assertEquals(1, response.recommendations().get(0).rank());
+		assertEquals(90, response.recommendations().get(0).score());
 	}
 
 	@Test
@@ -160,11 +161,33 @@ class RecommendationServiceTest {
 			.thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
-		List<RecommendationResponse.Read> recommendations = recommendationService.recommend(1L, 10L);
+		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
 
-		assertEquals(1, recommendations.size());
-		assertEquals(90, recommendations.get(0).score());
+		assertEquals(1, response.recommendations().size());
+		assertEquals(90, response.recommendations().get(0).score());
 		Mockito.verify(preferenceRepository).save(Mockito.any(Preference.class));
+	}
+
+	@Test
+	void 추천_후보가_없으면_안내_메시지와_빈_목록을_반환하고_저장하지_않는다() {
+		User user = user(1L);
+		Task task = task(user);
+		Preference preference = Preference.createDefault(user);
+
+		when(userReader.read(1L)).thenReturn(user);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
+		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of());
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(List.of());
+
+		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
+
+		assertEquals("추천 가능한 시간이 없습니다. 시간표 또는 선호 시간 범위를 조정해 주세요.", response.message());
+		assertEquals(List.of(), response.recommendations());
+		Mockito.verify(recommendationRepository, Mockito.never()).saveAll(Mockito.anyList());
 	}
 
 	@Test

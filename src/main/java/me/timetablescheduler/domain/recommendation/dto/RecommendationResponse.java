@@ -1,10 +1,18 @@
 package me.timetablescheduler.domain.recommendation.dto;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 
-import java.time.LocalDateTime;
+public sealed interface RecommendationResponse
+	permits RecommendationResponse.Generate, RecommendationResponse.Read {
+	record Generate(
+		String message,
+		List<Read> recommendations
+	) implements RecommendationResponse {
+	}
 
-public sealed interface RecommendationResponse permits RecommendationResponse.Read {
 	record Read(
 		Long id,
 		Long taskId,

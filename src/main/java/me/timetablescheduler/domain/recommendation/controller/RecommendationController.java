@@ -17,7 +17,7 @@ public class RecommendationController {
 	private final RecommendationService recommendationService;
 
 	@PostMapping("/tasks/{taskId}/recommendations")
-	public List<RecommendationResponse.Read> recommend(
+	public RecommendationResponse.Generate recommend(
 		@PathVariable Long taskId,
 		@AuthenticationPrincipal CustomUserDetails userDetails
 	) {

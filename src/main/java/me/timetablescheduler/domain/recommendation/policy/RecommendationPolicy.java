@@ -267,6 +267,8 @@ public class RecommendationPolicy {
 	) {
 		Long nearestGapMinutes = findNearestGapMinutes(start, end, busyBlocks);
 
+		/// todo : 추후 ScheduleDensity 점수 정책을 enum으로 이동할지 고민
+		/// 나중에 더 객체지향적으로 정리하려면 점수 계산 책임을 넘길 수 있음
 		if (preference.getScheduleDensity() == ScheduleDensity.COMPACT
 			&& nearestGapMinutes != null
 			&& nearestGapMinutes <= DENSITY_COMPACT_MAX_GAP_MINUTES) {
