@@ -42,16 +42,12 @@ public class RecommendationPolicy {
 
 			LocalDateTime start = LocalDateTime.of(date, preference.getScheduleStartTime());
 			LocalDateTime endLimit = LocalDateTime.of(date, preference.getScheduleEndTime());
+			List<BusyBlock> busyBlocks = buildBusyBlocks(date, timetableSlots, scheduledTasks, task);
 
 			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(endLimit)) {
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 
-				if (conflictsWithTimetable(start, end, timetableSlots, preference.getMinimumGapMinutes())) {
-					start = start.plusMinutes(30);
-					continue;
-				}
-
-				if (conflictsWithScheduledTask(task, start, end, scheduledTasks, preference.getMinimumGapMinutes())) {
+				if (conflictsWithBusyBlocks(start, end, busyBlocks, preference.getMinimumGapMinutes())) {
 					start = start.plusMinutes(30);
 					continue;
 				}
@@ -98,38 +94,46 @@ public class RecommendationPolicy {
 		return List.of();
 	}
 
-	// 수업 시간과 겹치는지 검사
-	private boolean conflictsWithTimetable(
-		LocalDateTime start,
-		LocalDateTime end,
+	private List<BusyBlock> buildBusyBlocks(
+		LocalDate date,
 		List<TimetableSlot> timetableSlots,
-		int minimumGapMinutes
+		List<Task> scheduledTasks,
+		Task currentTask
 	) {
-		return timetableSlots.stream()
-			.filter(slot -> slot.getDayOfWeek() == start.getDayOfWeek())
-			.anyMatch(slot -> {
-				LocalDateTime blockedStartAt = LocalDateTime.of(start.toLocalDate(), slot.getStartTime())
-					.minusMinutes(minimumGapMinutes);
-				LocalDateTime blockedEndAt = LocalDateTime.of(start.toLocalDate(), slot.getEndTime())
-					.plusMinutes(minimumGapMinutes);
+		List<BusyBlock> busyBlocks = new ArrayList<>();
 
-				return start.isBefore(blockedEndAt) && end.isAfter(blockedStartAt);
-			});
+		timetableSlots.stream()
+			.filter(slot -> slot.getDayOfWeek() == date.getDayOfWeek())
+			.map(slot -> new BusyBlock(
+				LocalDateTime.of(date, slot.getStartTime()),
+				LocalDateTime.of(date, slot.getEndTime())
+			))
+			.forEach(busyBlocks::add);
+
+		scheduledTasks.stream()
+			.filter(task -> !isSameTask(task, currentTask))
+			.filter(task -> task.getScheduledStartAt() != null)
+			.filter(task -> task.getScheduledEndAt() != null)
+			.filter(task -> task.getScheduledStartAt().toLocalDate().equals(date))
+			.map(task -> new BusyBlock(
+				task.getScheduledStartAt(),
+				task.getScheduledEndAt()
+			))
+			.forEach(busyBlocks::add);
+
+		return busyBlocks;
 	}
 
-	private boolean conflictsWithScheduledTask(
-		Task currentTask,
+	private boolean conflictsWithBusyBlocks(
 		LocalDateTime start,
 		LocalDateTime end,
-		List<Task> scheduledTasks,
+		List<BusyBlock> busyBlocks,
 		int minimumGapMinutes
 	) {
-		return scheduledTasks.stream()
-			.filter(task -> !isSameTask(task, currentTask))
-			.filter(task -> task.getScheduledStartAt() != null && task.getScheduledEndAt() != null)
-			.anyMatch(task -> {
-				LocalDateTime blockedStartAt = task.getScheduledStartAt().minusMinutes(minimumGapMinutes);
-				LocalDateTime blockedEndAt = task.getScheduledEndAt().plusMinutes(minimumGapMinutes);
+		return busyBlocks.stream()
+			.anyMatch(busyBlock -> {
+				LocalDateTime blockedStartAt = busyBlock.startAt().minusMinutes(minimumGapMinutes);
+				LocalDateTime blockedEndAt = busyBlock.endAt().plusMinutes(minimumGapMinutes);
 
 				return start.isBefore(blockedEndAt) && end.isAfter(blockedStartAt);
 			});
