@@ -23,6 +23,7 @@ public enum ExceptionCode {
 	INVALID_RECOMMENDATION_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "현재 추천 후보 상태에서는 요청한 상태 변경을 할 수 없습니다."),
 	INVALID_TIMETABLE_SLOT(HttpStatus.BAD_REQUEST, "시간표 입력값이 올바르지 않습니다."),
 	INVALID_TIMETABLE_SLOT_TIME(HttpStatus.BAD_REQUEST, "시간표 시작 시간은 종료 시간보다 빨라야 합니다."),
+	GOOGLE_CALENDAR_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "Google Calendar 연동이 필요합니다."),
 	// LLM이 반환한 구조화 결과가 비정상일 때 사용
 	INVALID_LLM_PARSE_RESULT(HttpStatus.BAD_REQUEST, "입력한 문장을 일정 요청으로 변환할 수 없습니다. 날짜, 시간대, 소요 시간을 조금 더 명확히 입력해주세요."),
 	INVALID_LLM_DATE_CONDITION(HttpStatus.BAD_REQUEST, "일정 날짜 조건은 특정 날짜, 특정 요일, 날짜 범위 중 하나만 지정해야 합니다."),

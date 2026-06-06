@@ -1,4 +1,6 @@
 package me.timetablescheduler.domain.calendar.dto;
 
-public class GoogleAuthUrlResponse {
+public record GoogleAuthUrlResponse(
+	String authUrl
+) {
 }
