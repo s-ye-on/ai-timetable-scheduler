@@ -38,8 +38,19 @@ public class RecommendationPolicy {
 		List<TimetableSlot> timetableSlots,
 		List<Task> scheduledTasks
 	) {
+		return generateCandidates(task, preference, timetableSlots, scheduledTasks, List.of());
+	}
+
+	public List<CandidateSlot> generateCandidates(
+		Task task,
+		Preference preference,
+		List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks
+	) {
 		LocalDate baseDate = LocalDate.now();
 		List<LocalDate> candidateDates = resolveCandidateDates(task, baseDate);
+		List<BusyBlock> safeCalendarBusyBlocks = calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
 		List<CandidateSlot> candidates = new ArrayList<>();
 
 		for (LocalDate date : candidateDates) {
@@ -51,6 +62,7 @@ public class RecommendationPolicy {
 				date,
 				timetableSlots,
 				scheduledTasks,
+				safeCalendarBusyBlocks,
 				task
 			);
 
@@ -121,6 +133,7 @@ public class RecommendationPolicy {
 		LocalDate date,
 		List<TimetableSlot> timetableSlots,
 		List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks,
 		Task currentTask
 	) {
 		List<BusyBlock> busyBlocks = new ArrayList<>();
@@ -144,7 +157,16 @@ public class RecommendationPolicy {
 			))
 			.forEach(busyBlocks::add);
 
+		calendarBusyBlocks.stream()
+			.filter(busyBlock -> overlapsDate(busyBlock, date))
+			.forEach(busyBlocks::add);
+
 		return busyBlocks;
+	}
+
+	private boolean overlapsDate(BusyBlock busyBlock, LocalDate date) {
+		return !busyBlock.startAt().toLocalDate().isAfter(date)
+			&& !busyBlock.endAt().toLocalDate().isBefore(date);
 	}
 
 	private boolean conflictsWithBusyBlocks(

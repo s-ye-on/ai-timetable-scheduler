@@ -8,6 +8,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import me.timetablescheduler.domain.calendar.CalendarService;
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
@@ -40,6 +41,7 @@ class RecommendationServiceTest {
 	private TimetableSlotRepository timetableSlotRepository;
 	private UserReader userReader;
 	private RecommendationPolicy recommendationPolicy;
+	private CalendarService calendarService;
 	private RecommendationService recommendationService;
 
 	@BeforeEach
@@ -50,13 +52,15 @@ class RecommendationServiceTest {
 		timetableSlotRepository = Mockito.mock(TimetableSlotRepository.class);
 		userReader = Mockito.mock(UserReader.class);
 		recommendationPolicy = Mockito.mock(RecommendationPolicy.class);
+		calendarService = Mockito.mock(CalendarService.class);
 		recommendationService = new RecommendationService(
 			recommendationRepository,
 			taskRepository,
 			preferenceRepository,
 			timetableSlotRepository,
 			userReader,
-			recommendationPolicy
+			recommendationPolicy,
+			calendarService
 		);
 	}
 
@@ -90,7 +94,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of(existingRecommendation));
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
@@ -121,7 +125,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		recommendationService.recommend(1L, 10L);
@@ -156,6 +160,7 @@ class RecommendationServiceTest {
 				Mockito.eq(task),
 				Mockito.any(Preference.class),
 				Mockito.eq(List.of()),
+				Mockito.eq(List.of()),
 				Mockito.eq(List.of())
 			))
 			.thenReturn(candidateSlots);
@@ -181,7 +186,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of())).thenReturn(List.of());
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(List.of());
 
 		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
 

@@ -1,14 +1,19 @@
 package me.timetablescheduler.domain.recommendation.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.domain.calendar.CalendarService;
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
+import me.timetablescheduler.domain.recommendation.policy.BusyBlock;
 import me.timetablescheduler.domain.recommendation.dto.RecommendationResponse;
 import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
 import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
@@ -20,6 +25,7 @@ import me.timetablescheduler.domain.timetable.TimetableSlot;
 import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
+import me.timetablescheduler.global.exception.CalendarException;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.RecommendationException;
 import me.timetablescheduler.global.exception.TaskException;
@@ -33,6 +39,7 @@ public class RecommendationService {
 	private static final String RECOMMENDATION_CREATED_MESSAGE = "추천 가능한 시간을 찾았습니다.";
 	private static final String NO_RECOMMENDATION_MESSAGE = "추천 가능한 시간이 없습니다. 시간표 또는 선호 시간 범위를 조정해 주세요.";
 	private static final int MAX_RECOMMENDATION_COUNT = 3;
+	private static final int DAY_OF_WEEK_SEARCH_DAYS = 14;
 
 	private final RecommendationRepository recommendationRepository;
 	private final TaskRepository taskRepository;
@@ -40,6 +47,7 @@ public class RecommendationService {
 	private final TimetableSlotRepository timetableSlotRepository;
 	private final UserReader userReader;
 	private final RecommendationPolicy recommendationPolicy;
+	private final CalendarService calendarService;
 
 	@Transactional
 	public RecommendationResponse.Generate recommend(Long userId, Long taskId) {
@@ -49,6 +57,7 @@ public class RecommendationService {
 		Preference preference = findPreference(userId);
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
 		List<Task> scheduledTasks = taskRepository.findAllByUserIdAndStatus(userId, TaskStatus.SCHEDULED);
+		List<BusyBlock> calendarBusyBlocks = findCalendarBusyBlocks(userId, task);
 
 		expireExistingProposedRecommendations(taskId, userId);
 
@@ -56,7 +65,8 @@ public class RecommendationService {
 			task,
 			preference,
 			timetableSlots,
-			scheduledTasks
+			scheduledTasks,
+			calendarBusyBlocks
 		);
 
 		List<CandidateSlot> topCandidates = candidates.stream()
@@ -142,6 +152,37 @@ public class RecommendationService {
 		return recommendation == selectedRecommendation;
 	}
 
+	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task) {
+		SearchDateTimeRange searchDateTimeRange = resolveSearchDateTimeRange(task);
+
+		try {
+			List<BusyBlock> calendarBusyBlocks = calendarService.getCalendarBusyBlocks(
+				userId,
+				searchDateTimeRange.startAt(),
+				searchDateTimeRange.endAt()
+			);
+			return calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
+		} catch (CalendarException exception) {
+			if (exception.getExceptionCode() == ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED) {
+				return List.of();
+			}
+			throw exception;
+		}
+	}
+
+	private SearchDateTimeRange resolveSearchDateTimeRange(Task task) {
+		if (task.getPreferredDate() != null) {
+			return SearchDateTimeRange.of(task.getPreferredDate(), task.getPreferredDate());
+		}
+
+		if (task.getPreferredStartDate() != null && task.getPreferredEndDate() != null) {
+			return SearchDateTimeRange.of(task.getPreferredStartDate(), task.getPreferredEndDate());
+		}
+
+		LocalDate today = LocalDate.now();
+		return SearchDateTimeRange.of(today, today.plusDays(DAY_OF_WEEK_SEARCH_DAYS - 1L));
+	}
+
 	/// todo : reader로 만들면 좋을듯
 	/// taskId로 찾되, 현재 userId 소유여야하고, 없으면 예외를 던짐
 	/// 현재 TaskService에서도 똑같은 코드가 반복중
@@ -177,5 +218,17 @@ public class RecommendationService {
 			recommendation.getReason(),
 			recommendation.getStatus()
 		);
+	}
+
+	private record SearchDateTimeRange(
+		LocalDateTime startAt,
+		LocalDateTime endAt
+	) {
+		private static SearchDateTimeRange of(LocalDate startDate, LocalDate endDate) {
+			return new SearchDateTimeRange(
+				startDate.atStartOfDay(),
+				endDate.atTime(LocalTime.MAX)
+			);
+		}
 	}
 }

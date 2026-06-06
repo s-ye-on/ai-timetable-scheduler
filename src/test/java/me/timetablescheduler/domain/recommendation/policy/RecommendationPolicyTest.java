@@ -286,6 +286,37 @@ class RecommendationPolicyTest {
 	}
 
 	@Test
+	void Google_Calendar_BusyBlock과_겹치는_추천_후보는_제외한다() {
+		User user = user();
+		LocalDate date = LocalDate.of(2026, 5, 18);
+		Task task = taskWithPreferredDate(user, date);
+		Preference preference = Preference.create(
+			user,
+			PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0),
+			LocalTime.of(12, 0),
+			0,
+			ScheduleDensity.BALANCED,
+			DeadlineTiming.BALANCED
+		);
+		BusyBlock calendarBusyBlock = new BusyBlock(
+			date.atTime(10, 0),
+			date.atTime(11, 0)
+		);
+
+		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(
+			task,
+			preference,
+			List.of(),
+			List.of(),
+			List.of(calendarBusyBlock)
+		);
+
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 0))));
+		assertFalse(candidates.stream().anyMatch(candidate -> candidate.startAt().toLocalTime().equals(LocalTime.of(10, 30))));
+	}
+
+	@Test
 	void 시간표와_이미_확정된_Task를_모두_고려해서_추천_후보를_생성한다() {
 		User user = user();
 		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
