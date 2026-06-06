@@ -54,5 +54,8 @@ src/main/java/me/timetablescheduler/domain/calendar/calendar.md
 memo.md
 study.md
 
+### 나중에 ignore 풀 md ###
+/docs/recommendation-policy.md
+
 # Spring 설정 파일
 src/main/resources/application.properties

@@ -20,7 +20,7 @@ public class PreferenceService {
 	@Transactional
 	public PreferenceResponse.Read createDefault(User user) {
 		if (preferenceRepository.existsByUserId(user.getId())) {
-			return toReadResponse(findPreference(user.getId()));
+			return toReadResponse(getOrCreateDefault(user.getId()));
 		}
 
 		return toReadResponse(preferenceRepository.save(Preference.createDefault(user)));
@@ -28,12 +28,12 @@ public class PreferenceService {
 
 	@Transactional
 	public PreferenceResponse.Read read(Long userId) {
-		return toReadResponse(findPreference(userId));
+		return toReadResponse(getOrCreateDefault(userId));
 	}
 
 	@Transactional
 	public PreferenceResponse.Read update(Long userId, PreferenceRequest.Update request) {
-		Preference preference = findPreference(userId);
+		Preference preference = getOrCreateDefault(userId);
 
 		preference.update(
 			request.preferredTimeRange(),
@@ -49,7 +49,7 @@ public class PreferenceService {
 
 	@Transactional
 	public PreferenceResponse.Read resetToDefault(Long userId) {
-		Preference preference = findPreference(userId);
+		Preference preference = getOrCreateDefault(userId);
 
 		preference.resetToDefault();
 
@@ -57,7 +57,7 @@ public class PreferenceService {
 	}
 
 	/// todo : 메서드 이름 더 명확히 변경 getOrCreateDefault()
-	private Preference findPreference(Long userId) {
+	private Preference getOrCreateDefault(Long userId) {
 		return preferenceRepository.findByUserId(userId)
 			.orElseGet(() -> {
 				User user = userReader.read(userId);
