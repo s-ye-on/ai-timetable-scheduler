@@ -35,6 +35,8 @@ public class CalendarToken {
 	@Column(length = 2000)
 	private String refreshToken;
 
+	/// todo : 만료 시각은 Instant가 더 정확하기에 추후 변경할지 고민
+	/// OAuth 토큰 만료는 특정 지역 시간이 아니라 절대 시각이기 때문
 	@Column(nullable = false)
 	private LocalDateTime expiresAt;
 
