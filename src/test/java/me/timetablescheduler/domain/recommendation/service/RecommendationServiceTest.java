@@ -25,6 +25,7 @@ import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.domain.timetable.TimetableSlotRepository;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
+import me.timetablescheduler.global.exception.CalendarException;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
 import org.junit.jupiter.api.BeforeEach;
@@ -242,14 +243,55 @@ class RecommendationServiceTest {
 		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of(otherRecommendation));
+		when(calendarService.createEvent(
+			1L,
+			task.getTitle(),
+			task.getDescription(),
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0)
+		)).thenReturn("google-event-id");
+
+		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
+
+		assertEquals(RecommendationStatus.SYNCED, recommendation.getStatus());
+		assertEquals("google-event-id", recommendation.getGoogleEventId());
+		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
+		assertEquals(RecommendationStatus.REJECTED, otherRecommendation.getStatus());
+		assertEquals(RecommendationStatus.SYNCED, response.status());
+		assertEquals(LocalDateTime.of(2026, 5, 18, 9, 0), response.recommendedStartAt());
+	}
+
+	@Test
+	void Google_Calendar가_연동되지_않아도_추천_후보_선택은_완료한다() {
+		User user = user(1L);
+		Task task = task(user);
+		ReflectionTestUtils.setField(task, "id", 10L);
+		Recommendation recommendation = Recommendation.create(
+			user,
+			task,
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0),
+			1,
+			90,
+			"선택할 추천"
+		);
+
+		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of());
+		when(calendarService.createEvent(
+			1L,
+			task.getTitle(),
+			task.getDescription(),
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0)
+		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED));
 
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SELECTED, recommendation.getStatus());
 		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
-		assertEquals(RecommendationStatus.REJECTED, otherRecommendation.getStatus());
 		assertEquals(RecommendationStatus.SELECTED, response.status());
-		assertEquals(LocalDateTime.of(2026, 5, 18, 9, 0), response.recommendedStartAt());
 	}
 
 	private CandidateSlot candidate(int score, int hour) {

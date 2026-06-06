@@ -105,18 +105,35 @@ class RecommendationTest {
 		Recommendation recommendation = recommendation();
 		recommendation.select();
 
-		recommendation.sync();
+		recommendation.sync("google-event-id");
 
 		assertEquals(RecommendationStatus.SYNCED, recommendation.getStatus());
+		assertEquals("google-event-id", recommendation.getGoogleEventId());
 	}
 
 	@Test
 	void 선택되지_않은_추천_후보는_SYNCED가_될_수_없다() {
 		Recommendation recommendation = recommendation();
 
-		RecommendationException exception = assertThrows(RecommendationException.class, recommendation::sync);
+		RecommendationException exception = assertThrows(
+			RecommendationException.class,
+			() -> recommendation.sync("google-event-id")
+		);
 
 		assertEquals(ExceptionCode.INVALID_RECOMMENDATION_STATUS_TRANSITION, exception.getExceptionCode());
+	}
+
+	@Test
+	void Google_Event_Id가_없으면_SYNCED가_될_수_없다() {
+		Recommendation recommendation = recommendation();
+		recommendation.select();
+
+		RecommendationException exception = assertThrows(
+			RecommendationException.class,
+			() -> recommendation.sync(" ")
+		);
+
+		assertEquals(ExceptionCode.INVALID_RECOMMENDATION, exception.getExceptionCode());
 	}
 
 	@Test

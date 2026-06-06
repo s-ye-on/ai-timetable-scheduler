@@ -123,6 +123,7 @@ public class RecommendationService {
 		recommendation.select();
 		task.schedule(recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
 		rejectOtherProposedRecommendations(task.getId(), userId, recommendation);
+		syncCalendarEventIfConnected(userId, recommendation, task);
 
 		return toReadResponse(recommendation);
 	}
@@ -150,6 +151,24 @@ public class RecommendationService {
 		}
 
 		return recommendation == selectedRecommendation;
+	}
+
+	private void syncCalendarEventIfConnected(Long userId, Recommendation recommendation, Task task) {
+		try {
+			String googleEventId = calendarService.createEvent(
+				userId,
+				task.getTitle(),
+				task.getDescription(),
+				recommendation.getRecommendedStartAt(),
+				recommendation.getRecommendedEndAt()
+			);
+			recommendation.sync(googleEventId);
+		} catch (CalendarException exception) {
+			if (exception.getExceptionCode() == ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED) {
+				return;
+			}
+			throw exception;
+		}
 	}
 
 	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task) {

@@ -58,6 +58,9 @@ public class Recommendation {
 	@Column(nullable = false, length = 20)
 	private RecommendationStatus status;
 
+	@Column(length = 255)
+	private String googleEventId;
+
 	@Column(nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
@@ -124,9 +127,11 @@ public class Recommendation {
 		this.updatedAt = OffsetDateTime.now();
 	}
 
-	public void sync() {
+	public void sync(String googleEventId) {
 		validateStatus(RecommendationStatus.SELECTED);
+		validateGoogleEventId(googleEventId);
 
+		this.googleEventId = googleEventId;
 		this.status = RecommendationStatus.SYNCED;
 		this.updatedAt = OffsetDateTime.now();
 	}
@@ -167,6 +172,12 @@ public class Recommendation {
 
 	private void validateScore(Integer score) {
 		if (score < 0) {
+			throw new RecommendationException(ExceptionCode.INVALID_RECOMMENDATION);
+		}
+	}
+
+	private void validateGoogleEventId(String googleEventId) {
+		if (googleEventId == null || googleEventId.isBlank()) {
 			throw new RecommendationException(ExceptionCode.INVALID_RECOMMENDATION);
 		}
 	}
