@@ -39,7 +39,13 @@ public class SecurityConfig {
 				.accessDeniedHandler(jwtAccessDeniedHandler)
 			)
 			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh", "/error").permitAll()
+				.requestMatchers(
+					"/api/auth/register",
+					"/api/auth/login",
+					"/api/auth/refresh",
+					"/api/calendar/oauth/callback",
+					"/error"
+				).permitAll()
 				.anyRequest().authenticated()
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
