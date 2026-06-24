@@ -27,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String LOGIN_PATH = "/api/auth/login";
 	private static final String REFRESH_PATH = "/api/auth/refresh";
 	private static final String GOOGLE_CALENDAR_CALLBACK_PATH = "/api/calendar/oauth/callback";
+	private static final String H2_CONSOLE_PATH = "/h2-console";
 
 	private final JwtTokenService jwtTokenService;
 	private final CustomUserDetailsService customUserDetailsService;
@@ -38,7 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		return REGISTER_PATH.equals(path)
 			|| LOGIN_PATH.equals(path)
 			|| REFRESH_PATH.equals(path)
-			|| GOOGLE_CALENDAR_CALLBACK_PATH.equals(path);
+			|| GOOGLE_CALENDAR_CALLBACK_PATH.equals(path)
+			|| H2_CONSOLE_PATH.equals(path)
+			|| path.startsWith(H2_CONSOLE_PATH + "/");
 	}
 
 	@Override

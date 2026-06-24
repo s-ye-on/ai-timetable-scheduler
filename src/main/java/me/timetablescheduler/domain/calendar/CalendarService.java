@@ -3,6 +3,7 @@ package me.timetablescheduler.domain.calendar;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
@@ -31,6 +32,10 @@ public class CalendarService {
 
 	public GoogleAuthUrlResponse createAuthUrl(Long userId) {
 		return new GoogleAuthUrlResponse(googleOAuthClient.createAuthorizationUrl(userId));
+	}
+
+	public boolean isConnected(Long userId) {
+		return calendarTokenRepository.existsByUserId(userId);
 	}
 
 	@Transactional
@@ -64,15 +69,46 @@ public class CalendarService {
 	) {
 		CalendarToken token = getValidToken(userId);
 
+		return getCalendarBusyBlocksWithToken(token, startAt, endAt);
+	}
+
+	@Transactional
+	public List<BusyBlock> getCalendarBusyBlocksOrEmpty(
+		Long userId,
+		LocalDateTime startAt,
+		LocalDateTime endAt
+	) {
+		Optional<CalendarToken> tokenOptional = calendarTokenRepository.findByUserId(userId);
+
+		if (tokenOptional.isEmpty()) {
+			return List.of();
+		}
+
+		return getCalendarBusyBlocksWithToken(tokenOptional.get(), startAt, endAt);
+	}
+
+	private List<BusyBlock> getCalendarBusyBlocksWithToken(
+		CalendarToken token,
+		LocalDateTime startAt,
+		LocalDateTime endAt
+	) {
+		CalendarToken validToken = refreshIfExpired(token);
+
 		return googleCalendarClient.getBusyBlocks(
-			token.getAccessToken(),
-			token.getCalendarId(),
+			validToken.getAccessToken(),
+			validToken.getCalendarId(),
 			startAt,
 			endAt
 		);
 	}
 
-	@Transactional
+	/// todo : RecommendationService.select()
+	/// → 내부 DB 상태 변경 트랜잭션
+	///
+	/// Calendar 동기화
+	/// → 별도 메서드/별도 트랜잭션/또는 트랜잭션 밖 외부 API 호출
+
+	@Transactional(noRollbackFor = CalendarException.class)
 	public String createEvent(
 		Long userId,
 		String title,
@@ -96,6 +132,10 @@ public class CalendarService {
 		CalendarToken token = calendarTokenRepository.findByUserId(userId)
 			.orElseThrow(() -> new CalendarException(ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED));
 
+		return refreshIfExpired(token);
+	}
+
+	private CalendarToken refreshIfExpired(CalendarToken token) {
 		if (!token.isExpired(now())) {
 			return token;
 		}

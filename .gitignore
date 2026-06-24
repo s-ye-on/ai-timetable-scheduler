@@ -56,8 +56,14 @@ src/main/java/me/timetablescheduler/domain/calendar/calendar.md
 memo.md
 study.md
 
-### 나중에 ignore 풀 md ###
+### 나중에 ignore 풀 md ### + 지금까지 한 것들 md 정리 + commit 해결
 /docs/recommendation-policy.md
 
 # Spring 설정 파일
 src/main/resources/application.properties
+src/test/resources/application.properties
+
+# Local H2 database
+data/
+data/*.mv.db
+data/*.trace.dbdata/

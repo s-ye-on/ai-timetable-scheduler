@@ -137,6 +137,25 @@ class RecommendationTest {
 	}
 
 	@Test
+	void 선택된_추천_후보는_SYNC_FAILED가_될_수_있다() {
+		Recommendation recommendation = recommendation();
+		recommendation.select();
+
+		recommendation.failSync();
+
+		assertEquals(RecommendationStatus.SYNC_FAILED, recommendation.getStatus());
+	}
+
+	@Test
+	void 선택되지_않은_추천_후보는_SYNC_FAILED가_될_수_없다() {
+		Recommendation recommendation = recommendation();
+
+		RecommendationException exception = assertThrows(RecommendationException.class, recommendation::failSync);
+
+		assertEquals(ExceptionCode.INVALID_RECOMMENDATION_STATUS_TRANSITION, exception.getExceptionCode());
+	}
+
+	@Test
 	void 추천_후보는_거절될_수_있다() {
 		Recommendation recommendation = recommendation();
 

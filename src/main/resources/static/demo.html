@@ -1,0 +1,1486 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Timetable Scheduler Demo</title>
+	<style>
+		:root {
+			--bg: #eef2f7;
+			--panel: #ffffff;
+			--line: #d7dee8;
+			--muted: #667085;
+			--text: #172033;
+			--blue: #2563eb;
+			--blue-dark: #1d4ed8;
+			--green: #15803d;
+			--green-bg: #dcfce7;
+			--orange: #c05621;
+			--orange-bg: #ffedd5;
+			--red: #b91c1c;
+			--red-bg: #fee2e2;
+			--card-radius: 8px;
+			--hour-height: 54px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			background: var(--bg);
+			color: var(--text);
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			font-size: 16px;
+		}
+
+		button,
+		input,
+		select,
+		textarea {
+			font: inherit;
+		}
+
+		.app {
+			display: grid;
+			grid-template-columns: 248px minmax(0, 1fr);
+			min-height: 100vh;
+		}
+
+		.sidebar {
+			background: #111827;
+			color: #f8fafc;
+			padding: 28px 22px;
+			position: sticky;
+			top: 0;
+			height: 100vh;
+		}
+
+		.nav {
+			display: grid;
+			gap: 8px;
+		}
+
+		.nav a {
+			color: #dbeafe;
+			text-decoration: none;
+			padding: 12px 14px;
+			border-radius: 8px;
+			display: block;
+			font-weight: 700;
+		}
+
+		.nav a:hover,
+		.nav a.active {
+			background: #1f2937;
+			color: #ffffff;
+		}
+
+		.main {
+			padding: 28px;
+			display: grid;
+			gap: 18px;
+			align-content: start;
+		}
+
+		.header {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 16px;
+		}
+
+		.header-actions {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		h1,
+		h2,
+		h3,
+		p {
+			margin: 0;
+		}
+
+		h1 {
+			font-size: 30px;
+			line-height: 1.2;
+			letter-spacing: 0;
+		}
+
+		h2 {
+			font-size: 21px;
+			line-height: 1.3;
+			margin-bottom: 14px;
+		}
+
+		h3 {
+			font-size: 18px;
+			line-height: 1.35;
+			margin-bottom: 10px;
+		}
+
+		.subtle {
+			color: var(--muted);
+			margin-top: 8px;
+			line-height: 1.45;
+		}
+
+		.grid {
+			display: grid;
+			gap: 18px;
+		}
+
+		.grid.two {
+			grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
+			column-gap: 26px;
+			row-gap: 18px;
+			align-items: start;
+		}
+
+		.grid.three {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.grid.four {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+
+		.card {
+			background: var(--panel);
+			border: 1px solid var(--line);
+			border-radius: var(--card-radius);
+			padding: 18px;
+			box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+		}
+
+		.status-card {
+			min-height: 116px;
+		}
+
+		.metric {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.metric strong {
+			font-size: 26px;
+			line-height: 1.1;
+		}
+
+		#preferenceSummary {
+			font-size: 18px;
+			line-height: 1.25;
+			word-break: keep-all;
+		}
+
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 30px;
+			border-radius: 999px;
+			padding: 5px 12px;
+			font-weight: 800;
+			font-size: 14px;
+			white-space: nowrap;
+		}
+
+		.badge.success {
+			background: var(--green-bg);
+			color: var(--green);
+		}
+
+		.badge.warning {
+			background: var(--orange-bg);
+			color: var(--orange);
+		}
+
+		.badge.danger {
+			background: var(--red-bg);
+			color: var(--red);
+		}
+
+		.badge.neutral {
+			background: #e0e7ff;
+			color: #3730a3;
+		}
+
+		.form-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px;
+			align-items: end;
+		}
+
+		.form-grid button {
+			grid-column: 1 / -1;
+			justify-self: start;
+			min-width: 120px;
+		}
+
+		.preference-form {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.preference-form .actions {
+			grid-column: 1 / -1;
+		}
+
+		label {
+			display: grid;
+			gap: 6px;
+			color: #475467;
+			font-weight: 700;
+			font-size: 14px;
+		}
+
+		input,
+		select,
+		textarea {
+			width: 100%;
+			border: 1px solid #cbd5e1;
+			border-radius: 8px;
+			padding: 11px 12px;
+			background: #ffffff;
+			color: var(--text);
+			min-height: 44px;
+		}
+
+		textarea {
+			resize: vertical;
+			min-height: 96px;
+			line-height: 1.5;
+		}
+
+		button {
+			border: 0;
+			border-radius: 8px;
+			padding: 11px 14px;
+			min-height: 44px;
+			background: var(--blue);
+			color: #ffffff;
+			font-weight: 800;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		button:hover {
+			background: var(--blue-dark);
+		}
+
+		button.secondary {
+			background: #e5e7eb;
+			color: #1f2937;
+		}
+
+		button.secondary:hover {
+			background: #d1d5db;
+		}
+
+		button.danger {
+			background: #dc2626;
+		}
+
+		button.danger:hover {
+			background: #b91c1c;
+		}
+
+		button.compact {
+			min-height: 34px;
+			padding: 7px 11px;
+			font-size: 14px;
+		}
+
+		.auth-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr 1fr auto auto;
+			gap: 10px;
+			align-items: end;
+		}
+
+		.is-hidden {
+			display: none !important;
+		}
+
+		.table-shell {
+			display: grid;
+			grid-template-columns: 74px repeat(5, minmax(120px, 1fr));
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			overflow: hidden;
+			background: #f8fafc;
+		}
+
+		.table-head {
+			background: #1e3a8a;
+			color: #ffffff;
+			font-weight: 800;
+			padding: 12px 8px;
+			text-align: center;
+			border-right: 1px solid rgba(255, 255, 255, 0.22);
+		}
+
+		.time-rail {
+			background: #f1f5f9;
+			border-right: 1px solid var(--line);
+		}
+
+		.time-mark {
+			height: var(--hour-height);
+			padding: 7px 8px;
+			color: #64748b;
+			font-size: 13px;
+			font-weight: 700;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.day-column {
+			position: relative;
+			min-height: calc(var(--hour-height) * 14);
+			border-right: 1px solid var(--line);
+			background:
+				repeating-linear-gradient(
+					to bottom,
+					#ffffff 0,
+					#ffffff calc(var(--hour-height) - 1px),
+					#dbe3ef calc(var(--hour-height) - 1px),
+					#dbe3ef var(--hour-height)
+				);
+		}
+
+		.day-column:last-child {
+			border-right: 0;
+		}
+
+		.class-block {
+			position: absolute;
+			left: 8px;
+			right: 8px;
+			border-radius: 8px;
+			padding: 9px 10px;
+			background: #dbeafe;
+			border: 1px solid #93c5fd;
+			color: #17365d;
+			overflow: hidden;
+			box-shadow: 0 8px 18px rgba(37, 99, 235, 0.13);
+		}
+
+		.class-block strong {
+			display: block;
+			font-size: 15px;
+			line-height: 1.2;
+			margin-bottom: 4px;
+		}
+
+		.class-block span {
+			display: block;
+			font-size: 13px;
+			line-height: 1.35;
+			color: #335c8f;
+		}
+
+		.slot-list {
+			display: grid;
+			gap: 8px;
+			max-height: 238px;
+			overflow: auto;
+			padding-right: 4px;
+		}
+
+		.slot-item,
+		.recommendation-card {
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			padding: 13px;
+			background: #fbfdff;
+		}
+
+		.slot-item {
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+			align-items: center;
+		}
+
+		.recommendation-list {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.recommendation-card {
+			display: grid;
+			gap: 10px;
+		}
+
+		.card-title-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.kv {
+			display: grid;
+			grid-template-columns: 150px minmax(0, 1fr);
+			gap: 8px 12px;
+			font-size: 15px;
+		}
+
+		.kv dt {
+			color: var(--muted);
+			font-weight: 800;
+		}
+
+		.kv dd {
+			margin: 0;
+			font-weight: 700;
+			min-width: 0;
+			word-break: break-word;
+		}
+
+		.reason-list {
+			display: grid;
+			gap: 6px;
+			padding: 0;
+			margin: 0;
+			list-style: none;
+			color: #344054;
+			font-weight: 650;
+			line-height: 1.35;
+		}
+
+		.reason-heading {
+			color: #1f2937;
+			font-weight: 850;
+			margin-bottom: 2px;
+		}
+
+		.reason-list li {
+			display: flex;
+			gap: 8px;
+			align-items: flex-start;
+		}
+
+		.reason-list .check {
+			color: var(--green);
+			font-weight: 900;
+		}
+
+		.condition-list {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 10px;
+		}
+
+		.condition-item {
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: #fbfdff;
+			padding: 12px;
+		}
+
+		.condition-item strong {
+			display: block;
+			margin-bottom: 6px;
+		}
+
+		.condition-item span {
+			color: var(--muted);
+			font-weight: 700;
+			line-height: 1.4;
+		}
+
+		pre {
+			margin: 12px 0 0;
+			padding: 12px;
+			background: #0f172a;
+			color: #dbeafe;
+			border-radius: 8px;
+			overflow: auto;
+			font-size: 13px;
+			line-height: 1.45;
+			max-height: 260px;
+		}
+
+		.notice {
+			border-radius: 8px;
+			padding: 12px 14px;
+			background: #eff6ff;
+			color: #1e3a8a;
+			font-weight: 750;
+			line-height: 1.45;
+		}
+
+		.notice.warning {
+			background: var(--orange-bg);
+			color: var(--orange);
+		}
+
+		.notice.success {
+			background: var(--green-bg);
+			color: var(--green);
+		}
+
+		.notice.danger {
+			background: var(--red-bg);
+			color: var(--red);
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+		}
+
+		.empty {
+			color: var(--muted);
+			font-weight: 700;
+			padding: 14px 0;
+		}
+
+		@media (max-width: 1180px) {
+			.app {
+				grid-template-columns: 1fr;
+			}
+
+			.sidebar {
+				position: static;
+				height: auto;
+			}
+
+			.nav {
+				grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+			}
+
+			.grid.two,
+			.grid.three,
+			.grid.four,
+			.condition-list,
+			.recommendation-list,
+			.auth-row,
+			.form-grid,
+			.preference-form {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
+</head>
+<body>
+<div class="app">
+	<aside class="sidebar">
+		<nav class="nav" aria-label="demo navigation">
+			<a class="active" href="#dashboard">대시보드</a>
+			<a href="#timetable">시간표</a>
+			<a href="#preference">선호 설정</a>
+			<a href="#recommendation">일정 추천</a>
+			<a href="#calendar">Google Calendar</a>
+		</nav>
+	</aside>
+
+	<main class="main">
+		<section class="header" id="dashboard">
+			<div>
+				<h1>시간표 기반 자연어 일정 추천</h1>
+				<p class="subtle">시간표와 Google Calendar 일정을 함께 고려해 추천 후보를 만들고, 선택한 일정을 캘린더에 등록합니다.</p>
+			</div>
+			<div class="header-actions">
+				<span class="badge neutral" id="authBadge">로그인 필요</span>
+				<button class="secondary compact is-hidden" id="logoutButton">로그아웃</button>
+			</div>
+		</section>
+
+		<section class="card" id="authCard">
+			<h2>로그인</h2>
+			<div class="auth-row">
+				<label>이름
+					<input id="nameInput" value="사용자" maxlength="30">
+				</label>
+				<label>이메일
+					<input id="emailInput" type="email" value="demo@example.com">
+				</label>
+				<label>비밀번호
+					<input id="passwordInput" type="password" value="password123">
+				</label>
+				<button id="registerButton">회원가입</button>
+				<button id="loginButton" class="secondary">로그인</button>
+			</div>
+			<p class="subtle" id="authMessage">accessToken은 시연용으로 localStorage에 저장됩니다.</p>
+		</section>
+
+		<section class="grid four">
+			<article class="card status-card">
+				<div class="metric">
+					<div>
+						<h3>시간표 상태</h3>
+						<strong id="timetableCount">0개</strong>
+					</div>
+					<span class="badge warning" id="timetableBadge">미등록</span>
+				</div>
+				<p class="subtle" id="timetableStatusText">시간표가 없으면 시간표 없이 추천합니다.</p>
+			</article>
+			<article class="card status-card" id="preferenceStatusCard">
+				<div class="metric">
+					<div>
+						<h3>선호 설정</h3>
+						<strong id="preferenceSummary">기본값</strong>
+					</div>
+					<span class="badge warning" id="preferenceBadge">기본 설정</span>
+				</div>
+				<p class="subtle" id="preferenceStatusText">기본 설정 사용 중</p>
+			</article>
+			<article class="card status-card" id="calendar">
+				<div class="metric">
+					<div>
+						<h3>Google Calendar</h3>
+						<strong id="calendarText">미연결</strong>
+					</div>
+					<span class="badge warning" id="calendarBadge">미연결</span>
+				</div>
+				<div class="actions" style="margin-top: 12px;">
+					<button id="connectCalendarButton">연결하기</button>
+					<button id="refreshCalendarButton" class="secondary">상태 새로고침</button>
+				</div>
+			</article>
+			<article class="card status-card">
+				<div class="metric">
+					<div>
+						<h3>추천 흐름</h3>
+						<strong id="flowText">대기</strong>
+					</div>
+					<span class="badge neutral" id="flowBadge">READY</span>
+				</div>
+				<p class="subtle">자연어 입력, AI 파싱, 추천 후보, 캘린더 등록 상태가 순서대로 표시됩니다.</p>
+			</article>
+		</section>
+
+		<section class="grid two" id="timetable">
+			<article class="card">
+				<h2>시간표 등록</h2>
+				<form class="form-grid" id="timetableForm">
+					<label>과목명
+						<input id="subjectName" value="네트워크 컴퓨팅" required>
+					</label>
+					<label>요일
+						<select id="dayOfWeek" required>
+							<option value="MONDAY">월요일</option>
+							<option value="TUESDAY" selected>화요일</option>
+							<option value="WEDNESDAY">수요일</option>
+							<option value="THURSDAY">목요일</option>
+							<option value="FRIDAY">금요일</option>
+						</select>
+					</label>
+					<label>시작 시간
+						<input id="startTime" type="time" value="12:00" required>
+					</label>
+					<label>종료 시간
+						<input id="endTime" type="time" value="13:00" required>
+					</label>
+					<label>장소
+						<input id="location" value="ict">
+					</label>
+					<button type="submit">등록</button>
+				</form>
+				<p class="subtle">시간표 등록은 필수가 아니며, 등록된 수업은 추천 후보 생성 시 충돌 검사에 반영됩니다.</p>
+			</article>
+
+			<article class="card">
+				<h2>등록된 수업</h2>
+				<div class="slot-list" id="slotList"></div>
+			</article>
+		</section>
+
+		<section class="card">
+			<div class="card-title-row">
+				<h2>주간 시간표</h2>
+				<span class="badge neutral">월-금 08:00-22:00</span>
+			</div>
+			<div class="table-shell" id="weeklyTable"></div>
+		</section>
+
+		<section class="grid two" id="preference">
+			<article class="card">
+				<h2>선호 설정</h2>
+				<form class="preference-form" id="preferenceForm">
+					<label>기본 선호 시간대
+						<select id="preferredTimeRange">
+							<option value="ANYTIME">상관없음</option>
+							<option value="MORNING">오전</option>
+							<option value="LUNCH" selected>점심</option>
+							<option value="AFTERNOON">오후</option>
+							<option value="EVENING">저녁</option>
+						</select>
+					</label>
+					<label>추천 가능 시작 시간
+						<input id="scheduleStartTime" type="time" value="08:00">
+					</label>
+					<label>추천 가능 종료 시간
+						<input id="scheduleEndTime" type="time" value="22:00">
+					</label>
+					<label>일정 간 최소 여유 시간
+						<select id="minimumGapMinutes">
+							<option value="0">0분</option>
+							<option value="5">5분</option>
+							<option value="10" selected>10분</option>
+							<option value="15">15분</option>
+							<option value="30">30분</option>
+							<option value="60">60분</option>
+						</select>
+					</label>
+					<label>일정 밀도 선호
+						<select id="scheduleDensity">
+							<option value="COMPACT">촘촘하게 배치</option>
+							<option value="BALANCED" selected>균형 있게 배치</option>
+							<option value="RELAXED">여유 있게 배치</option>
+						</select>
+					</label>
+					<label>마감 일정 배치 선호
+						<select id="deadlineTiming">
+							<option value="ASAP">가능한 빨리</option>
+							<option value="BALANCED" selected>균형 있게</option>
+							<option value="NEAR_DEADLINE">마감 가까이</option>
+						</select>
+					</label>
+					<div class="actions">
+						<button type="submit">선호 설정 저장</button>
+						<button type="button" class="secondary" id="loadPreferenceButton">현재 설정 불러오기</button>
+						<button type="button" class="secondary" id="resetPreferenceButton">기본값으로 초기화</button>
+					</div>
+				</form>
+				<p class="subtle" id="preferenceMessage">선호 설정은 추천 생성 시 시간대, 여유 시간, 일정 배치 점수에 반영됩니다.</p>
+			</article>
+
+			<article class="card">
+				<h2>현재 선호 요약</h2>
+				<div id="preferenceDetail" class="empty">로그인 후 현재 설정을 불러올 수 있습니다.</div>
+			</article>
+		</section>
+
+		<section class="grid two" id="recommendation">
+			<article class="card">
+				<h2>자연어 일정 입력</h2>
+				<label>요청 문장
+					<textarea id="naturalMessage" placeholder="목요일 저녁에 알고리즘 공부 2시간 잡아줘">화요일 점심에 밥약속 1시간 잡아줘</textarea>
+				</label>
+				<div class="actions" style="margin-top: 12px;">
+					<button id="parseButton">AI로 일정 분석하기</button>
+					<button id="recommendButton" class="secondary">추천 후보 생성</button>
+				</div>
+				<p class="subtle" id="taskMessage">AI 분석 후 생성된 Task 기준으로 추천 후보를 요청합니다.</p>
+			</article>
+
+			<article class="card">
+				<h2>AI 파싱 결과</h2>
+				<div id="parsedResult" class="empty">아직 분석 결과가 없습니다.</div>
+			</article>
+		</section>
+
+		<section class="card">
+			<h2>이번 추천에 사용된 조건</h2>
+			<div class="condition-list" id="recommendationConditionList"></div>
+		</section>
+
+		<section class="card">
+			<div class="card-title-row">
+				<h2>추천 후보</h2>
+				<span class="badge neutral" id="recommendationCount">0개</span>
+			</div>
+			<div id="recommendationList" class="recommendation-list"></div>
+		</section>
+
+		<section class="card">
+			<h2>선택 결과</h2>
+			<div id="selectionResult" class="empty">추천 후보를 선택하면 Google Calendar 등록 상태가 표시됩니다.</div>
+		</section>
+	</main>
+</div>
+
+<script>
+	const DAY_LABELS = {
+		MONDAY: "월",
+		TUESDAY: "화",
+		WEDNESDAY: "수",
+		THURSDAY: "목",
+		FRIDAY: "금"
+	};
+	const FULL_DAY_LABELS = {
+		MONDAY: "월요일",
+		TUESDAY: "화요일",
+		WEDNESDAY: "수요일",
+		THURSDAY: "목요일",
+		FRIDAY: "금요일",
+		SATURDAY: "토요일",
+		SUNDAY: "일요일"
+	};
+	const CATEGORY_LABELS = {
+		STUDY: "공부",
+		ASSIGNMENT: "과제",
+		APPOINTMENT: "약속",
+		PERSONAL: "개인"
+	};
+	const TIME_RANGE_LABELS = {
+		MORNING: "오전",
+		LUNCH: "점심",
+		AFTERNOON: "오후",
+		EVENING: "저녁",
+		ANYTIME: "언제든"
+	};
+	const TASK_STATUS_LABELS = {
+		UNSCHEDULED: "미배정",
+		SCHEDULED: "배정됨",
+		COMPLETED: "완료",
+		CANCELED: "취소"
+	};
+	const SCHEDULE_DENSITY_LABELS = {
+		COMPACT: "촘촘하게 배치",
+		BALANCED: "균형 있게 배치",
+		RELAXED: "여유 있게 배치"
+	};
+	const DEADLINE_TIMING_LABELS = {
+		ASAP: "가능한 빨리",
+		BALANCED: "균형 있게",
+		NEAR_DEADLINE: "마감 가까이"
+	};
+	const WEEKDAY_NAMES = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+	const DAY_ORDER = Object.keys(DAY_LABELS);
+	const START_HOUR = 8;
+	const END_HOUR = 22;
+	const HOUR_HEIGHT = 54;
+
+	const state = {
+		accessToken: localStorage.getItem("demoAccessToken"),
+		refreshToken: localStorage.getItem("demoRefreshToken"),
+		userName: localStorage.getItem("demoUserName"),
+		timetableSlots: [],
+		preference: null,
+		calendarConnected: false,
+		currentTask: null,
+		recommendations: [],
+		selection: null
+	};
+
+	const $ = (id) => document.getElementById(id);
+
+	document.addEventListener("DOMContentLoaded", () => {
+		bindEvents();
+		renderWeeklyTable();
+		renderPreferenceStatus();
+		renderRecommendationConditions();
+		updateAuthState();
+		if (state.accessToken) {
+			loadInitialData();
+		}
+	});
+
+	function bindEvents() {
+		$("registerButton").addEventListener("click", register);
+		$("loginButton").addEventListener("click", login);
+		$("logoutButton").addEventListener("click", logout);
+		$("timetableForm").addEventListener("submit", createTimetableSlot);
+		$("preferenceForm").addEventListener("submit", savePreference);
+		$("loadPreferenceButton").addEventListener("click", refreshPreference);
+		$("resetPreferenceButton").addEventListener("click", resetPreference);
+		$("parseButton").addEventListener("click", parseNaturalLanguage);
+		$("recommendButton").addEventListener("click", generateRecommendations);
+		$("connectCalendarButton").addEventListener("click", connectGoogleCalendar);
+		$("refreshCalendarButton").addEventListener("click", refreshCalendarStatus);
+	}
+
+	async function request(path, options = {}) {
+		const headers = {
+			"Content-Type": "application/json",
+			...(options.headers || {})
+		};
+
+		if (state.accessToken) {
+			headers.Authorization = `Bearer ${state.accessToken}`;
+		}
+
+		const response = await fetch(path, {
+			...options,
+			headers
+		});
+
+		if (response.status === 204) {
+			return null;
+		}
+
+		const text = await response.text();
+		const body = text ? JSON.parse(text) : null;
+
+		if (!response.ok) {
+			const error = new Error(body?.message || "요청 처리에 실패했습니다.");
+			error.body = body;
+			throw error;
+		}
+
+		return body;
+	}
+
+	async function register() {
+		try {
+			const auth = await request("/api/auth/register", {
+				method: "POST",
+				body: JSON.stringify({
+					name: $("nameInput").value.trim(),
+					email: $("emailInput").value.trim(),
+					password: $("passwordInput").value
+				})
+			});
+			saveAuth(auth);
+			$("authMessage").textContent = "회원가입과 로그인이 완료되었습니다.";
+			await loadInitialData();
+		} catch (error) {
+			$("authMessage").textContent = error.body?.code === "CONFLICT_EMAIL"
+				? "이미 가입된 이메일입니다. 로그인 버튼을 사용하세요."
+				: error.message;
+		}
+	}
+
+	async function login() {
+		try {
+			const auth = await request("/api/auth/login", {
+				method: "POST",
+				body: JSON.stringify({
+					email: $("emailInput").value.trim(),
+					password: $("passwordInput").value
+				})
+			});
+			saveAuth(auth);
+			$("authMessage").textContent = "로그인되었습니다.";
+			await loadInitialData();
+		} catch (error) {
+			$("authMessage").textContent = error.message;
+		}
+	}
+
+	function saveAuth(auth) {
+		state.accessToken = auth.accessToken;
+		state.refreshToken = auth.refreshToken;
+		state.userName = $("nameInput").value.trim() || $("emailInput").value.trim().split("@")[0] || "사용자";
+		localStorage.setItem("demoAccessToken", auth.accessToken);
+		localStorage.setItem("demoRefreshToken", auth.refreshToken);
+		localStorage.setItem("demoUserName", state.userName);
+		updateAuthState();
+	}
+
+	function updateAuthState() {
+		const isLoggedIn = Boolean(state.accessToken);
+		$("authBadge").textContent = isLoggedIn ? `로그인됨: ${state.userName || "사용자"}` : "로그인 필요";
+		$("authBadge").className = `badge ${isLoggedIn ? "success" : "warning"}`;
+		$("authCard").classList.toggle("is-hidden", isLoggedIn);
+		$("logoutButton").classList.toggle("is-hidden", !isLoggedIn);
+	}
+
+	function logout() {
+		localStorage.removeItem("demoAccessToken");
+		localStorage.removeItem("demoRefreshToken");
+		localStorage.removeItem("demoUserName");
+		location.reload();
+	}
+
+	async function loadInitialData() {
+		await Promise.allSettled([
+			refreshTimetable(),
+			refreshPreference(),
+			refreshCalendarStatus()
+		]);
+	}
+
+	async function refreshTimetable() {
+		state.timetableSlots = await request("/timetable-slots");
+		renderTimetableStatus();
+		renderSlotList();
+		renderWeeklyTable();
+	}
+
+	function renderTimetableStatus() {
+		const count = state.timetableSlots.length;
+		$("timetableCount").textContent = `${count}개`;
+		$("timetableBadge").textContent = count > 0 ? "반영됨" : "미등록";
+		$("timetableBadge").className = `badge ${count > 0 ? "success" : "warning"}`;
+		$("timetableStatusText").textContent = count > 0
+			? `시간표 ${count}개 등록됨 — 추천 시 반영됩니다.`
+			: "시간표가 없으면 시간표 없이 추천합니다.";
+		renderRecommendationConditions();
+	}
+
+	async function refreshPreference() {
+		try {
+			state.preference = await request("/preferences");
+			fillPreferenceForm(state.preference);
+			renderPreferenceStatus();
+			renderRecommendationConditions();
+			$("preferenceMessage").textContent = "현재 선호 설정을 불러왔습니다.";
+		} catch (error) {
+			$("preferenceMessage").textContent = error.body?.message || error.message;
+		}
+	}
+
+	async function savePreference(event) {
+		event.preventDefault();
+		try {
+			state.preference = await request("/preferences", {
+				method: "PUT",
+				body: JSON.stringify({
+					preferredTimeRange: $("preferredTimeRange").value,
+					scheduleStartTime: $("scheduleStartTime").value,
+					scheduleEndTime: $("scheduleEndTime").value,
+					minimumGapMinutes: Number($("minimumGapMinutes").value),
+					scheduleDensity: $("scheduleDensity").value,
+					deadlineTiming: $("deadlineTiming").value
+				})
+			});
+			fillPreferenceForm(state.preference);
+			renderPreferenceStatus();
+			renderRecommendationConditions();
+			renderRecommendations();
+			$("preferenceMessage").textContent = "선호 설정이 저장되었습니다. 추천 생성 시 반영됩니다.";
+		} catch (error) {
+			$("preferenceMessage").textContent = error.body?.message || error.message;
+		}
+	}
+
+	async function resetPreference() {
+		try {
+			state.preference = await request("/preferences", { method: "DELETE" });
+			fillPreferenceForm(state.preference);
+			renderPreferenceStatus();
+			renderRecommendationConditions();
+			renderRecommendations();
+			$("preferenceMessage").textContent = "기본 선호 설정으로 초기화했습니다.";
+		} catch (error) {
+			$("preferenceMessage").textContent = error.body?.message || error.message;
+		}
+	}
+
+	function fillPreferenceForm(preference) {
+		if (!preference) {
+			return;
+		}
+
+		$("preferredTimeRange").value = preference.preferredTimeRange;
+		$("scheduleStartTime").value = formatTime(preference.scheduleStartTime);
+		$("scheduleEndTime").value = formatTime(preference.scheduleEndTime);
+		$("minimumGapMinutes").value = String(preference.minimumGapMinutes);
+		$("scheduleDensity").value = preference.scheduleDensity;
+		$("deadlineTiming").value = preference.deadlineTiming;
+	}
+
+	function renderPreferenceStatus() {
+		const preference = state.preference;
+		if (!preference) {
+			$("preferenceSummary").textContent = "기본값";
+			$("preferenceBadge").textContent = "기본 설정";
+			$("preferenceBadge").className = "badge warning";
+			$("preferenceStatusText").textContent = "기본 설정 사용 중";
+			$("preferenceDetail").innerHTML = `<div class="empty">로그인 후 현재 설정을 불러올 수 있습니다.</div>`;
+			return;
+		}
+
+		$("preferenceSummary").textContent = formatPreferenceSummary(preference);
+		$("preferenceBadge").textContent = preference.customized ? "사용자 설정" : "기본 설정";
+		$("preferenceBadge").className = `badge ${preference.customized ? "success" : "warning"}`;
+		$("preferenceStatusText").textContent = preference.customized ? "사용자 설정 반영 중" : "기본 설정 사용 중";
+		$("preferenceDetail").innerHTML = `
+			<dl class="kv">
+				<dt>기본 선호 시간대</dt><dd>${formatTimeRange(preference.preferredTimeRange)}</dd>
+				<dt>추천 가능 시간</dt><dd>${formatTime(preference.scheduleStartTime)} ~ ${formatTime(preference.scheduleEndTime)}</dd>
+				<dt>최소 여유 시간</dt><dd>${preference.minimumGapMinutes}분</dd>
+				<dt>일정 밀도</dt><dd>${formatScheduleDensity(preference.scheduleDensity)}</dd>
+				<dt>마감 배치</dt><dd>${formatDeadlineTiming(preference.deadlineTiming)}</dd>
+				<dt>적용 상태</dt><dd><span class="badge ${preference.customized ? "success" : "warning"}">${preference.customized ? "사용자 설정 반영 중" : "기본 설정 사용 중"}</span></dd>
+			</dl>
+		`;
+	}
+
+	function renderSlotList() {
+		const slotList = $("slotList");
+		if (state.timetableSlots.length === 0) {
+			slotList.innerHTML = `<div class="empty">등록된 수업이 없습니다.</div>`;
+			return;
+		}
+
+		slotList.innerHTML = state.timetableSlots.map((slot) => `
+			<div class="slot-item">
+				<div>
+					<strong>${escapeHtml(slot.subjectName)}</strong>
+					<div class="subtle">${DAY_LABELS[slot.dayOfWeek] || slot.dayOfWeek} ${formatTime(slot.startTime)}-${formatTime(slot.endTime)} · ${escapeHtml(slot.location || "장소 미입력")}</div>
+				</div>
+				<button class="danger" data-delete-slot="${slot.id}">삭제</button>
+			</div>
+		`).join("");
+
+		document.querySelectorAll("[data-delete-slot]").forEach((button) => {
+			button.addEventListener("click", async () => {
+				await request(`/timetable-slots/${button.dataset.deleteSlot}`, { method: "DELETE" });
+				await refreshTimetable();
+			});
+		});
+	}
+
+	function renderWeeklyTable() {
+		const table = $("weeklyTable");
+		const header = [`<div class="table-head">시간</div>`]
+			.concat(DAY_ORDER.map((day) => `<div class="table-head">${DAY_LABELS[day]}</div>`))
+			.join("");
+
+		const rail = `<div class="time-rail">${
+			Array.from({ length: END_HOUR - START_HOUR }, (_, index) => {
+				const hour = String(START_HOUR + index).padStart(2, "0");
+				return `<div class="time-mark">${hour}:00</div>`;
+			}).join("")
+		}</div>`;
+
+		const columns = DAY_ORDER.map((day) => {
+			const blocks = state.timetableSlots
+				.filter((slot) => slot.dayOfWeek === day)
+				.map(renderClassBlock)
+				.join("");
+			return `<div class="day-column">${blocks}</div>`;
+		}).join("");
+
+		table.innerHTML = header + rail + columns;
+	}
+
+	function renderClassBlock(slot) {
+		const start = toMinutes(slot.startTime);
+		const end = toMinutes(slot.endTime);
+		const top = Math.max(0, ((start - START_HOUR * 60) / 60) * HOUR_HEIGHT);
+		const height = Math.max(36, ((end - start) / 60) * HOUR_HEIGHT);
+
+		return `
+			<div class="class-block" style="top: ${top}px; height: ${height}px;">
+				<strong>${escapeHtml(slot.subjectName)}</strong>
+				<span>${formatTime(slot.startTime)}-${formatTime(slot.endTime)}</span>
+				<span>${escapeHtml(slot.location || "장소 미입력")}</span>
+			</div>
+		`;
+	}
+
+	async function createTimetableSlot(event) {
+		event.preventDefault();
+		try {
+			await request("/timetable-slots", {
+				method: "POST",
+				body: JSON.stringify({
+					subjectName: $("subjectName").value.trim(),
+					dayOfWeek: $("dayOfWeek").value,
+					startTime: $("startTime").value,
+					endTime: $("endTime").value,
+					location: $("location").value.trim()
+				})
+			});
+			await refreshTimetable();
+		} catch (error) {
+			alert(error.body?.message || error.message);
+		}
+	}
+
+	async function refreshCalendarStatus() {
+		try {
+			const response = await request("/api/calendar/status");
+			state.calendarConnected = response.connected;
+		} catch (error) {
+			state.calendarConnected = false;
+		}
+		renderCalendarStatus();
+		renderRecommendations();
+	}
+
+	function renderCalendarStatus() {
+		$("calendarText").textContent = state.calendarConnected ? "연결됨" : "미연결";
+		$("calendarBadge").textContent = state.calendarConnected ? "연결됨" : "미연결";
+		$("calendarBadge").className = `badge ${state.calendarConnected ? "success" : "warning"}`;
+		renderRecommendationConditions();
+	}
+
+	async function connectGoogleCalendar() {
+		try {
+			const response = await request("/api/calendar/oauth/url");
+			window.open(response.authUrl, "_blank", "noopener,noreferrer");
+		} catch (error) {
+			alert(error.body?.message || error.message);
+		}
+	}
+
+	async function parseNaturalLanguage() {
+		try {
+			const task = await request("/tasks/natural-language", {
+				method: "POST",
+				body: JSON.stringify({ message: $("naturalMessage").value.trim() })
+			});
+			state.currentTask = task;
+			state.recommendations = [];
+			state.selection = null;
+			renderParsedResult();
+			renderRecommendations();
+			renderSelectionResult();
+			setFlow("AI 분석 완료", "PARSED", "success");
+		} catch (error) {
+			$("taskMessage").textContent = error.body?.message || error.message;
+			setFlow("분석 실패", "FAILED", "danger");
+		}
+	}
+
+	function renderParsedResult() {
+		if (!state.currentTask) {
+			$("parsedResult").innerHTML = `<div class="empty">아직 분석 결과가 없습니다.</div>`;
+			return;
+		}
+
+		const task = state.currentTask;
+		$("parsedResult").innerHTML = `
+			<dl class="kv">
+				<dt>제목</dt><dd>${escapeHtml(task.title)}</dd>
+				<dt>분류</dt><dd>${formatCategory(task.category)}</dd>
+				<dt>소요 시간</dt><dd>${formatDuration(task.durationMinutes)}</dd>
+				<dt>선호 요일</dt><dd>${formatDayOfWeek(task.preferredDayOfWeek)}</dd>
+				<dt>선호 시간대</dt><dd>${formatTimeRange(task.preferredTimeRange)}</dd>
+				<dt>상태</dt><dd><span class="badge neutral">${formatTaskStatus(task.status)}</span></dd>
+			</dl>
+			<pre>${escapeHtml(JSON.stringify(task, null, 2))}</pre>
+		`;
+		$("taskMessage").textContent = `Task #${task.id} 생성 완료. 추천 후보를 생성할 수 있습니다.`;
+	}
+
+	async function generateRecommendations() {
+		if (!state.currentTask) {
+			$("taskMessage").textContent = "먼저 AI로 일정을 분석해 Task를 생성하세요.";
+			return;
+		}
+
+		try {
+			const response = await request(`/tasks/${state.currentTask.id}/recommendations`, {
+				method: "POST"
+			});
+			state.recommendations = response.recommendations || [];
+			state.selection = null;
+			renderRecommendations();
+			renderSelectionResult();
+			setFlow("추천 생성 완료", "RECOMMENDED", "success");
+		} catch (error) {
+			$("taskMessage").textContent = error.body?.message || error.message;
+			setFlow("추천 실패", "FAILED", "danger");
+		}
+	}
+
+	function renderRecommendations() {
+		$("recommendationCount").textContent = `${state.recommendations.length}개`;
+		const list = $("recommendationList");
+
+		if (state.recommendations.length === 0) {
+			list.innerHTML = `<div class="empty">아직 추천 후보가 없습니다.</div>`;
+			return;
+		}
+
+		list.innerHTML = state.recommendations.map((recommendation) => `
+			<article class="recommendation-card">
+				<div class="card-title-row">
+					<h3>추천 ${recommendation.rank}순위</h3>
+					<span class="badge neutral">${recommendation.status}</span>
+				</div>
+				<dl class="kv">
+					<dt>추천 시간</dt><dd>${formatDateTimeRange(recommendation.recommendedStartAt, recommendation.recommendedEndAt)}</dd>
+					<dt>점수</dt><dd>${recommendation.score}점</dd>
+				</dl>
+				<div class="reason-heading">반영 조건</div>
+				<ul class="reason-list">
+					${renderReasonChecklist(recommendation.reason)}
+				</ul>
+				<button data-select-recommendation="${recommendation.id}">이 시간으로 선택</button>
+			</article>
+		`).join("");
+
+		document.querySelectorAll("[data-select-recommendation]").forEach((button) => {
+			button.addEventListener("click", () => selectRecommendation(button.dataset.selectRecommendation));
+		});
+	}
+
+	async function selectRecommendation(recommendationId) {
+		try {
+			const response = await request(`/recommendations/${recommendationId}/select`, {
+				method: "POST"
+			});
+			state.selection = { ok: true, body: response };
+			renderSelectionResult();
+			setFlow(response.status === "SYNCED" ? "캘린더 등록 완료" : "선택 완료", response.status, response.status === "SYNCED" ? "success" : "warning");
+		} catch (error) {
+			state.selection = { ok: false, body: error.body };
+			renderSelectionResult();
+			setFlow("선택 실패", error.body?.code || "FAILED", error.body?.code === "GOOGLE_CALENDAR_NOT_CONNECTED" ? "warning" : "danger");
+		}
+	}
+
+	function renderSelectionResult() {
+		const target = $("selectionResult");
+		if (!state.selection) {
+			target.className = "empty";
+			target.textContent = "추천 후보를 선택하면 Google Calendar 등록 상태가 표시됩니다.";
+			return;
+		}
+
+		if (!state.selection.ok) {
+			const body = state.selection.body || {};
+			target.className = "notice warning";
+			target.innerHTML = body.code === "GOOGLE_CALENDAR_NOT_CONNECTED"
+				? `<strong>Google Calendar 연결이 필요합니다.</strong><br>${escapeHtml(body.message || "Google Calendar가 연결되어 있지 않습니다.")}`
+				: `<strong>선택 처리 실패</strong><br>${escapeHtml(body.message || "요청 처리에 실패했습니다.")}`;
+			return;
+		}
+
+		const result = state.selection.body;
+		if (result.status === "SYNCED") {
+			target.className = "notice success";
+			target.innerHTML = `<strong>Google Calendar 등록 완료</strong><br>${formatDateTimeRange(result.recommendedStartAt, result.recommendedEndAt)} 일정이 동기화되었습니다.`;
+			return;
+		}
+
+		if (result.status === "SYNC_FAILED") {
+			target.className = "notice danger";
+			target.innerHTML = `<strong>Google Calendar 등록 실패</strong><br>내부 일정 선택은 완료되었지만 Google Calendar 이벤트 생성에 실패했습니다.`;
+			return;
+		}
+
+		target.className = "notice";
+		target.innerHTML = `<strong>추천 선택 완료</strong><br>현재 상태: ${escapeHtml(result.status)}`;
+	}
+
+	function setFlow(text, badge, tone) {
+		$("flowText").textContent = text;
+		$("flowBadge").textContent = badge;
+		$("flowBadge").className = `badge ${tone}`;
+	}
+
+	function formatTime(value) {
+		return String(value || "").slice(0, 5);
+	}
+
+	function formatDateTime(value) {
+		if (!value) {
+			return "-";
+		}
+		return value.replace("T", " ").slice(0, 16);
+	}
+
+	function formatDateTimeRange(startAt, endAt) {
+		if (!startAt || !endAt) {
+			return "-";
+		}
+
+		const date = new Date(startAt);
+		const month = date.getMonth() + 1;
+		const day = date.getDate();
+		const weekday = WEEKDAY_NAMES[date.getDay()];
+
+		return `${month}월 ${day}일 ${weekday} ${formatTime(startAt.split("T")[1])} ~ ${formatTime(endAt.split("T")[1])}`;
+	}
+
+	function renderReasonChecklist(reason) {
+		const items = [
+			"등록된 시간표와 겹치지 않음",
+			"사용자 선호 시간대 반영",
+			"일정 간 최소 여유 시간 반영",
+			state.calendarConnected
+				? "Google Calendar 일정과 겹치지 않음"
+				: "Google Calendar는 연결되지 않아 반영하지 않음"
+		];
+
+		if (reason && reason.includes("기존 일정과 적당한 간격")) {
+			items.push("기존 일정과 적당한 간격 반영");
+		}
+
+		return items
+			.filter(Boolean)
+			.map((item) => `<li><span class="check">✓</span><span>${escapeHtml(item)}</span></li>`)
+			.join("");
+	}
+
+	function renderRecommendationConditions() {
+		const list = $("recommendationConditionList");
+		if (!list) {
+			return;
+		}
+
+		list.innerHTML = `
+			<div class="condition-item">
+				<strong>시간표</strong>
+				<span>${state.timetableSlots.length > 0 ? `${state.timetableSlots.length}개 수업 반영` : "등록된 수업 없음"}</span>
+			</div>
+			<div class="condition-item">
+				<strong>선호 설정</strong>
+				<span>${formatPreferenceSummary(state.preference)}</span>
+			</div>
+			<div class="condition-item">
+				<strong>Google Calendar</strong>
+				<span>${state.calendarConnected ? "연결됨 · 일정 충돌 확인" : "미연결 · 캘린더 일정 미반영"}</span>
+			</div>
+		`;
+	}
+
+	function formatCategory(category) {
+		return CATEGORY_LABELS[category] || value(category);
+	}
+
+	function formatDuration(durationMinutes) {
+		return durationMinutes ? `${durationMinutes}분` : "-";
+	}
+
+	function formatDayOfWeek(dayOfWeek) {
+		return FULL_DAY_LABELS[dayOfWeek] || value(dayOfWeek);
+	}
+
+	function formatTimeRange(timeRange) {
+		return TIME_RANGE_LABELS[timeRange] || value(timeRange);
+	}
+
+	function formatTaskStatus(status) {
+		return TASK_STATUS_LABELS[status] || value(status);
+	}
+
+	function formatScheduleDensity(scheduleDensity) {
+		return SCHEDULE_DENSITY_LABELS[scheduleDensity] || value(scheduleDensity);
+	}
+
+	function formatDeadlineTiming(deadlineTiming) {
+		return DEADLINE_TIMING_LABELS[deadlineTiming] || value(deadlineTiming);
+	}
+
+	function formatPreferenceSummary(preference) {
+		if (!preference) {
+			return "점심 선호 · 08:00~22:00 · 여유 10분";
+		}
+
+		return `${formatTimeRange(preference.preferredTimeRange)} 선호 · ${formatTime(preference.scheduleStartTime)}~${formatTime(preference.scheduleEndTime)} · 여유 ${preference.minimumGapMinutes}분`;
+	}
+
+	function toMinutes(time) {
+		const [hour, minute] = formatTime(time).split(":").map(Number);
+		return hour * 60 + minute;
+	}
+
+	function value(input) {
+		return input === null || input === undefined || input === "" ? "-" : escapeHtml(String(input));
+	}
+
+	function escapeHtml(input) {
+		return String(input ?? "")
+			.replaceAll("&", "&amp;")
+			.replaceAll("<", "&lt;")
+			.replaceAll(">", "&gt;")
+			.replaceAll('"', "&quot;")
+			.replaceAll("'", "&#039;");
+	}
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.global.exception.CalendarException;
+import me.timetablescheduler.global.exception.ExceptionCode;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -43,7 +45,7 @@ public class GoogleOAuthClient {
 				.setRedirectUri(properties.redirectUri())
 				.execute();
 		} catch (IOException e) {
-			throw new IllegalStateException("Google OAuth token 교환에 실패했습니다.", e);
+			throw new CalendarException(ExceptionCode.GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED);
 		}
 	}
 
@@ -57,7 +59,7 @@ public class GoogleOAuthClient {
 				properties.clientSecret()
 			).execute();
 		} catch (IOException e) {
-			throw new IllegalStateException("Google access token 갱신에 실패했습니다.", e);
+			throw new CalendarException(ExceptionCode.GOOGLE_OAUTH_TOKEN_REFRESH_FAILED);
 		}
 	}
 

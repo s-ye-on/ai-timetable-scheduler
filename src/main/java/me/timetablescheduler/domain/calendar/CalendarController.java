@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.calendar;
 
 import lombok.RequiredArgsConstructor;
+import me.timetablescheduler.domain.calendar.dto.CalendarStatusResponse;
 import me.timetablescheduler.auth.security.CustomUserDetails;
 import me.timetablescheduler.domain.calendar.dto.GoogleAuthUrlResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,13 @@ public class CalendarController {
 		@AuthenticationPrincipal CustomUserDetails userDetails
 	) {
 		return calendarService.createAuthUrl(userDetails.getId());
+	}
+
+	@GetMapping("/status")
+	public CalendarStatusResponse status(
+		@AuthenticationPrincipal CustomUserDetails userDetails
+	) {
+		return new CalendarStatusResponse(calendarService.isConnected(userDetails.getId()));
 	}
 
 	@GetMapping("/oauth/callback")

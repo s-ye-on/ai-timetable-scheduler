@@ -5,7 +5,6 @@ import java.time.Clock;
 import me.timetablescheduler.auth.jwt.JwtAccessDeniedHandler;
 import me.timetablescheduler.auth.jwt.JwtAuthenticationFilter;
 import me.timetablescheduler.auth.jwt.JwtAuthenticationEntryPoint;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -19,7 +18,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
 	@Bean
@@ -34,20 +32,26 @@ public class SecurityConfig {
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.exceptionHandling(exception -> exception
-				.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-				.accessDeniedHandler(jwtAccessDeniedHandler)
-			)
-			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers(
-					"/api/auth/register",
-					"/api/auth/login",
-					"/api/auth/refresh",
-					"/api/calendar/oauth/callback",
-					"/error"
-				).permitAll()
-				.anyRequest().authenticated()
-			)
+				.exceptionHandling(exception -> exception
+					.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+					.accessDeniedHandler(jwtAccessDeniedHandler)
+				)
+				.headers(headers -> headers
+					.frameOptions(frameOptions -> frameOptions.sameOrigin())
+				)
+				.authorizeHttpRequests(authorize -> authorize
+					.requestMatchers(
+						"/api/auth/register",
+						"/api/auth/login",
+						"/api/auth/refresh",
+						"/api/calendar/oauth/callback",
+						"/h2-console",
+						"/h2-console/**",
+						"/error",
+						"/demo.html"
+					).permitAll()
+					.anyRequest().authenticated()
+				)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 			.build();
 	}

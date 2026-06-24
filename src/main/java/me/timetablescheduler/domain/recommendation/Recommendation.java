@@ -136,6 +136,13 @@ public class Recommendation {
 		this.updatedAt = OffsetDateTime.now();
 	}
 
+	public void failSync() {
+		validateStatus(RecommendationStatus.SELECTED);
+
+		this.status = RecommendationStatus.SYNC_FAILED;
+		this.updatedAt = OffsetDateTime.now();
+	}
+
 	private void validateSameUser(User user, Task task) {
 		if (task.getUser().getId() != null && user.getId() != null) {
 			if (!task.getUser().getId().equals(user.getId())) {

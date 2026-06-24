@@ -243,6 +243,7 @@ class RecommendationServiceTest {
 		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of(otherRecommendation));
+		when(calendarService.isConnected(1L)).thenReturn(true);
 		when(calendarService.createEvent(
 			1L,
 			task.getTitle(),
@@ -262,7 +263,35 @@ class RecommendationServiceTest {
 	}
 
 	@Test
-	void Google_Calendar가_연동되지_않아도_추천_후보_선택은_완료한다() {
+	void Google_Calendar가_연동되지_않으면_추천_후보_선택은_실패한다() {
+		User user = user(1L);
+		Task task = task(user);
+		ReflectionTestUtils.setField(task, "id", 10L);
+		Recommendation recommendation = Recommendation.create(
+			user,
+			task,
+			LocalDateTime.of(2026, 5, 18, 9, 0),
+			LocalDateTime.of(2026, 5, 18, 10, 0),
+			1,
+			90,
+			"선택할 추천"
+		);
+
+		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
+		when(calendarService.isConnected(1L)).thenReturn(false);
+
+		CalendarException exception = assertThrows(
+			CalendarException.class,
+			() -> recommendationService.select(1L, 100L)
+		);
+
+		assertEquals(ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED, exception.getExceptionCode());
+		assertEquals(RecommendationStatus.PROPOSED, recommendation.getStatus());
+		assertEquals(TaskStatus.UNSCHEDULED, task.getStatus());
+	}
+
+	@Test
+	void Google_Calendar_Event_생성에_실패하면_추천_후보는_SYNC_FAILED가_된다() {
 		User user = user(1L);
 		Task task = task(user);
 		ReflectionTestUtils.setField(task, "id", 10L);
@@ -279,19 +308,20 @@ class RecommendationServiceTest {
 		when(recommendationRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(recommendation));
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
+		when(calendarService.isConnected(1L)).thenReturn(true);
 		when(calendarService.createEvent(
 			1L,
 			task.getTitle(),
 			task.getDescription(),
 			LocalDateTime.of(2026, 5, 18, 9, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 0)
-		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED));
+		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED));
 
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
-		assertEquals(RecommendationStatus.SELECTED, recommendation.getStatus());
+		assertEquals(RecommendationStatus.SYNC_FAILED, recommendation.getStatus());
 		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
-		assertEquals(RecommendationStatus.SELECTED, response.status());
+		assertEquals(RecommendationStatus.SYNC_FAILED, response.status());
 	}
 
 	private CandidateSlot candidate(int score, int hour) {

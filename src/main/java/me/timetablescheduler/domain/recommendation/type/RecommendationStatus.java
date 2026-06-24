@@ -5,5 +5,6 @@ public enum RecommendationStatus {
 	SELECTED,
 	REJECTED,
 	EXPIRED,
-	SYNCED
+	SYNCED,
+	SYNC_FAILED
 }
