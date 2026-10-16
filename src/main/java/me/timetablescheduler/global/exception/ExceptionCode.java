@@ -24,6 +24,8 @@ public enum ExceptionCode {
 	INVALID_TIMETABLE_SLOT(HttpStatus.BAD_REQUEST, "시간표 입력값이 올바르지 않습니다."),
 	INVALID_TIMETABLE_SLOT_TIME(HttpStatus.BAD_REQUEST, "시간표 시작 시간은 종료 시간보다 빨라야 합니다."),
 	GOOGLE_CALENDAR_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "Google Calendar가 연결되어 있지 않습니다."),
+	INVALID_GOOGLE_OAUTH_STATE(HttpStatus.BAD_REQUEST, "Google Calendar 연결 요청이 유효하지 않거나 만료되었습니다. 연결을 다시 시작해주세요."),
+	GOOGLE_OAUTH_AUTHORIZATION_FAILED(HttpStatus.BAD_REQUEST, "Google Calendar 연결이 완료되지 않았습니다. 연결을 다시 시작해주세요."),
 	// LLM이 반환한 구조화 결과가 비정상일 때 사용
 	INVALID_LLM_PARSE_RESULT(HttpStatus.BAD_REQUEST, "입력한 문장을 일정 요청으로 변환할 수 없습니다. 날짜, 시간대, 소요 시간을 조금 더 명확히 입력해주세요."),
 	INVALID_LLM_DATE_CONDITION(HttpStatus.BAD_REQUEST, "일정 날짜 조건은 특정 날짜, 특정 요일, 날짜 범위 중 하나만 지정해야 합니다."),

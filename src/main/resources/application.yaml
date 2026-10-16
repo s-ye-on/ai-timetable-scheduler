@@ -1,3 +1,11 @@
 spring:
   config:
     import: classpath:database.properties
+server:
+  servlet:
+    session:
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}

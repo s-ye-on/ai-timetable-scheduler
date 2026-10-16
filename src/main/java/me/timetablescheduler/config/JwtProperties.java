@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JwtProperties {
 
 	private String issuer = "timetable-scheduler";
-	private String secret = "change-me-in-production-change-me-in-production";
+	private String secret;
 	private long accessTokenTtlSeconds = 900; //15분
 	private long refreshTokenTtlSeconds = 1_209_600; // 14일
 

@@ -14,6 +14,7 @@ import java.security.Key;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Locale;
 import java.util.UUID;
 import me.timetablescheduler.config.JwtProperties;
 import me.timetablescheduler.global.exception.AuthException;
@@ -26,6 +27,8 @@ public class JwtTokenService {
 	private static final String TOKEN_TYPE_CLAIM = "tokenType";
 	private static final String ACCESS_TOKEN_TYPE = "access";
 	private static final String REFRESH_TOKEN_TYPE = "refresh";
+	private static final int MINIMUM_SECRET_LENGTH_BYTES = 32;
+	private static final String INVALID_SECRET_MESSAGE = "안전한 JWT signing secret 설정이 필요합니다.";
 
 	private final JwtProperties jwtProperties;
 	private final Clock clock;
@@ -34,7 +37,7 @@ public class JwtTokenService {
 	public JwtTokenService(JwtProperties jwtProperties, Clock clock) {
 		this.jwtProperties = jwtProperties;
 		this.clock = clock;
-		this.key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+		this.key = Keys.hmacShaKeyFor(validatedSecretBytes(jwtProperties.getSecret()));
 	}
 
 	public String generateAccessToken(String email) {
@@ -129,6 +132,18 @@ public class JwtTokenService {
 			claims.get(TOKEN_TYPE_CLAIM, String.class),
 			claims.getExpiration().toInstant()
 		);
+	}
+
+	private byte[] validatedSecretBytes(String secret) {
+		if (secret == null || secret.isBlank() || secret.toLowerCase(Locale.ROOT).contains("change-me")) {
+			throw new IllegalStateException(INVALID_SECRET_MESSAGE);
+		}
+
+		byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+		if (secretBytes.length < MINIMUM_SECRET_LENGTH_BYTES) {
+			throw new IllegalStateException(INVALID_SECRET_MESSAGE);
+		}
+		return secretBytes;
 	}
 
 	public record TokenClaims(String subject, String tokenType, Instant expiresAt) {

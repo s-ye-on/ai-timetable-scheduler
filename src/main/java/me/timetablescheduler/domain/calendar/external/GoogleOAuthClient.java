@@ -25,12 +25,12 @@ public class GoogleOAuthClient {
 
 	private final GoogleCalendarProperties properties;
 
-	public String createAuthorizationUrl(Long userId) {
+	public String createAuthorizationUrl(String state) {
 		AuthorizationCodeFlow flow = createFlow();
 
 		AuthorizationCodeRequestUrl url = flow.newAuthorizationUrl()
 			.setRedirectUri(properties.redirectUri())
-			.setState(String.valueOf(userId));
+			.setState(state);
 
 		return url
 			.set("access_type", ACCESS_TYPE_OFFLINE)

@@ -30,8 +30,8 @@ public class CalendarService {
 	private final GoogleCalendarClient googleCalendarClient;
 	private final Clock clock;
 
-	public GoogleAuthUrlResponse createAuthUrl(Long userId) {
-		return new GoogleAuthUrlResponse(googleOAuthClient.createAuthorizationUrl(userId));
+	public GoogleAuthUrlResponse createAuthUrl(String state) {
+		return new GoogleAuthUrlResponse(googleOAuthClient.createAuthorizationUrl(state));
 	}
 
 	public boolean isConnected(Long userId) {
