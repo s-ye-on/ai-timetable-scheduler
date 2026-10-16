@@ -1,8 +1,10 @@
 package me.timetablescheduler.domain.recommendation.service;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +42,7 @@ public class RecommendationService {
 	private static final String NO_RECOMMENDATION_MESSAGE = "추천 가능한 시간이 없습니다. 시간표 또는 선호 시간 범위를 조정해 주세요.";
 	private static final int MAX_RECOMMENDATION_COUNT = 3;
 	private static final int DAY_OF_WEEK_SEARCH_DAYS = 14;
+	private static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
 
 	private final RecommendationRepository recommendationRepository;
 	private final TaskRepository taskRepository;
@@ -48,6 +51,7 @@ public class RecommendationService {
 	private final UserReader userReader;
 	private final RecommendationPolicy recommendationPolicy;
 	private final CalendarService calendarService;
+	private final Clock clock;
 
 	@Transactional
 	public RecommendationResponse.Generate recommend(Long userId, Long taskId) {
@@ -57,7 +61,8 @@ public class RecommendationService {
 		Preference preference = findPreference(userId);
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
 		List<Task> scheduledTasks = taskRepository.findAllByUserIdAndStatus(userId, TaskStatus.SCHEDULED);
-		List<BusyBlock> calendarBusyBlocks = findCalendarBusyBlocks(userId, task);
+		LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID);
+		List<BusyBlock> calendarBusyBlocks = findCalendarBusyBlocks(userId, task, now.toLocalDate());
 
 		expireExistingProposedRecommendations(taskId, userId);
 
@@ -66,10 +71,13 @@ public class RecommendationService {
 			preference,
 			timetableSlots,
 			scheduledTasks,
-			calendarBusyBlocks
+			calendarBusyBlocks,
+			now
 		);
 
+		LocalDateTime selectionTime = LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID);
 		List<CandidateSlot> topCandidates = candidates.stream()
+			.filter(candidate -> candidate.startAt().isAfter(selectionTime))
 			.sorted(Comparator.comparingInt(CandidateSlot::score).reversed())
 			.limit(MAX_RECOMMENDATION_COUNT)
 			.toList();
@@ -178,8 +186,8 @@ public class RecommendationService {
 		}
 	}
 
-	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task) {
-		SearchDateTimeRange searchDateTimeRange = resolveSearchDateTimeRange(task);
+	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task, LocalDate baseDate) {
+		SearchDateTimeRange searchDateTimeRange = resolveSearchDateTimeRange(task, baseDate);
 
 		List<BusyBlock> calendarBusyBlocks = calendarService.getCalendarBusyBlocksOrEmpty(
 			userId,
@@ -189,7 +197,7 @@ public class RecommendationService {
 		return calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
 	}
 
-	private SearchDateTimeRange resolveSearchDateTimeRange(Task task) {
+	private SearchDateTimeRange resolveSearchDateTimeRange(Task task, LocalDate today) {
 		if (task.getPreferredDate() != null) {
 			return SearchDateTimeRange.of(task.getPreferredDate(), task.getPreferredDate());
 		}
@@ -198,7 +206,6 @@ public class RecommendationService {
 			return SearchDateTimeRange.of(task.getPreferredStartDate(), task.getPreferredEndDate());
 		}
 
-		LocalDate today = LocalDate.now();
 		return SearchDateTimeRange.of(today, today.plusDays(DAY_OF_WEEK_SEARCH_DAYS - 1L));
 	}
 

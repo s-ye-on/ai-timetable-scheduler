@@ -1,10 +1,14 @@
 package me.timetablescheduler.domain.recommendation.policy;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.type.DeadlineTiming;
@@ -15,7 +19,10 @@ import me.timetablescheduler.domain.timetable.TimetableSlot;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class RecommendationPolicy {
+	private static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
+	private final Clock clock;
 	private static final int BASE_SCORE = 50;
 	private static final int PREFERRED_TIME_RANGE_SCORE = 30;
 	private static final int CANDIDATE_SEARCH_INTERVAL_MINUTES = 30;
@@ -48,13 +55,25 @@ public class RecommendationPolicy {
 		List<Task> scheduledTasks,
 		List<BusyBlock> calendarBusyBlocks
 	) {
-		LocalDate baseDate = LocalDate.now();
+		return generateCandidates(task, preference, timetableSlots, scheduledTasks, calendarBusyBlocks,
+			LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID));
+	}
+
+	public List<CandidateSlot> generateCandidates(
+		Task task,
+		Preference preference,
+		List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks,
+		LocalDateTime now
+	) {
+		LocalDate baseDate = now.toLocalDate();
 		List<LocalDate> candidateDates = resolveCandidateDates(task, baseDate);
 		List<BusyBlock> safeCalendarBusyBlocks = calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
 		List<CandidateSlot> candidates = new ArrayList<>();
 
 		for (LocalDate date : candidateDates) {
-			if (isAfterDeadline(task, date)) {
+			if (date.isBefore(baseDate) || isAfterDeadline(task, date)) {
 				continue;
 			}
 
@@ -72,7 +91,7 @@ public class RecommendationPolicy {
 			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(dayEndLimit)) {
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 
-				if (!conflictsWithBusyBlocks(
+				if (start.isAfter(now) && !conflictsWithBusyBlocks(
 					start,
 					end,
 					busyBlocks,
@@ -209,7 +228,7 @@ public class RecommendationPolicy {
 		score += calculatePreferredTimeRangeScore(effectiveTimeRange, start, end);
 
 		if (task.getDeadline() != null) {
-			score += calculateDeadlineScore(task, preference, start.toLocalDate());
+			score += calculateDeadlineScore(task, preference, start.toLocalDate(), baseDate);
 		}
 
 		score += calculatePriorityScore(task, start.toLocalDate(), baseDate);
@@ -248,7 +267,7 @@ public class RecommendationPolicy {
 	}
 
 	/// 마감 당일날 배치는 위험함 마감 하루전 또는 이틀전이 안전할 것이라 생각됨
-	private int calculateDeadlineScore(Task task, Preference preference, LocalDate candidateDate) {
+	private int calculateDeadlineScore(Task task, Preference preference, LocalDate candidateDate, LocalDate baseDate) {
 		if (candidateDate.isAfter(task.getDeadline())) {
 			return 0;
 		}
@@ -256,7 +275,8 @@ public class RecommendationPolicy {
 		long daysUntilDeadline = ChronoUnit.DAYS.between(candidateDate, task.getDeadline());
 
 		if (preference.getDeadlineTiming() == DeadlineTiming.ASAP) {
-			return Math.max(0, DEADLINE_ASAP_MAX_SCORE - (int) daysUntilDeadline);
+			long daysFromBase = ChronoUnit.DAYS.between(baseDate, candidateDate);
+			return (int) Math.max(0L, DEADLINE_ASAP_MAX_SCORE - daysFromBase);
 		}
 
 		if (preference.getDeadlineTiming() == DeadlineTiming.NEAR_DEADLINE) {

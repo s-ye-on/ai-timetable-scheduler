@@ -4,19 +4,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import me.timetablescheduler.domain.calendar.CalendarService;
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
+import me.timetablescheduler.domain.preference.type.DeadlineTiming;
+import me.timetablescheduler.domain.preference.type.ScheduleDensity;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
 import me.timetablescheduler.domain.recommendation.dto.RecommendationResponse;
 import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
 import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
+import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskStatus;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
@@ -30,11 +38,15 @@ import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.TaskException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class RecommendationServiceTest {
+	private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 18, 0, 0);
+	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-05-17T15:00:00Z"), ZoneOffset.UTC);
 
 	private RecommendationRepository recommendationRepository;
 	private TaskRepository taskRepository;
@@ -61,8 +73,87 @@ class RecommendationServiceTest {
 			timetableSlotRepository,
 			userReader,
 			recommendationPolicy,
-			calendarService
+			calendarService,
+			CLOCK
 		);
+	}
+
+	@ParameterizedTest
+	@CsvSource({"2026-05-18T00:30:00Z, 2", "2026-05-18T02:00:00Z, 0"})
+	void 외부_조회_중_지난_후보는_최종_선정에서_제외한다(Instant finishedAt, int expectedCount) {
+		Clock advancingClock = Mockito.mock(Clock.class);
+		when(advancingClock.instant()).thenReturn(Instant.parse("2026-05-18T00:00:00Z"), finishedAt);
+		recommendationService = new RecommendationService(
+			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
+			new RecommendationPolicy(advancingClock), calendarService, advancingClock);
+		User user = user(1L);
+		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 30,
+			LocalDate.of(2026, 5, 18), null, null, null, null, null, TaskPriority.LOW, "시간 경계");
+		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0), LocalTime.of(11, 0), 0, ScheduleDensity.BALANCED, DeadlineTiming.BALANCED);
+		when(userReader.read(1L)).thenReturn(user);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
+		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of());
+		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
+
+		assertEquals(expectedCount, response.recommendations().size());
+		if (expectedCount == 0) {
+			Mockito.verify(recommendationRepository, Mockito.never()).saveAll(Mockito.anyList());
+		} else {
+			ArgumentCaptor<List<Recommendation>> captor = ArgumentCaptor.forClass(List.class);
+			Mockito.verify(recommendationRepository).saveAll(captor.capture());
+			assertEquals(List.of(LocalTime.of(10, 0), LocalTime.of(10, 30)), captor.getValue().stream()
+				.map(recommendation -> recommendation.getRecommendedStartAt().toLocalTime()).toList());
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+		"2026-05-17T14:59:59Z, 2026-05-17, 1",
+		"2026-05-17T15:00:00Z, 2026-05-18, 2"
+	})
+	void 서울_자정에도_Calendar_조회와_후보는_동일한_14일_기준을_사용한다(
+		Instant instant, LocalDate expectedStartDate, int expectedCandidateCount
+	) {
+		Clock advancingClock = Mockito.mock(Clock.class);
+		when(advancingClock.instant()).thenReturn(instant, instant.plusSeconds(1));
+		recommendationService = new RecommendationService(
+			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
+			new RecommendationPolicy(advancingClock), calendarService, advancingClock);
+		User user = user(1L);
+		Task task = Task.create(user, "일요일 과제", TaskCategory.ASSIGNMENT, 60,
+			null, DayOfWeek.SUNDAY, null, null, null, null, TaskPriority.LOW, "일요일 추천");
+		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
+			LocalTime.of(9, 0), LocalTime.of(10, 0), 0, ScheduleDensity.BALANCED, DeadlineTiming.BALANCED);
+		when(userReader.read(1L)).thenReturn(user);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
+		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
+		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
+		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
+			.thenReturn(List.of());
+		when(calendarService.getCalendarBusyBlocksOrEmpty(1L, expectedStartDate.atStartOfDay(),
+			expectedStartDate.plusDays(13).atTime(LocalTime.MAX))).thenReturn(List.of());
+		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		recommendationService.recommend(1L, 10L);
+
+		Mockito.verify(calendarService).getCalendarBusyBlocksOrEmpty(1L, expectedStartDate.atStartOfDay(),
+			expectedStartDate.plusDays(13).atTime(LocalTime.MAX));
+		ArgumentCaptor<List<Recommendation>> captor = ArgumentCaptor.forClass(List.class);
+		Mockito.verify(recommendationRepository).saveAll(captor.capture());
+		List<Recommendation> saved = captor.getValue();
+		assertEquals(expectedCandidateCount, saved.size());
+		assertEquals(LocalDate.of(2026, 5, 24), saved.getFirst().getRecommendedStartAt().toLocalDate());
+		if (expectedCandidateCount == 2) {
+			assertEquals(LocalDate.of(2026, 5, 31), saved.getLast().getRecommendedStartAt().toLocalDate());
+		}
 	}
 
 	@Test
@@ -95,7 +186,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of(existingRecommendation));
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of(), NOW)).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
@@ -126,7 +217,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(candidateSlots);
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of(), NOW)).thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		recommendationService.recommend(1L, 10L);
@@ -162,7 +253,8 @@ class RecommendationServiceTest {
 				Mockito.any(Preference.class),
 				Mockito.eq(List.of()),
 				Mockito.eq(List.of()),
-				Mockito.eq(List.of())
+				Mockito.eq(List.of()),
+				Mockito.eq(NOW)
 			))
 			.thenReturn(candidateSlots);
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -187,7 +279,7 @@ class RecommendationServiceTest {
 		when(taskRepository.findAllByUserIdAndStatus(1L, TaskStatus.SCHEDULED)).thenReturn(List.of());
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
-		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of())).thenReturn(List.of());
+		when(recommendationPolicy.generateCandidates(task, preference, List.of(), List.of(), List.of(), NOW)).thenReturn(List.of());
 
 		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
 
