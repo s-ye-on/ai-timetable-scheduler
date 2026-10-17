@@ -231,6 +231,10 @@ public class Task {
 		}
 	}
 
+	public void validateDeletable() {
+		validateStatus(TaskStatus.UNSCHEDULED);
+	}
+
 	private void validateRequiredFields(
 		User user,
 		String title,

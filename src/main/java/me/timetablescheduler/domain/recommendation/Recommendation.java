@@ -143,6 +143,13 @@ public class Recommendation {
 		this.updatedAt = OffsetDateTime.now();
 	}
 
+	public void validateDeletable() {
+		if (googleEventId != null || (status != RecommendationStatus.PROPOSED
+			&& status != RecommendationStatus.REJECTED && status != RecommendationStatus.EXPIRED)) {
+			throw new RecommendationException(ExceptionCode.INVALID_RECOMMENDATION_STATUS_TRANSITION);
+		}
+	}
+
 	private void validateSameUser(User user, Task task) {
 		if (task.getUser().getId() != null && user.getId() != null) {
 			if (!task.getUser().getId().equals(user.getId())) {

@@ -7,6 +7,9 @@ import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.service.LlmParsingService;
+import me.timetablescheduler.domain.recommendation.Recommendation;
+import me.timetablescheduler.domain.recommendation.RecommendationRepository;
+import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
 import me.timetablescheduler.domain.task.dto.TaskRequest;
@@ -23,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class TaskService {
 	private final TaskRepository taskRepository;
+	private final RecommendationRepository recommendationRepository;
 	private final LlmParsingService llmParsingService;
 	private final UserReader userReader;
 
@@ -82,12 +86,20 @@ public class TaskService {
 			request.description()
 		);
 
+		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
+			.forEach(Recommendation::expire);
+
 		return toReadResponse(task);
 	}
 
 	@Transactional
 	public void delete(Long taskId, Long userId) {
 		Task task = findTask(taskId, userId);
+		task.validateDeletable();
+		List<Recommendation> recommendations = recommendationRepository.findAllByTaskIdAndUserId(taskId, userId);
+		recommendations.forEach(Recommendation::validateDeletable);
+
+		recommendationRepository.deleteAll(recommendations);
 		taskRepository.delete(task);
 	}
 

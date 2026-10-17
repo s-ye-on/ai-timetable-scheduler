@@ -4,6 +4,7 @@ import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.service.LlmParsingService;
 import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
+import me.timetablescheduler.domain.recommendation.RecommendationRepository;
 import me.timetablescheduler.domain.task.Task;
 import me.timetablescheduler.domain.task.TaskRepository;
 import me.timetablescheduler.domain.task.dto.TaskRequest;
@@ -38,7 +39,7 @@ class TaskServiceTest {
 		taskRepository = Mockito.mock(TaskRepository.class);
 		llmParsingService = Mockito.mock(LlmParsingService.class);
 		userReader = Mockito.mock(UserReader.class);
-		taskService = new TaskService(taskRepository, llmParsingService, userReader);
+		taskService = new TaskService(taskRepository, Mockito.mock(RecommendationRepository.class), llmParsingService, userReader);
 	}
 
 	@Test

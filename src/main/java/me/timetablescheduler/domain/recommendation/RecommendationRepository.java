@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RecommendationRepository extends JpaRepository<Recommendation, Long> {
 	Optional<Recommendation> findByIdAndUserId(Long id, Long userId);
 
+	List<Recommendation> findAllByTaskIdAndUserId(Long taskId, Long userId);
+
 	List<Recommendation> findAllByTaskIdAndUserIdAndStatusOrderByRankAsc(
 		Long taskId,
 		Long userId,
