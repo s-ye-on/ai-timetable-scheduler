@@ -58,6 +58,9 @@ public enum ExceptionCode {
 	NOT_FOUND_RECOMMENDATION(HttpStatus.NOT_FOUND, "존재하지 않는 추천 후보입니다."),
 
 	// 409 Conflict
+	GOOGLE_CALENDAR_EVENT_MISMATCH(HttpStatus.CONFLICT, "Google Calendar 이벤트가 예약 정보와 다릅니다. 외부 일정을 확인해주세요."),
+	GOOGLE_CALENDAR_SYNC_RECOVERY_REQUIRED(HttpStatus.CONFLICT, "기존 동기화 기록을 안전하게 확인할 수 없습니다. Calendar 일정을 직접 확인해주세요."),
+	GOOGLE_CALENDAR_RECONNECT_BLOCKED(HttpStatus.CONFLICT, "미완료된 Calendar 동기화를 먼저 복구한 후 다시 연결해주세요."),
 	RECOMMENDATION_NO_LONGER_AVAILABLE(HttpStatus.CONFLICT, "추천 후보가 현재 일정 조건과 충돌하거나 더 이상 유효하지 않습니다. 다시 추천해주세요."),
 	CONFLICT_USER_OPERATION(HttpStatus.CONFLICT, "다른 일정 변경 요청을 처리 중입니다. 잠시 후 다시 시도해주세요."),
 	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다"),
@@ -67,6 +70,7 @@ public enum ExceptionCode {
 	GOOGLE_OAUTH_CONFIGURATION_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "Google Calendar OAuth 설정이 올바르지 않습니다. 서버 설정을 확인해주세요."),
 
 	// 502 외부 서비스 연동 실패
+	GOOGLE_CALENDAR_EVENT_LOOKUP_FAILED(HttpStatus.BAD_GATEWAY, "Google Calendar 이벤트 상태를 확인하지 못했습니다. 같은 후보로 다시 시도해주세요."),
 	OPENAI_API_FAILED(HttpStatus.BAD_GATEWAY, "AI 분석 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요."),
 	GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "Google OAuth 토큰 교환에 실패했습니다."),
 	GOOGLE_OAUTH_TOKEN_REFRESH_FAILED(HttpStatus.BAD_GATEWAY, "Google access token 갱신에 실패했습니다."),

@@ -91,8 +91,8 @@ class RecommendationSelectionIntegrationTest {
 		preferences.save(Preference.createDefault(user));
 		connect(user);
 		when(google.getBusyBlocks(anyString(), anyString(), any(), any())).thenReturn(List.of());
-		when(google.createEvent(anyString(), anyString(), anyString(), any(), any(), any()))
-			.thenAnswer(invocation -> "test-event-" + UUID.randomUUID());
+		when(google.createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any()))
+			.thenAnswer(invocation -> invocation.getArgument(2));
 	}
 
 	@Test
@@ -182,8 +182,8 @@ class RecommendationSelectionIntegrationTest {
 		assertThat(response.status()).isEqualTo(RecommendationStatus.SYNCED);
 		assertThat(response.score()).isEqualTo(80);
 		assertThat(tasks.findById(task.getId()).orElseThrow().getScheduledStartAt()).isEqualTo(START);
-		verify(google).getBusyBlocks("test-only-access", "primary", START.minusMinutes(10), START.plusMinutes(70));
-		verify(google, times(1)).createEvent(anyString(), anyString(), anyString(), any(), any(), any());
+		verify(google, times(2)).getBusyBlocks("test-only-access", "primary", START.minusMinutes(10), START.plusMinutes(70));
+		verify(google, times(1)).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 
 	@Test
@@ -197,7 +197,43 @@ class RecommendationSelectionIntegrationTest {
 	@Test
 	void simultaneousSameCandidateSelectionCreatesOnlyOneEvent() throws Exception {
 		var candidate = candidate(task, START);
-		assertOneWinner(candidate, candidate);
+		// 동일 선택의 재요청은 멱등 성공으로 응답하되 실제 외부 생성은 한 번이어야 한다.
+		var results = selectConcurrently(candidate, candidate);
+		assertThat(results).allMatch(result -> result == null);
+		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus()).isEqualTo(RecommendationStatus.SYNCED);
+		assertThat(tasks.findAllByUserIdAndStatus(user.getId(), TaskStatus.SCHEDULED)).hasSize(1);
+		verify(google, times(1)).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
+	}
+
+	@Test
+	void failedSynchronizationCanRetryTheSameSelection() {
+		var candidate = candidate(task, START);
+		when(google.createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any()))
+			.thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED))
+			.thenAnswer(invocation -> invocation.getArgument(2));
+		assertThat(service.select(user.getId(), candidate.getId()).status()).isEqualTo(RecommendationStatus.SYNC_FAILED);
+		assertThat(service.select(user.getId(), candidate.getId()).status()).isEqualTo(RecommendationStatus.SYNCED);
+		assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.SCHEDULED);
+	}
+
+	@Test
+	void googleSuccessFollowedByCommitFailureKeepsARecoverableReservation() {
+		var candidate = candidate(task, START);
+		when(google.createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any()))
+			.thenAnswer(invocation -> {
+				org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+					new org.springframework.transaction.support.TransactionSynchronization() {
+						@Override public void beforeCommit(boolean readOnly) {
+							throw new IllegalStateException("최종 커밋 실패 재현");
+						}
+					});
+				return invocation.getArgument(2);
+			});
+		assertThatThrownBy(() -> service.select(user.getId(), candidate.getId())).isInstanceOf(IllegalStateException.class);
+		var reserved = recommendations.findById(candidate.getId()).orElseThrow();
+		assertThat(reserved.getStatus()).isEqualTo(RecommendationStatus.SELECTED);
+		assertThat(reserved.getGoogleEventId()).isNotBlank();
+		assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.SCHEDULED);
 	}
 
 	@Test
@@ -218,7 +254,7 @@ class RecommendationSelectionIntegrationTest {
 		assertThat(results).allMatch(result -> result == null);
 		assertThat(recommendations.findById(first.getId()).orElseThrow().getStatus()).isEqualTo(RecommendationStatus.SYNCED);
 		assertThat(recommendations.findById(second.getId()).orElseThrow().getStatus()).isEqualTo(RecommendationStatus.SYNCED);
-		verify(google, times(2)).createEvent(anyString(), anyString(), anyString(), any(), any(), any());
+		verify(google, times(2)).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 
 	@ParameterizedTest
@@ -300,9 +336,9 @@ class RecommendationSelectionIntegrationTest {
 		CountDownLatch firstCreating = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
 		AtomicInteger calls = new AtomicInteger();
-		when(google.createEvent(anyString(), anyString(), anyString(), any(), any(), any())).thenAnswer(invocation -> {
+		when(google.createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any())).thenAnswer(invocation -> {
 			if (calls.incrementAndGet() == 1) { firstCreating.countDown(); await(release); }
-			return "test-independent-event-" + calls.get();
+			return invocation.getArgument(2);
 		});
 		try (var executor = Executors.newFixedThreadPool(2)) {
 			var firstSelection = executor.submit(() -> service.select(user.getId(), first.getId()));
@@ -376,17 +412,17 @@ class RecommendationSelectionIntegrationTest {
 		assertThat(recommendations.findById(first.getId()).orElseThrow().getStatus() == RecommendationStatus.SYNCED
 			|| recommendations.findById(second.getId()).orElseThrow().getStatus() == RecommendationStatus.SYNCED).isTrue();
 		assertThat(tasks.findAllByUserIdAndStatus(user.getId(), TaskStatus.SCHEDULED)).hasSize(1);
-		verify(google, times(1)).createEvent(anyString(), anyString(), anyString(), any(), any(), any());
+		verify(google, times(1)).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 
 	private List<Throwable> selectConcurrently(Recommendation first, Recommendation second) throws Exception {
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch bothQueries = new CountDownLatch(2);
-		when(google.createEvent(anyString(), anyString(), anyString(), any(), any(), any())).thenAnswer(invocation -> {
+		when(google.createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any())).thenAnswer(invocation -> {
 			// 락이 없다면 두 트랜잭션의 외부 등록이 겹치도록 유도한다.
 			bothQueries.countDown();
 			bothQueries.await(250, TimeUnit.MILLISECONDS);
-			return "test-concurrent-event-" + UUID.randomUUID();
+			return invocation.getArgument(2);
 		});
 		try (var executor = Executors.newFixedThreadPool(2)) {
 			var a = executor.submit(() -> attemptSelection(first.getId(), start));
@@ -413,7 +449,7 @@ class RecommendationSelectionIntegrationTest {
 		var stored = tasks.findById(candidate.getTask().getId()).orElseThrow();
 		assertThat(stored.getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
 		assertThat(stored.getScheduledStartAt()).isNull();
-		verify(google, never()).createEvent(anyString(), anyString(), anyString(), any(), any(), any());
+		verify(google, never()).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 
 	private User user() {

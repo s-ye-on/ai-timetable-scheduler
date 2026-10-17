@@ -30,7 +30,8 @@ class CalendarServiceTest {
 		userReader,
 		googleOAuthClient,
 		googleCalendarClient,
-		Clock.systemDefaultZone()
+		Clock.systemDefaultZone(),
+		mock(me.timetablescheduler.domain.recommendation.RecommendationRepository.class)
 	);
 
 	@Test

@@ -1,17 +1,18 @@
 package me.timetablescheduler.domain.calendar;
 
+import com.google.api.client.auth.oauth2.TokenResponse;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
-import com.google.api.client.auth.oauth2.TokenResponse;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.calendar.dto.GoogleAuthUrlResponse;
 import me.timetablescheduler.domain.calendar.external.GoogleCalendarClient;
 import me.timetablescheduler.domain.calendar.external.GoogleOAuthClient;
+import me.timetablescheduler.domain.recommendation.RecommendationRepository;
 import me.timetablescheduler.domain.recommendation.policy.BusyBlock;
+import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.domain.user.reader.UserReader;
 import me.timetablescheduler.global.exception.CalendarException;
@@ -29,6 +30,7 @@ public class CalendarService {
 	private final GoogleOAuthClient googleOAuthClient;
 	private final GoogleCalendarClient googleCalendarClient;
 	private final Clock clock;
+	private final RecommendationRepository recommendationRepository;
 
 	public GoogleAuthUrlResponse createAuthUrl(String state) {
 		return new GoogleAuthUrlResponse(googleOAuthClient.createAuthorizationUrl(state));
@@ -40,7 +42,13 @@ public class CalendarService {
 
 	@Transactional
 	public void connect(String code, Long userId) {
-		User user = userReader.read(userId);
+		User user = userReader.readForUpdate(userId);
+		// primary는 인증 계정에 따라 달라진다. 미완료 요청을 다른 계정에 재생성하지 않는다.
+		if (recommendationRepository.existsByUserIdAndStatusIn(userId, List.of(
+			RecommendationStatus.SELECTED,
+			RecommendationStatus.SYNC_FAILED))) {
+			throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_RECONNECT_BLOCKED);
+		}
 		GoogleTokenResponse tokenResponse = googleOAuthClient.exchangeCode(code);
 		LocalDateTime expiresAt = now().plusSeconds(tokenResponse.getExpiresInSeconds());
 
@@ -61,7 +69,7 @@ public class CalendarService {
 		calendarTokenRepository.save(token);
 	}
 
-	@Transactional
+	@Transactional(noRollbackFor = CalendarException.class)
 	public List<BusyBlock> getCalendarBusyBlocks(
 		Long userId,
 		LocalDateTime startAt,
@@ -102,15 +110,10 @@ public class CalendarService {
 		);
 	}
 
-	/// todo : RecommendationService.select()
-	/// → 내부 DB 상태 변경 트랜잭션
-	///
-	/// Calendar 동기화
-	/// → 별도 메서드/별도 트랜잭션/또는 트랜잭션 밖 외부 API 호출
-
 	@Transactional(noRollbackFor = CalendarException.class)
 	public String createEvent(
 		Long userId,
+		String eventId,
 		String title,
 		String description,
 		LocalDateTime startAt,
@@ -121,11 +124,20 @@ public class CalendarService {
 		return googleCalendarClient.createEvent(
 			token.getAccessToken(),
 			token.getCalendarId(),
+			eventId,
 			title,
 			description,
 			startAt,
 			endAt
 		);
+	}
+
+	@Transactional(noRollbackFor = CalendarException.class)
+	public boolean hasMatchingEvent(Long userId, String eventId, String title, String description,
+		LocalDateTime startAt, LocalDateTime endAt) {
+		CalendarToken token = getValidToken(userId);
+		return googleCalendarClient.hasMatchingEvent(token.getAccessToken(), token.getCalendarId(),
+			eventId, title, description, startAt, endAt);
 	}
 
 	private CalendarToken getValidToken(Long userId) {

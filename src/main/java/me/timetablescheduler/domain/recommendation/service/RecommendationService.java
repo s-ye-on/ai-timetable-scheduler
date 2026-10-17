@@ -1,5 +1,6 @@
 package me.timetablescheduler.domain.recommendation.service;
 
+import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -8,15 +9,15 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.calendar.CalendarService;
 import me.timetablescheduler.domain.preference.Preference;
 import me.timetablescheduler.domain.preference.PreferenceRepository;
 import me.timetablescheduler.domain.recommendation.Recommendation;
 import me.timetablescheduler.domain.recommendation.RecommendationRepository;
-import me.timetablescheduler.domain.recommendation.policy.BusyBlock;
 import me.timetablescheduler.domain.recommendation.dto.RecommendationResponse;
+import me.timetablescheduler.domain.recommendation.policy.BusyBlock;
 import me.timetablescheduler.domain.recommendation.policy.CandidateSlot;
 import me.timetablescheduler.domain.recommendation.policy.RecommendationPolicy;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
@@ -32,7 +33,10 @@ import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.RecommendationException;
 import me.timetablescheduler.global.exception.TaskException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +56,8 @@ public class RecommendationService {
 	private final RecommendationPolicy recommendationPolicy;
 	private final CalendarService calendarService;
 	private final Clock clock;
+	private final PlatformTransactionManager transactionManager;
+	private final EntityManager entityManager;
 
 	@Transactional
 	public RecommendationResponse.Generate recommend(Long userId, Long taskId) {
@@ -123,21 +129,46 @@ public class RecommendationService {
 			.toList();
 	}
 
-	@Transactional
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public RecommendationResponse.Read select(Long userId, Long recommendationId) {
+		var transaction = new TransactionTemplate(transactionManager);
+		// 외부 등록 전에 예약 ID를 커밋한다. 이후 DB 저장이 실패해도 같은 이벤트를 조회할 수 있다.
+		transaction.executeWithoutResult(status -> reserveSelection(userId, recommendationId));
+		return transaction.execute(status -> synchronizeSelection(userId, recommendationId));
+	}
+
+	private void reserveSelection(Long userId, Long recommendationId) {
+		// OSIV가 같은 PersistenceContext를 재사용해도 이전 요청 상태를 신뢰하지 않는다.
+		entityManager.clear();
 		userReader.readForUpdate(userId);
 		Recommendation recommendation = findRecommendation(recommendationId, userId);
 		Task task = recommendation.getTask();
 
 		validateCalendarConnected(userId);
+		if (recommendation.getStatus() == RecommendationStatus.SYNCED) {
+			return;
+		}
+		if (recommendation.getStatus() == RecommendationStatus.SELECTED
+			|| recommendation.getStatus() == RecommendationStatus.SYNC_FAILED) {
+			recommendation.validateCalendarSync();
+			return;
+		}
 		recommendation.validateSelectable();
 		task.validateRecommendable();
 		validateCurrentConditions(userId, recommendation, task);
-		recommendation.select();
+		recommendation.reserveCalendarSync(UUID.randomUUID().toString().replace("-", ""));
 		task.schedule(recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
 		rejectOtherProposedRecommendations(task.getId(), userId, recommendation);
-		syncCalendarEvent(userId, recommendation, task);
+	}
 
+	private RecommendationResponse.Read synchronizeSelection(Long userId, Long recommendationId) {
+		entityManager.clear();
+		userReader.readForUpdate(userId);
+		Recommendation recommendation = findRecommendation(recommendationId, userId);
+		if (recommendation.getStatus() != RecommendationStatus.SYNCED) {
+			recommendation.resumeCalendarSync();
+			syncCalendarEvent(userId, recommendation, recommendation.getTask());
+		}
 		return toReadResponse(recommendation);
 	}
 
@@ -192,20 +223,32 @@ public class RecommendationService {
 
 	private void syncCalendarEvent(Long userId, Recommendation recommendation, Task task) {
 		try {
-			String googleEventId = calendarService.createEvent(
-				userId,
-				task.getTitle(),
-				task.getDescription(),
-				recommendation.getRecommendedStartAt(),
-				recommendation.getRecommendedEndAt()
-			);
-			recommendation.sync(googleEventId);
-		} catch (CalendarException exception) {
-			if (exception.getExceptionCode() == ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED) {
-				throw exception;
+			if (hasMatchingEvent(userId, recommendation, task)) {
+				recommendation.sync(recommendation.getGoogleEventId());
+				return;
 			}
+			// 기존 외부 이벤트의 복구와 달리 신규 등록에는 최신 충돌 검증이 필요하다.
+			validateCurrentConditions(userId, recommendation, task);
+			try {
+				String eventId = calendarService.createEvent(userId, recommendation.getGoogleEventId(),
+					task.getTitle(), task.getDescription(), recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
+				recommendation.sync(eventId);
+			} catch (CalendarException createFailure) {
+				// 응답 유실·409도 같은 ID의 조회로만 복구한다. 여기서 재생성하지 않는다.
+				if (hasMatchingEvent(userId, recommendation, task)) {
+					recommendation.sync(recommendation.getGoogleEventId());
+				} else {
+					recommendation.failSync();
+				}
+			}
+		} catch (CalendarException exception) {
 			recommendation.failSync();
 		}
+	}
+
+	private boolean hasMatchingEvent(Long userId, Recommendation recommendation, Task task) {
+		return calendarService.hasMatchingEvent(userId, recommendation.getGoogleEventId(), task.getTitle(),
+			task.getDescription(), recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
 	}
 
 	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task, LocalDate baseDate) {

@@ -80,7 +80,7 @@ class TaskRecommendationIntegrationTest {
 	void selectingAnOldCandidateAfterConditionChangeFailsWithoutCalendarRegistration() {
 		var oldCandidate = candidate(task, RecommendationStatus.PROPOSED);
 		when(calendar.isConnected(user.getId())).thenReturn(true);
-		when(calendar.createEvent(any(), anyString(), any(), any(), any())).thenReturn("test-only-event");
+		when(calendar.createEvent(any(), anyString(), anyString(), any(), any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
 		taskService.update(task.getId(), update(60), user.getId());
 
 		assertThatThrownBy(() -> recommendationService.select(user.getId(), oldCandidate.getId()))
@@ -89,7 +89,7 @@ class TaskRecommendationIntegrationTest {
 				.isEqualTo(ExceptionCode.INVALID_RECOMMENDATION_STATUS_TRANSITION));
 		assertStatus(oldCandidate, RecommendationStatus.EXPIRED);
 		assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
-		verify(calendar, never()).createEvent(any(), anyString(), any(), any(), any());
+		verify(calendar, never()).createEvent(any(), anyString(), anyString(), any(), any(), any());
 	}
 
 	@Test
@@ -164,7 +164,7 @@ class TaskRecommendationIntegrationTest {
 		assertStatus(history, state);
 		assertThat(recommendations.findById(history.getId()).orElseThrow().getGoogleEventId())
 			.isEqualTo(state == RecommendationStatus.SYNCED ? "test-only-event" : null);
-		verify(calendar, never()).createEvent(any(), anyString(), any(), any(), any());
+		verify(calendar, never()).createEvent(any(), anyString(), anyString(), any(), any(), any());
 	}
 
 	@Test

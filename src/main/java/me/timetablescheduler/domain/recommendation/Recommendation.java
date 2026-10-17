@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
 import me.timetablescheduler.domain.task.Task;
+import me.timetablescheduler.domain.task.type.TaskStatus;
 import me.timetablescheduler.domain.user.User;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.RecommendationException;
@@ -59,6 +60,7 @@ public class Recommendation {
 	private RecommendationStatus status;
 
 	@Column(length = 255)
+	// SELECTED/SYNC_FAILED에서는 재시도에 사용할 예약 ID, SYNCED에서만 외부 확인이 완료된 ID다.
 	private String googleEventId;
 
 	@Column(nullable = false, updatable = false)
@@ -117,6 +119,30 @@ public class Recommendation {
 		validateStatus(RecommendationStatus.PROPOSED);
 	}
 
+	public void reserveCalendarSync(String eventId) {
+		validateGoogleEventId(eventId);
+		select();
+		this.googleEventId = eventId;
+	}
+
+	public void resumeCalendarSync() {
+		validateCalendarSync();
+		this.status = RecommendationStatus.SELECTED;
+		this.updatedAt = OffsetDateTime.now();
+	}
+
+	public void validateCalendarSync() {
+		if ((status != RecommendationStatus.SELECTED && status != RecommendationStatus.SYNC_FAILED)
+			|| googleEventId == null || googleEventId.isBlank()) {
+			throw new RecommendationException(ExceptionCode.GOOGLE_CALENDAR_SYNC_RECOVERY_REQUIRED);
+		}
+		if (task.getStatus() != TaskStatus.SCHEDULED
+			|| !recommendedStartAt.equals(task.getScheduledStartAt())
+			|| !recommendedEndAt.equals(task.getScheduledEndAt())) {
+			throw new RecommendationException(ExceptionCode.GOOGLE_CALENDAR_SYNC_RECOVERY_REQUIRED);
+		}
+	}
+
 	public void reject() {
 		validateStatus(RecommendationStatus.PROPOSED);
 
@@ -134,6 +160,9 @@ public class Recommendation {
 	public void sync(String googleEventId) {
 		validateStatus(RecommendationStatus.SELECTED);
 		validateGoogleEventId(googleEventId);
+		if (this.googleEventId != null && !this.googleEventId.equals(googleEventId)) {
+			throw new RecommendationException(ExceptionCode.GOOGLE_CALENDAR_EVENT_MISMATCH);
+		}
 
 		this.googleEventId = googleEventId;
 		this.status = RecommendationStatus.SYNCED;

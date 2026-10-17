@@ -114,6 +114,6 @@ class CalendarRecommendationIntegrationTest {
 	}
 
 	private void assertNoEventCreated() {
-		verify(calendarClient, never()).createEvent(anyString(), anyString(), anyString(), any(), any(), any());
+		verify(calendarClient, never()).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 }

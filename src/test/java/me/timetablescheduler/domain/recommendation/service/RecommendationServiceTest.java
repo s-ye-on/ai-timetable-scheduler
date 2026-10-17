@@ -74,7 +74,7 @@ class RecommendationServiceTest {
 			userReader,
 			recommendationPolicy,
 			calendarService,
-			CLOCK
+			CLOCK, Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class), Mockito.mock(jakarta.persistence.EntityManager.class)
 		);
 	}
 
@@ -85,7 +85,7 @@ class RecommendationServiceTest {
 		when(advancingClock.instant()).thenReturn(Instant.parse("2026-05-18T00:00:00Z"), finishedAt);
 		recommendationService = new RecommendationService(
 			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
-			new RecommendationPolicy(advancingClock), calendarService, advancingClock);
+			new RecommendationPolicy(advancingClock), calendarService, advancingClock, Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class), Mockito.mock(jakarta.persistence.EntityManager.class));
 		User user = user(1L);
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 30,
 			LocalDate.of(2026, 5, 18), null, null, null, null, null, TaskPriority.LOW, "시간 경계");
@@ -125,7 +125,7 @@ class RecommendationServiceTest {
 		when(advancingClock.instant()).thenReturn(instant, instant.plusSeconds(1));
 		recommendationService = new RecommendationService(
 			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
-			new RecommendationPolicy(advancingClock), calendarService, advancingClock);
+			new RecommendationPolicy(advancingClock), calendarService, advancingClock, Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class), Mockito.mock(jakarta.persistence.EntityManager.class));
 		User user = user(1L);
 		Task task = Task.create(user, "일요일 과제", TaskCategory.ASSIGNMENT, 60,
 			null, DayOfWeek.SUNDAY, null, null, null, null, TaskPriority.LOW, "일요일 추천");
@@ -338,18 +338,15 @@ class RecommendationServiceTest {
 			.thenReturn(List.of(otherRecommendation));
 		when(calendarService.isConnected(1L)).thenReturn(true);
 		when(calendarService.createEvent(
-			1L,
-			task.getTitle(),
-			task.getDescription(),
-			LocalDateTime.of(2026, 5, 18, 9, 0),
-			LocalDateTime.of(2026, 5, 18, 10, 0)
-		)).thenReturn("google-event-id");
+			Mockito.eq(1L), Mockito.anyString(), Mockito.eq(task.getTitle()), Mockito.eq(task.getDescription()),
+			Mockito.eq(LocalDateTime.of(2026, 5, 18, 9, 0)), Mockito.eq(LocalDateTime.of(2026, 5, 18, 10, 0))
+		)).thenAnswer(invocation -> invocation.getArgument(1));
 
 		prepareSelectionValidation(user);
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SYNCED, recommendation.getStatus());
-		assertEquals("google-event-id", recommendation.getGoogleEventId());
+		org.assertj.core.api.Assertions.assertThat(recommendation.getGoogleEventId()).matches("[0-9a-f]{32}");
 		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
 		assertEquals(RecommendationStatus.REJECTED, otherRecommendation.getStatus());
 		assertEquals(RecommendationStatus.SYNCED, response.status());
@@ -404,11 +401,8 @@ class RecommendationServiceTest {
 			.thenReturn(List.of());
 		when(calendarService.isConnected(1L)).thenReturn(true);
 		when(calendarService.createEvent(
-			1L,
-			task.getTitle(),
-			task.getDescription(),
-			LocalDateTime.of(2026, 5, 18, 9, 0),
-			LocalDateTime.of(2026, 5, 18, 10, 0)
+			Mockito.eq(1L), Mockito.anyString(), Mockito.eq(task.getTitle()), Mockito.eq(task.getDescription()),
+			Mockito.eq(LocalDateTime.of(2026, 5, 18, 9, 0)), Mockito.eq(LocalDateTime.of(2026, 5, 18, 10, 0))
 		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED));
 
 		prepareSelectionValidation(user);
