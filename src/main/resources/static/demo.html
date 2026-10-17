@@ -866,8 +866,15 @@
 		calendarConnected: false,
 		currentTask: null,
 		recommendations: [],
-		selection: null
+		selection: null,
+		parsedInput: null,
+		analysisVersion: 0,
+		isParsing: false,
+		isRecommending: false,
+		isSelecting: false
 	};
+	let authRevision = 0;
+	let refreshPromise = null;
 
 	const $ = (id) => document.getElementById(id);
 
@@ -891,19 +898,26 @@
 		$("loadPreferenceButton").addEventListener("click", refreshPreference);
 		$("resetPreferenceButton").addEventListener("click", resetPreference);
 		$("parseButton").addEventListener("click", parseNaturalLanguage);
+		$("naturalMessage").addEventListener("input", handleNaturalInputChange);
 		$("recommendButton").addEventListener("click", generateRecommendations);
 		$("connectCalendarButton").addEventListener("click", connectGoogleCalendar);
 		$("refreshCalendarButton").addEventListener("click", refreshCalendarStatus);
 	}
 
-	async function request(path, options = {}) {
+	async function request(path, options = {}, allowRefresh = true, isCurrent = () => true) {
+		if (!isCurrent()) {
+			throw new Error("입력이 변경되어 이전 요청을 취소했습니다.");
+		}
+		const publicAuth = ["/api/auth/register", "/api/auth/login", "/api/auth/refresh"].includes(path);
+		const revision = authRevision;
+		const accessToken = state.accessToken;
 		const headers = {
 			"Content-Type": "application/json",
 			...(options.headers || {})
 		};
 
-		if (state.accessToken) {
-			headers.Authorization = `Bearer ${state.accessToken}`;
+		if (!publicAuth && accessToken) {
+			headers.Authorization = `Bearer ${accessToken}`;
 		}
 
 		const response = await fetch(path, {
@@ -911,20 +925,112 @@
 			headers
 		});
 
-		if (response.status === 204) {
-			return null;
+		const text = await response.text();
+		if (!publicAuth && revision !== authRevision) {
+			throw new Error("요청 중 로그인 상태가 변경되었습니다.");
+		}
+		let body = null;
+		try {
+			body = text ? JSON.parse(text) : null;
+		} catch (error) {
+			if (response.ok) {
+				throw new Error("서버 응답을 처리할 수 없습니다.");
+			}
 		}
 
-		const text = await response.text();
-		const body = text ? JSON.parse(text) : null;
+		if (response.status === 401 && !publicAuth) {
+			if (allowRefresh && state.refreshToken) {
+				try {
+					if (accessToken === state.accessToken) {
+						await refreshAuthentication();
+					}
+				} catch (error) {
+					if (revision === authRevision) {
+						clearAuthentication();
+					}
+					throw new Error("인증을 복구할 수 없습니다. 다시 로그인해주세요.");
+				}
+				if (revision !== authRevision) {
+					throw new Error("요청 중 로그인 상태가 변경되었습니다.");
+				}
+				return request(path, options, false, isCurrent);
+			}
+			clearAuthentication();
+			throw new Error("인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.");
+		}
 
 		if (!response.ok) {
 			const error = new Error(body?.message || "요청 처리에 실패했습니다.");
 			error.body = body;
+			error.status = response.status;
 			throw error;
 		}
 
 		return body;
+	}
+
+	async function refreshAuthentication() {
+		if (!refreshPromise) {
+			const revision = authRevision;
+			const refreshToken = state.refreshToken;
+			refreshPromise = (async () => {
+				const auth = await request("/api/auth/refresh", {
+					method: "POST",
+					body: JSON.stringify({ refreshToken })
+				});
+				if (revision !== authRevision) {
+					throw new Error("요청 중 로그인 상태가 변경되었습니다.");
+				}
+				if (typeof auth?.accessToken !== "string" || !auth.accessToken
+					|| typeof auth?.refreshToken !== "string" || !auth.refreshToken) {
+					throw new Error("인증 갱신 응답이 올바르지 않습니다.");
+				}
+				storeTokens(auth);
+				updateAuthState();
+			})();
+		}
+		const pending = refreshPromise;
+		try {
+			await pending;
+		} finally {
+			if (refreshPromise === pending) {
+				refreshPromise = null;
+			}
+		}
+	}
+
+	function storeTokens(auth) {
+		state.accessToken = auth.accessToken;
+		state.refreshToken = auth.refreshToken;
+		localStorage.setItem("demoAccessToken", auth.accessToken);
+		localStorage.setItem("demoRefreshToken", auth.refreshToken);
+	}
+
+	function clearAuthentication() {
+		authRevision++;
+		refreshPromise = null;
+		state.accessToken = null;
+		state.refreshToken = null;
+		state.userName = null;
+		localStorage.removeItem("demoAccessToken");
+		localStorage.removeItem("demoRefreshToken");
+		localStorage.removeItem("demoUserName");
+		resetUserState();
+		updateAuthState();
+		$("authMessage").textContent = "인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.";
+		setFlow("다시 로그인해주세요", "LOGIN_REQUIRED", "warning");
+	}
+
+	function resetUserState() {
+		state.timetableSlots = [];
+		state.preference = null;
+		state.calendarConnected = false;
+		invalidateAnalysis();
+		renderWeeklyTable();
+		renderSlotList();
+		renderTimetableStatus();
+		renderPreferenceStatus();
+		renderCalendarStatus();
 	}
 
 	async function register() {
@@ -965,12 +1071,12 @@
 	}
 
 	function saveAuth(auth) {
-		state.accessToken = auth.accessToken;
-		state.refreshToken = auth.refreshToken;
+		authRevision++;
+		refreshPromise = null;
+		storeTokens(auth);
 		state.userName = $("nameInput").value.trim() || $("emailInput").value.trim().split("@")[0] || "사용자";
-		localStorage.setItem("demoAccessToken", auth.accessToken);
-		localStorage.setItem("demoRefreshToken", auth.refreshToken);
 		localStorage.setItem("demoUserName", state.userName);
+		resetUserState();
 		updateAuthState();
 	}
 
@@ -980,12 +1086,11 @@
 		$("authBadge").className = `badge ${isLoggedIn ? "success" : "warning"}`;
 		$("authCard").classList.toggle("is-hidden", isLoggedIn);
 		$("logoutButton").classList.toggle("is-hidden", !isLoggedIn);
+		updateTaskControls();
 	}
 
 	function logout() {
-		localStorage.removeItem("demoAccessToken");
-		localStorage.removeItem("demoRefreshToken");
-		localStorage.removeItem("demoUserName");
+		clearAuthentication();
 		location.reload();
 	}
 
@@ -1214,13 +1319,70 @@
 		}
 	}
 
+	function hasCurrentTask() {
+		return Boolean(state.accessToken && state.currentTask) && !state.isParsing
+			&& state.parsedInput === $("naturalMessage").value.trim();
+	}
+
+	function updateTaskControls() {
+		const busy = state.isParsing || state.isRecommending || state.isSelecting;
+		$("parseButton").disabled = !state.accessToken || state.isParsing || state.isSelecting;
+		$("recommendButton").disabled = !hasCurrentTask() || busy;
+		$("naturalMessage").disabled = state.isSelecting;
+		document.querySelectorAll("[data-select-recommendation]").forEach((button) => {
+			button.disabled = !hasCurrentTask() || busy;
+		});
+	}
+
+	function invalidateAnalysis() {
+		state.analysisVersion++;
+		state.currentTask = null;
+		state.parsedInput = null;
+		state.recommendations = [];
+		state.selection = null;
+		state.isParsing = false;
+		state.isRecommending = false;
+		state.isSelecting = false;
+		renderParsedResult();
+		renderRecommendations();
+		renderSelectionResult();
+		$("taskMessage").textContent = "현재 입력을 AI로 분석해주세요.";
+		updateTaskControls();
+	}
+
+	function handleNaturalInputChange() {
+		invalidateAnalysis();
+		setFlow("입력 변경 · 다시 분석해주세요", "NEEDS_ANALYSIS", "warning");
+	}
+
+	function isCurrentAnalysis(version, input) {
+		return version === state.analysisVersion && input === $("naturalMessage").value.trim();
+	}
+
 	async function parseNaturalLanguage() {
+		if (state.isParsing || state.isSelecting) {
+			return;
+		}
+		const input = $("naturalMessage").value.trim();
+		invalidateAnalysis();
+		if (!state.accessToken || !input) {
+			$("taskMessage").textContent = state.accessToken ? "분석할 일정 내용을 입력해주세요." : "먼저 로그인해주세요.";
+			return;
+		}
+		const version = state.analysisVersion;
+		state.isParsing = true;
+		updateTaskControls();
+		setFlow("AI 분석 중", "PARSING", "neutral");
 		try {
 			const task = await request("/tasks/natural-language", {
 				method: "POST",
-				body: JSON.stringify({ message: $("naturalMessage").value.trim() })
-			});
+				body: JSON.stringify({ message: input })
+			}, true, () => isCurrentAnalysis(version, input));
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			state.currentTask = task;
+			state.parsedInput = input;
 			state.recommendations = [];
 			state.selection = null;
 			renderParsedResult();
@@ -1228,8 +1390,16 @@
 			renderSelectionResult();
 			setFlow("AI 분석 완료", "PARSED", "success");
 		} catch (error) {
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			$("taskMessage").textContent = error.body?.message || error.message;
 			setFlow("분석 실패", "FAILED", "danger");
+		} finally {
+			if (version === state.analysisVersion) {
+				state.isParsing = false;
+				updateTaskControls();
+			}
 		}
 	}
 
@@ -1255,23 +1425,42 @@
 	}
 
 	async function generateRecommendations() {
-		if (!state.currentTask) {
-			$("taskMessage").textContent = "먼저 AI로 일정을 분석해 Task를 생성하세요.";
+		if (!hasCurrentTask() || state.isRecommending || state.isSelecting) {
+			$("taskMessage").textContent = "먼저 AI로 일정을 분석한 뒤 추천 후보를 생성해주세요.";
 			return;
 		}
-
+		const version = state.analysisVersion;
+		const input = state.parsedInput;
+		const taskId = state.currentTask.id;
+		state.isRecommending = true;
+		state.recommendations = [];
+		state.selection = null;
+		renderRecommendations();
+		renderSelectionResult();
+		updateTaskControls();
 		try {
-			const response = await request(`/tasks/${state.currentTask.id}/recommendations`, {
+			const response = await request(`/tasks/${taskId}/recommendations`, {
 				method: "POST"
-			});
+			}, true, () => isCurrentAnalysis(version, input));
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			state.recommendations = response.recommendations || [];
 			state.selection = null;
 			renderRecommendations();
 			renderSelectionResult();
 			setFlow("추천 생성 완료", "RECOMMENDED", "success");
 		} catch (error) {
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			$("taskMessage").textContent = error.body?.message || error.message;
 			setFlow("추천 실패", "FAILED", "danger");
+		} finally {
+			if (version === state.analysisVersion) {
+				state.isRecommending = false;
+				updateTaskControls();
+			}
 		}
 	}
 
@@ -1281,6 +1470,7 @@
 
 		if (state.recommendations.length === 0) {
 			list.innerHTML = `<div class="empty">아직 추천 후보가 없습니다.</div>`;
+			updateTaskControls();
 			return;
 		}
 
@@ -1305,20 +1495,45 @@
 		document.querySelectorAll("[data-select-recommendation]").forEach((button) => {
 			button.addEventListener("click", () => selectRecommendation(button.dataset.selectRecommendation));
 		});
+		updateTaskControls();
 	}
 
 	async function selectRecommendation(recommendationId) {
+		if (!hasCurrentTask()) {
+			$("taskMessage").textContent = "먼저 AI로 일정을 분석한 뒤 추천 후보를 생성해주세요.";
+			return;
+		}
+		if (state.isRecommending || state.isSelecting
+			|| !state.recommendations.some((candidate) => String(candidate.id) === String(recommendationId))) {
+			$("taskMessage").textContent = "현재 입력에 대한 추천 후보를 다시 생성해주세요.";
+			return;
+		}
+		const version = state.analysisVersion;
+		const input = state.parsedInput;
+		state.isSelecting = true;
+		updateTaskControls();
 		try {
 			const response = await request(`/recommendations/${recommendationId}/select`, {
 				method: "POST"
-			});
+			}, true, () => isCurrentAnalysis(version, input));
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			state.selection = { ok: true, body: response };
 			renderSelectionResult();
 			setFlow(response.status === "SYNCED" ? "캘린더 등록 완료" : "선택 완료", response.status, response.status === "SYNCED" ? "success" : "warning");
 		} catch (error) {
+			if (!isCurrentAnalysis(version, input)) {
+				return;
+			}
 			state.selection = { ok: false, body: error.body };
 			renderSelectionResult();
 			setFlow("선택 실패", error.body?.code || "FAILED", error.body?.code === "GOOGLE_CALENDAR_NOT_CONNECTED" ? "warning" : "danger");
+		} finally {
+			if (version === state.analysisVersion) {
+				state.isSelecting = false;
+				updateTaskControls();
+			}
 		}
 	}
 
