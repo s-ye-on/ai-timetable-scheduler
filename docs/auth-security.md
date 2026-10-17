@@ -22,6 +22,10 @@
 - 기존 same-origin 요청과 새 창 callback 흐름을 유지한다. 다른 브라우저, 쿠키 차단, 세션 유실, 만료 시에는 연결을 처음부터 다시 시작한다.
 - 브라우저 세션당 가장 최근에 시작한 연결 요청 하나만 유효하다. 새 요청은 이전 요청을 대체한다.
 - Google 인증 거절, code 누락, 토큰 교환 실패도 유효한 state를 소비한다. 같은 callback을 재전송하지 말고 새 연결 요청으로 재시도한다.
+- `GOOGLE_CLIENT_SECRET`에는 현재 Client ID와 한 쌍인 Google OAuth Client Secret을 설정한다. 로컬 IntelliJ 실행 구성과 배포 서버의 실행 환경에 각각 등록하고, 변경 후 서버를 다시 실행한다. 실제 값은 채팅이나 로그에 공유하지 않는다.
+- Client ID, Client Secret, Redirect URI가 비어 있거나 `${...}` 참조가 해결되지 않으면 Google 연결 요청을 `GOOGLE_OAUTH_CONFIGURATION_INVALID`(HTTP 503)로 거부한다. Calendar를 연결하지 않는 사용자의 서버 시작까지 차단하지는 않는다.
+- 토큰 교환 실패의 HTTP 502는 애플리케이션 응답 상태다. 서버 로그의 `httpStatus`는 확인 가능한 Google 응답 상태이며, `error`에는 허용된 OAuth 오류 코드만 남긴다. `invalid_client`는 Client ID/Secret 짝과 설정을, `invalid_grant`는 만료·재사용된 code와 Redirect URI 등을 확인한다. `transport_error`는 통신 또는 응답 처리 중 HTTP 상태를 확인하지 못한 오류이며, HTTP 응답이 전혀 없었다는 뜻으로 단정하지 않는다. `unknown`은 분류할 수 없는 OAuth 오류다. 과거 오류 처리에서 버린 Google 응답은 사후 복구할 수 없다.
+- 오류 설명 원문, 응답 본문, 예외 메시지·stack trace, Secret, code, token, state는 토큰 교환 진단 로그에 기록하지 않는다. Google SDK의 토큰 교환 HTTP 요청·응답 및 curl 로깅도 비활성화한다.
 - 단일 서버의 메모리 세션을 전제로 한다. 서버 재시작으로 진행 중인 요청은 무효화된다. 여러 서버 운영 시 세션 공유와 분산 단일 소비 보장이 별도로 필요하다.
 - 로그아웃만으로 이미 시작한 OAuth 요청을 취소하지는 않는다. 해당 요청은 최대 5분 동안 시작한 사용자에 결합되고 다른 사용자로 전환되지 않는다. 공용 브라우저에서는 연결 절차를 완료하거나 새 연결 요청을 시작한다.
 

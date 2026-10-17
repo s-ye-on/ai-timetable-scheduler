@@ -61,6 +61,9 @@ public enum ExceptionCode {
 	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다"),
 	CONFLICT_TIMETABLE_SLOT(HttpStatus.CONFLICT, "이미 등록된 시간표와 시간이 겹칩니다."),
 
+	// 503 외부 서비스 설정 누락
+	GOOGLE_OAUTH_CONFIGURATION_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "Google Calendar OAuth 설정이 올바르지 않습니다. 서버 설정을 확인해주세요."),
+
 	// 502 외부 서비스 연동 실패
 	GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "Google OAuth 토큰 교환에 실패했습니다."),
 	GOOGLE_OAUTH_TOKEN_REFRESH_FAILED(HttpStatus.BAD_GATEWAY, "Google access token 갱신에 실패했습니다."),

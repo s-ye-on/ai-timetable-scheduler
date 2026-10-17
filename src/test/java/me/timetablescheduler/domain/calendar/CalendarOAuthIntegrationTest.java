@@ -71,6 +71,19 @@ class CalendarOAuthIntegrationTest {
 	}
 
 	@Test
+	void invalidOAuthSettingsReturnSafeServiceUnavailableBeforeConsent() throws Exception {
+		User owner = createUser("config-error");
+		when(google.createAuthorizationUrl(anyString()))
+			.thenThrow(new CalendarException(ExceptionCode.GOOGLE_OAUTH_CONFIGURATION_INVALID));
+		mockMvc.perform(get("/api/calendar/oauth/url").header("Authorization", bearer(owner)))
+			.andExpect(status().isServiceUnavailable())
+			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code")
+				.value("GOOGLE_OAUTH_CONFIGURATION_INVALID"));
+		assertThat(tokens.findByUserId(owner.getId())).isEmpty();
+		verify(google, never()).exchangeCode(anyString());
+	}
+
+	@Test
 	void normalCallbackUsesInitiatingUserAndReconnectsOnlyThatUser() throws Exception {
 		User owner = createUser("owner");
 		User other = createUser("other");
