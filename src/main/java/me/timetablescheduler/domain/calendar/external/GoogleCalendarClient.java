@@ -11,6 +11,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.DateTime;
+import com.google.api.client.util.Data;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
@@ -49,21 +50,26 @@ public class GoogleCalendarClient {
 				.query(request)
 				.execute();
 
-			if (response.getCalendars() == null) {
-				return List.of();
+			if (response == null || response.getCalendars() == null) {
+				throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
 			}
 
 			FreeBusyCalendar freeBusyCalendar = response.getCalendars().get(calendarId);
-			if (freeBusyCalendar == null || freeBusyCalendar.getBusy() == null) {
+			if (freeBusyCalendar == null || Data.isNull(freeBusyCalendar)
+				|| (freeBusyCalendar.getErrors() != null && !freeBusyCalendar.getErrors().isEmpty())) {
+				throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
+			}
+
+			// Java SDK 계약상 busy는 일정이 없으면 null일 수 있다.
+			if (freeBusyCalendar.getBusy() == null) {
 				return List.of();
 			}
 
 			return freeBusyCalendar.getBusy()
 				.stream()
-				.filter(timePeriod -> timePeriod.getStart() != null && timePeriod.getEnd() != null)
 				.map(this::toBusyBlock)
 				.toList();
-		} catch (IOException e) {
+		} catch (IOException | IllegalArgumentException e) {
 			throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
 		}
 	}
@@ -123,6 +129,13 @@ public class GoogleCalendarClient {
 	}
 
 	private BusyBlock toBusyBlock(TimePeriod timePeriod) {
+		if (timePeriod == null || timePeriod.getStart() == null || timePeriod.getEnd() == null
+			|| Data.isNull(timePeriod.getStart()) || Data.isNull(timePeriod.getEnd())
+			|| timePeriod.getStart().isDateOnly() || timePeriod.getEnd().isDateOnly()
+			|| timePeriod.getStart().getValue() >= timePeriod.getEnd().getValue()) {
+			throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
+		}
+
 		return new BusyBlock(
 			toLocalDateTime(timePeriod.getStart()),
 			toLocalDateTime(timePeriod.getEnd())

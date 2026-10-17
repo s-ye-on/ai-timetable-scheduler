@@ -137,6 +137,47 @@ class LlmParsingServiceTest {
 	}
 
 	@Test
+	void LLM_결과의_제목과_설명이_Task_컬럼_최대_길이면_허용한다() {
+		ParsedTaskResponse parsed = responseBuilder()
+			.title("가".repeat(100))
+			.description("가".repeat(500))
+			.preferredDayOfWeek(DayOfWeek.TUESDAY)
+			.build();
+		LlmParsingService service = serviceWith(parsed);
+
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("화요일에 과제"));
+
+		assertEquals("가".repeat(100), result.title());
+		assertEquals("가".repeat(500), result.description());
+	}
+
+	@Test
+	void LLM_결과의_제목이_Task_컬럼_길이를_넘으면_거부한다() {
+		ParsedTaskResponse parsed = responseBuilder()
+			.title("가".repeat(101))
+			.preferredDayOfWeek(DayOfWeek.TUESDAY)
+			.build();
+		LlmParsingService service = serviceWith(parsed);
+
+		LlmException exception = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("화요일에 과제")));
+
+		assertEquals(ExceptionCode.INVALID_LLM_PARSE_RESULT, exception.getExceptionCode());
+	}
+
+	@Test
+	void LLM_결과의_설명이_Task_컬럼_길이를_넘으면_거부한다() {
+		ParsedTaskResponse parsed = responseBuilder()
+			.description("가".repeat(501))
+			.preferredDayOfWeek(DayOfWeek.TUESDAY)
+			.build();
+		LlmParsingService service = serviceWith(parsed);
+
+		LlmException exception = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("화요일에 과제")));
+
+		assertEquals(ExceptionCode.INVALID_LLM_PARSE_RESULT, exception.getExceptionCode());
+	}
+
+	@Test
 	void 카테고리가_없으면_MISSING_LLM_CATEGORY를_던진다() {
 		ParsedTaskResponse parsed = responseBuilder()
 			.category(null)

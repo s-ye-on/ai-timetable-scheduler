@@ -12,6 +12,7 @@ public sealed interface AuthRequest
 	record Login(
 		@NotBlank(message = "ID는 필수 입니다.")
 		@Email(message = "이메일 형식으로 입력해야 합니다.")
+		@Size(max = 30, message = "이메일은 30자를 넘어갈 수 없습니다.")
 		String email,
 
 		@NotBlank(message = "비밀번호 입력은 필수입니다.")
@@ -26,6 +27,7 @@ public sealed interface AuthRequest
 
 		@NotBlank(message = "이메일 입력은 필수 입니다.")
 		@Email(message = "이메일 형식으로 입력해야 합니다.")
+		@Size(max = 30, message = "이메일은 30자를 넘어갈 수 없습니다.")
 		String email,
 
 		@NotBlank(message = "비밀번호 입력은 필수 입니다.")

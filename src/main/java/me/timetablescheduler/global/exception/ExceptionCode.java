@@ -65,6 +65,7 @@ public enum ExceptionCode {
 	GOOGLE_OAUTH_CONFIGURATION_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "Google Calendar OAuth 설정이 올바르지 않습니다. 서버 설정을 확인해주세요."),
 
 	// 502 외부 서비스 연동 실패
+	OPENAI_API_FAILED(HttpStatus.BAD_GATEWAY, "AI 분석 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요."),
 	GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "Google OAuth 토큰 교환에 실패했습니다."),
 	GOOGLE_OAUTH_TOKEN_REFRESH_FAILED(HttpStatus.BAD_GATEWAY, "Google access token 갱신에 실패했습니다."),
 	GOOGLE_CALENDAR_FREE_BUSY_FAILED(HttpStatus.BAD_GATEWAY, "Google Calendar 바쁜 시간 조회에 실패했습니다."),

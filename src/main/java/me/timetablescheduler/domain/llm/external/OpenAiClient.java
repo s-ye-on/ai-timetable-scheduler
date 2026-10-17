@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.ObjectMapper;
 
 import static java.util.Map.entry;
@@ -69,11 +70,13 @@ public class OpenAiClient {
 			return objectMapper.readValue(outputText, ParsedTaskResponse.class);
 		} catch (LlmException exception) {
 			throw exception;
+		} catch (RestClientException exception) {
+			log.warn("OpenAI API 호출 실패. exceptionType={}", exception.getClass().getSimpleName());
+			throw new LlmException(ExceptionCode.OPENAI_API_FAILED);
 		} catch (Exception exception) {
 			log.warn(
-				"OpenAI task parsing failed. exceptionType={}, message={}",
-				exception.getClass().getSimpleName(),
-				exception.getMessage()
+				"OpenAI 응답 파싱 실패. exceptionType={}",
+				exception.getClass().getSimpleName()
 			);
 			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
 		}

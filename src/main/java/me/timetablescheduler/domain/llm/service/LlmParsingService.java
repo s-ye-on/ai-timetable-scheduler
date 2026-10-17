@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 public class LlmParsingService {
 	private static final int TIME_SLOT_MINUTES = 30;
 	private static final int DEFAULT_DURATION_MINUTES = 60; // 소요 시간 없을 때 기본값
+	private static final int TASK_TITLE_MAX_LENGTH = 100;
+	private static final int TASK_DESCRIPTION_MAX_LENGTH = 500;
 
 	private final OpenAiClient openAiClient;
 
@@ -52,6 +54,12 @@ public class LlmParsingService {
 	private void validateRequiredFields(ParsedTaskResponse response) {
 		if (response.title() == null || response.title().isBlank()) {
 			throw new LlmException(ExceptionCode.MISSING_LLM_TITLE);
+		}
+
+		if (response.title().length() > TASK_TITLE_MAX_LENGTH
+			|| response.description() == null
+			|| response.description().length() > TASK_DESCRIPTION_MAX_LENGTH) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
 		}
 
 		if (response.category() == null) {
