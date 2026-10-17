@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.recommendation.policy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -117,6 +118,50 @@ public class RecommendationPolicy {
 		return candidates;
 	}
 
+	/**
+	 * 추천 생성 이후 변경된 현재 조건으로 후보를 확정해도 되는지 판단한다.
+	 * Calendar 검증 결과가 없으면 확정을 차단한다.
+	 */
+	public boolean isSelectable(
+		Task task,
+		Preference preference,
+		List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks,
+		LocalDateTime start,
+		LocalDateTime end,
+		LocalDateTime now
+	) {
+		if (task == null || preference == null || start == null || end == null || now == null
+			|| calendarBusyBlocks == null) {
+			return false;
+		}
+
+		if (!start.isAfter(now) || !end.isAfter(start)
+			|| !Duration.between(start, end).equals(Duration.ofMinutes(task.getDurationMinutes()))) {
+			return false;
+		}
+
+		LocalDate candidateDate = start.toLocalDate();
+		if (!resolveCandidateDates(task, now.toLocalDate()).contains(candidateDate)
+			|| isAfterDeadline(task, candidateDate)
+			|| !isWithinAvailableTimeRange(preference, start, end)) {
+			return false;
+		}
+
+		List<BusyBlock> busyBlocks = buildSelectionBusyBlocks(
+			start,
+			end,
+			preference.getMinimumGapMinutes(),
+			timetableSlots == null ? List.of() : timetableSlots,
+			scheduledTasks == null ? List.of() : scheduledTasks,
+			calendarBusyBlocks,
+			task
+		);
+
+		return !conflictsWithBusyBlocks(start, end, busyBlocks, preference.getMinimumGapMinutes());
+	}
+
 	// Task의 preferredDate / preferredDayOfWeek / preferredStartDate~EndDate를 실제 날짜 목록으로 변환
 	private List<LocalDate> resolveCandidateDates(Task task, LocalDate baseDate) {
 		if (task.getPreferredDate() != null) {
@@ -146,6 +191,54 @@ public class RecommendationPolicy {
 			return dates;
 		}
 		return List.of();
+	}
+
+	private boolean isWithinAvailableTimeRange(
+		Preference preference,
+		LocalDateTime start,
+		LocalDateTime end
+	) {
+		return start.toLocalDate().equals(end.toLocalDate())
+			&& !start.toLocalTime().isBefore(preference.getScheduleStartTime())
+			&& !end.toLocalTime().isAfter(preference.getScheduleEndTime());
+	}
+
+	private List<BusyBlock> buildSelectionBusyBlocks(
+		LocalDateTime start,
+		LocalDateTime end,
+		int minimumGapMinutes,
+		List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks,
+		Task currentTask
+	) {
+		List<BusyBlock> busyBlocks = new ArrayList<>();
+		LocalDate relevantStartDate = start.minusMinutes(minimumGapMinutes).toLocalDate();
+		LocalDate relevantEndDate = end.plusMinutes(minimumGapMinutes).toLocalDate();
+		LocalDate timetableEndDate = relevantEndDate.isBefore(relevantStartDate.plusDays(7))
+			? relevantEndDate
+			: relevantStartDate.plusDays(7);
+
+		for (LocalDate date = relevantStartDate; !date.isAfter(timetableEndDate); date = date.plusDays(1)) {
+			LocalDate timetableDate = date;
+			timetableSlots.stream()
+				.filter(slot -> slot.getDayOfWeek() == timetableDate.getDayOfWeek())
+				.map(slot -> new BusyBlock(
+					LocalDateTime.of(timetableDate, slot.getStartTime()),
+					LocalDateTime.of(timetableDate, slot.getEndTime())
+				))
+				.forEach(busyBlocks::add);
+		}
+
+		scheduledTasks.stream()
+			.filter(task -> !isSameTask(task, currentTask))
+			.filter(task -> task.getScheduledStartAt() != null)
+			.filter(task -> task.getScheduledEndAt() != null)
+			.map(task -> new BusyBlock(task.getScheduledStartAt(), task.getScheduledEndAt()))
+			.forEach(busyBlocks::add);
+
+		busyBlocks.addAll(calendarBusyBlocks);
+		return busyBlocks;
 	}
 
 	private List<BusyBlock> buildBusyBlocks(

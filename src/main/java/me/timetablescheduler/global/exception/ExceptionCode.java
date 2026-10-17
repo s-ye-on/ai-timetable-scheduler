@@ -58,6 +58,8 @@ public enum ExceptionCode {
 	NOT_FOUND_RECOMMENDATION(HttpStatus.NOT_FOUND, "존재하지 않는 추천 후보입니다."),
 
 	// 409 Conflict
+	RECOMMENDATION_NO_LONGER_AVAILABLE(HttpStatus.CONFLICT, "추천 후보가 현재 일정 조건과 충돌하거나 더 이상 유효하지 않습니다. 다시 추천해주세요."),
+	CONFLICT_USER_OPERATION(HttpStatus.CONFLICT, "다른 일정 변경 요청을 처리 중입니다. 잠시 후 다시 시도해주세요."),
 	CONFLICT_EMAIL(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다"),
 	CONFLICT_TIMETABLE_SLOT(HttpStatus.CONFLICT, "이미 등록된 시간표와 시간이 겹칩니다."),
 

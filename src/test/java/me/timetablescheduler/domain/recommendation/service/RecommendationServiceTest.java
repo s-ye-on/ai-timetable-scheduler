@@ -91,7 +91,7 @@ class RecommendationServiceTest {
 			LocalDate.of(2026, 5, 18), null, null, null, null, null, TaskPriority.LOW, "시간 경계");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
 			LocalTime.of(9, 0), LocalTime.of(11, 0), 0, ScheduleDensity.BALANCED, DeadlineTiming.BALANCED);
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
@@ -131,7 +131,7 @@ class RecommendationServiceTest {
 			null, DayOfWeek.SUNDAY, null, null, null, null, TaskPriority.LOW, "일요일 추천");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
 			LocalTime.of(9, 0), LocalTime.of(10, 0), 0, ScheduleDensity.BALANCED, DeadlineTiming.BALANCED);
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
@@ -179,7 +179,7 @@ class RecommendationServiceTest {
 			)
 		);
 
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
@@ -210,7 +210,7 @@ class RecommendationServiceTest {
 			candidate(80, 12)
 		);
 
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
@@ -240,6 +240,7 @@ class RecommendationServiceTest {
 		Task task = task(user);
 		List<CandidateSlot> candidateSlots = List.of(candidate(90, 10));
 
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(userReader.read(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
@@ -272,7 +273,7 @@ class RecommendationServiceTest {
 		Task task = task(user);
 		Preference preference = Preference.createDefault(user);
 
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 		when(timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(1L)).thenReturn(List.of());
@@ -297,7 +298,7 @@ class RecommendationServiceTest {
 			LocalDateTime.of(2026, 5, 18, 10, 0)
 		);
 
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
 
 		TaskException exception = assertThrows(
@@ -344,6 +345,7 @@ class RecommendationServiceTest {
 			LocalDateTime.of(2026, 5, 18, 10, 0)
 		)).thenReturn("google-event-id");
 
+		prepareSelectionValidation(user);
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SYNCED, recommendation.getStatus());
@@ -409,11 +411,20 @@ class RecommendationServiceTest {
 			LocalDateTime.of(2026, 5, 18, 10, 0)
 		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED));
 
+		prepareSelectionValidation(user);
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SYNC_FAILED, recommendation.getStatus());
 		assertEquals(TaskStatus.SCHEDULED, task.getStatus());
 		assertEquals(RecommendationStatus.SYNC_FAILED, response.status());
+	}
+
+	private void prepareSelectionValidation(User user) {
+		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(Preference.createDefault(user)));
+		when(calendarService.getCalendarBusyBlocks(Mockito.eq(1L), Mockito.any(), Mockito.any())).thenReturn(List.of());
+		Mockito.doCallRealMethod().when(recommendationPolicy).isSelectable(
+			Mockito.any(), Mockito.any(), Mockito.anyList(), Mockito.anyList(), Mockito.anyList(),
+			Mockito.any(), Mockito.any(), Mockito.any());
 	}
 
 	private CandidateSlot candidate(int score, int hour) {

@@ -55,7 +55,7 @@ public class RecommendationService {
 
 	@Transactional
 	public RecommendationResponse.Generate recommend(Long userId, Long taskId) {
-		User user = userReader.read(userId);
+		User user = userReader.readForUpdate(userId);
 		Task task = findTask(taskId, userId);
 		task.validateRecommendable();
 		Preference preference = findPreference(userId);
@@ -125,16 +125,38 @@ public class RecommendationService {
 
 	@Transactional
 	public RecommendationResponse.Read select(Long userId, Long recommendationId) {
+		userReader.readForUpdate(userId);
 		Recommendation recommendation = findRecommendation(recommendationId, userId);
 		Task task = recommendation.getTask();
 
 		validateCalendarConnected(userId);
+		recommendation.validateSelectable();
+		task.validateRecommendable();
+		validateCurrentConditions(userId, recommendation, task);
 		recommendation.select();
 		task.schedule(recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
 		rejectOtherProposedRecommendations(task.getId(), userId, recommendation);
 		syncCalendarEvent(userId, recommendation, task);
 
 		return toReadResponse(recommendation);
+	}
+
+	private void validateCurrentConditions(Long userId, Recommendation recommendation, Task task) {
+		Preference preference = findPreference(userId);
+		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
+		List<Task> scheduledTasks = taskRepository.findAllByUserIdAndStatus(userId, TaskStatus.SCHEDULED);
+		LocalDateTime start = recommendation.getRecommendedStartAt();
+		LocalDateTime end = recommendation.getRecommendedEndAt();
+		int gap = preference.getMinimumGapMinutes();
+		List<BusyBlock> busyBlocks = calendarService.getCalendarBusyBlocks(userId, start.minusMinutes(gap), end.plusMinutes(gap));
+		if (busyBlocks == null) {
+			throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
+		}
+
+		LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID);
+		if (!recommendationPolicy.isSelectable(task, preference, timetableSlots, scheduledTasks, busyBlocks, start, end, now)) {
+			throw new RecommendationException(ExceptionCode.RECOMMENDATION_NO_LONGER_AVAILABLE);
+		}
 	}
 
 	private void validateCalendarConnected(Long userId) {

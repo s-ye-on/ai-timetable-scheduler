@@ -107,10 +107,14 @@ public class Recommendation {
 	}
 
 	public void select() {
-		validateStatus(RecommendationStatus.PROPOSED);
+		validateSelectable();
 
 		this.status = RecommendationStatus.SELECTED;
 		this.updatedAt = OffsetDateTime.now();
+	}
+
+	public void validateSelectable() {
+		validateStatus(RecommendationStatus.PROPOSED);
 	}
 
 	public void reject() {

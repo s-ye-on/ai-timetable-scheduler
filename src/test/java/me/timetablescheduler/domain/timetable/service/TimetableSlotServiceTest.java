@@ -40,7 +40,7 @@ class TimetableSlotServiceTest {
 	void 시간표를_생성하면_저장하고_응답을_반환한다() {
 		User user = user();
 		TimetableSlotRequest.Create request = createRequest();
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(slotRepository.existsOverlappingSlot(1L, request.dayOfWeek(), request.startTime(), request.endTime()))
 			.thenReturn(false);
 		when(slotRepository.save(any(TimetableSlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -58,7 +58,7 @@ class TimetableSlotServiceTest {
 
 	@Test
 	void 사용자가_없으면_시간표를_생성할_수_없다() {
-		when(userReader.read(1L)).thenThrow(new UserException(ExceptionCode.NOT_FOUND_USER));
+		when(userReader.readForUpdate(1L)).thenThrow(new UserException(ExceptionCode.NOT_FOUND_USER));
 
 		UserException exception = assertThrows(
 			UserException.class,
@@ -73,7 +73,7 @@ class TimetableSlotServiceTest {
 	void 겹치는_시간표가_있으면_시간표를_생성할_수_없다() {
 		User user = user();
 		TimetableSlotRequest.Create request = createRequest();
-		when(userReader.read(1L)).thenReturn(user);
+		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(slotRepository.existsOverlappingSlot(1L, request.dayOfWeek(), request.startTime(), request.endTime()))
 			.thenReturn(true);
 

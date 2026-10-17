@@ -70,6 +70,7 @@ public class TaskService {
 
 	@Transactional
 	public TaskResponse.Read update(Long taskId, TaskRequest.Update request, Long userId) {
+		userReader.readForUpdate(userId);
 		Task task = findTask(taskId, userId);
 
 		task.updateDetails(
@@ -94,6 +95,7 @@ public class TaskService {
 
 	@Transactional
 	public void delete(Long taskId, Long userId) {
+		userReader.readForUpdate(userId);
 		Task task = findTask(taskId, userId);
 		task.validateDeletable();
 		List<Recommendation> recommendations = recommendationRepository.findAllByTaskIdAndUserId(taskId, userId);

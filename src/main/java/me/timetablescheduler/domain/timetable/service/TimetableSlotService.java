@@ -25,7 +25,7 @@ public class TimetableSlotService {
 
 	@Transactional
 	public TimetableSlotResponse.Read create(TimetableSlotRequest.Create request, Long userId) {
-		User user = userReader.read(userId);
+		User user = userReader.readForUpdate(userId);
 		validateNoOverlap(userId, request.dayOfWeek(), request.startTime(), request.endTime());
 
 		TimetableSlot timetableSlot = TimetableSlot.create(
@@ -56,6 +56,7 @@ public class TimetableSlotService {
 
 	@Transactional
 	public TimetableSlotResponse.Read update(Long slotId, TimetableSlotRequest.Update request, Long userId) {
+		userReader.readForUpdate(userId);
 		TimetableSlot timetableSlot = findSlot(slotId, userId);
 		validateNoOverlapExcept(slotId, userId, request.dayOfWeek(), request.startTime(), request.endTime());
 
@@ -72,6 +73,7 @@ public class TimetableSlotService {
 
 	@Transactional
 	public void delete(Long slotId, Long userId) {
+		userReader.readForUpdate(userId);
 		TimetableSlot timetableSlot = findSlot(slotId, userId);
 		slotRepository.delete(timetableSlot);
 	}

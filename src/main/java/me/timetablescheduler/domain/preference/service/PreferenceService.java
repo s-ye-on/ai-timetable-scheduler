@@ -19,6 +19,7 @@ public class PreferenceService {
 
 	@Transactional
 	public PreferenceResponse.Read createDefault(User user) {
+		userReader.readForUpdate(user.getId());
 		if (preferenceRepository.existsByUserId(user.getId())) {
 			return toReadResponse(getOrCreateDefault(user.getId()));
 		}
@@ -28,11 +29,13 @@ public class PreferenceService {
 
 	@Transactional
 	public PreferenceResponse.Read read(Long userId) {
+		userReader.readForUpdate(userId);
 		return toReadResponse(getOrCreateDefault(userId));
 	}
 
 	@Transactional
 	public PreferenceResponse.Read update(Long userId, PreferenceRequest.Update request) {
+		userReader.readForUpdate(userId);
 		Preference preference = getOrCreateDefault(userId);
 
 		preference.update(
@@ -49,6 +52,7 @@ public class PreferenceService {
 
 	@Transactional
 	public PreferenceResponse.Read resetToDefault(Long userId) {
+		userReader.readForUpdate(userId);
 		Preference preference = getOrCreateDefault(userId);
 
 		preference.resetToDefault();
