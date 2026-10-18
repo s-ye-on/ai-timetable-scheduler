@@ -114,6 +114,7 @@ function createHarness({
 		["demoUserName", userName]
 	].filter(([, value]) => value !== null));
 	const documentListeners = new Map();
+	const dynamicElements = new Map();
 	const document = {
 		getElementById(id) {
 			if (!elements.has(id)) {
@@ -124,7 +125,30 @@ function createHarness({
 		addEventListener(name, callback) {
 			documentListeners.set(name, callback);
 		},
-		querySelectorAll() {
+		querySelectorAll(selector) {
+			if (selector === "[data-select-recommendation]") {
+				const markup = document.getElementById("recommendationList").innerHTML;
+				return [...markup.matchAll(/data-select-recommendation="([^"]+)"/g)].map((match) => {
+					const key = `recommendation:${match[1]}`;
+					if (!dynamicElements.has(key)) {
+						const element = new FakeElement(key);
+						element.dataset.selectRecommendation = match[1];
+						dynamicElements.set(key, element);
+					}
+					return dynamicElements.get(key);
+				});
+			}
+			if (selector === "[data-refresh-recommendation-state]") {
+				const markup = document.getElementById("selectionResult").innerHTML;
+				if (!markup.includes("data-refresh-recommendation-state")) {
+					return [];
+				}
+				const key = "refresh-recommendation-state";
+				if (!dynamicElements.has(key)) {
+					dynamicElements.set(key, new FakeElement(key));
+				}
+				return [dynamicElements.get(key)];
+			}
 			return [];
 		}
 	};
@@ -152,6 +176,7 @@ function createHarness({
 		element: (id) => document.getElementById(id),
 		state: () => vm.runInContext("state", context),
 		call: (expression) => vm.runInContext(expression, context),
+		recommendationButton: (id) => dynamicElements.get(`recommendation:${id}`),
 		storage
 	};
 }
@@ -164,7 +189,7 @@ function task(id, title = "과제") {
 		durationMinutes: 60,
 		preferredDayOfWeek: "TUESDAY",
 		preferredTimeRange: "LUNCH",
-		status: "PARSED"
+		status: "UNSCHEDULED"
 	};
 }
 
@@ -172,11 +197,13 @@ function recommendation(id) {
 	return {
 		id,
 		rank: 1,
-		status: "RECOMMENDED",
+		taskId: 42,
+		status: "PROPOSED",
 		score: 120,
 		recommendedStartAt: "2026-10-20T12:00:00",
 		recommendedEndAt: "2026-10-20T13:00:00",
-		reason: "기존 일정과 적당한 간격"
+		reason: "기존 일정과 적당한 간격",
+		syncRetryable: false
 	};
 }
 
@@ -502,11 +529,14 @@ test("정상 분석·추천·선택 흐름은 올바른 Task와 후보 endpoint�
 					recommendedEndAt: "2026-10-20T13:00:00"
 				});
 			}
+			if (url === "/tasks/42") return jsonResponse(200, { ...task(42, "정상 요청"), status: "SCHEDULED" });
+			if (url === "/tasks/42/recommendations?includeHistory=true") return jsonResponse(200, [{ ...recommendation(77), status: "SYNCED" }]);
 			throw new Error(`예상하지 않은 요청: ${url}`);
 		}
 	});
 	harness.call("bindEvents()");
 	harness.element("naturalMessage").value = "정상 요청";
+	harness.call("state.calendarConnected = true");
 	await harness.call("parseNaturalLanguage()");
 	await harness.call("generateRecommendations()");
 	assert.equal(harness.element("flowBadge").textContent, "RECOMMENDED");
@@ -516,7 +546,9 @@ test("정상 분석·추천·선택 흐름은 올바른 Task와 후보 endpoint�
 	assert.deepEqual(calls.map((call) => call.url), [
 		"/tasks/natural-language",
 		"/tasks/42/recommendations",
-		"/recommendations/77/select"
+		"/recommendations/77/select",
+		"/tasks/42",
+		"/tasks/42/recommendations?includeHistory=true"
 	]);
 	assert.deepEqual(JSON.parse(calls[0].options.body), { message: "정상 요청" });
 	assert.equal(harness.state().currentTask.id, 42);
@@ -527,4 +559,336 @@ test("정상 분석·추천·선택 흐름은 올바른 Task와 후보 endpoint�
 	assert.equal(harness.state().isSelecting, false);
 	assert.equal(harness.element("naturalMessage").disabled, false);
 	assert.match(harness.element("selectionResult").innerHTML, /Google Calendar 등록 완료/);
+});
+
+test("새로고침 후 기존 Task와 추천 이력을 서버에서 복원하고, 확정 후보의 중복 선택을 막는다", async () => {
+	const calls = [];
+	const scheduledTask = { ...task(42, "복원할 일정"), status: "SCHEDULED" };
+	const syncedRecommendation = { ...recommendation(77), status: "SYNCED" };
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			if (url === "/tasks") return jsonResponse(200, [scheduledTask]);
+			if (url === "/tasks/42") return jsonResponse(200, scheduledTask);
+			if (url === "/tasks/42/recommendations?includeHistory=true") return jsonResponse(200, [syncedRecommendation]);
+			throw new Error(`예상하지 않은 요청: ${url}`);
+		}
+	});
+
+	await harness.call("loadExistingTasks()");
+	await harness.call("restoreTask(42)");
+	await harness.call("selectRecommendation(77)");
+
+	assert.deepEqual(calls, [
+		"/tasks",
+		"/tasks/42",
+		"/tasks/42/recommendations?includeHistory=true"
+	]);
+	assert.equal(harness.state().currentTask.status, "SCHEDULED");
+	assert.equal(harness.state().recommendations[0].status, "SYNCED");
+	assert.match(harness.element("recommendationList").innerHTML, /이미 동기화됨/);
+});
+
+test("동기화 재시도 가능 후보는 동일 select API로 복구하고, 자동 복구 불가 후보는 요청하지 않는다", async () => {
+	const calls = [];
+	const scheduledTask = { ...task(42, "재시도 일정"), status: "SCHEDULED" };
+	const retryable = { ...recommendation(77), status: "SYNC_FAILED", syncRetryable: true };
+	const synced = { ...retryable, status: "SYNCED", syncRetryable: false };
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			if (url === "/recommendations/77/select") return jsonResponse(200, synced);
+			if (url === "/tasks/42") return jsonResponse(200, scheduledTask);
+			if (url === "/tasks/42/recommendations?includeHistory=true") return jsonResponse(200, [synced]);
+			throw new Error(`예상하지 않은 요청: ${url}`);
+		}
+	});
+	harness.element("naturalMessage").value = "재시도 일정";
+	harness.call("state.calendarConnected = true");
+	harness.call(`state.currentTask = ${JSON.stringify(scheduledTask)}`);
+	harness.call("state.parsedInput = '재시도 일정'");
+	harness.call(`state.recommendations = ${JSON.stringify([retryable])}`);
+
+	await harness.call("selectRecommendation(77)");
+	assert.deepEqual(calls, [
+		"/recommendations/77/select",
+		"/tasks/42",
+		"/tasks/42/recommendations?includeHistory=true"
+	]);
+	assert.equal(harness.state().recommendations[0].status, "SYNCED");
+
+	const legacyCalls = [];
+	const legacyHarness = createHarness({
+		fetchImpl: async (url) => {
+			legacyCalls.push(url);
+			throw new Error(`요청하면 안 됩니다: ${url}`);
+		}
+	});
+	legacyHarness.element("naturalMessage").value = "수동 확인 일정";
+	legacyHarness.call("state.calendarConnected = true");
+	legacyHarness.call(`state.currentTask = ${JSON.stringify({ ...task(42, "수동 확인 일정"), status: "SCHEDULED" })}`);
+	legacyHarness.call("state.parsedInput = '수동 확인 일정'");
+	legacyHarness.call(`state.recommendations = ${JSON.stringify([{ ...recommendation(88), status: "SYNC_FAILED", syncRetryable: false }])}`);
+	await legacyHarness.call("selectRecommendation(88)");
+	assert.deepEqual(legacyCalls, []);
+	assert.match(legacyHarness.element("selectionResult").innerHTML, /수동 확인/);
+});
+
+test("선택 요청의 응답이 유실되어도 서버 조회로 동기화 완료 상태를 복구한다", async () => {
+	const calls = [];
+	const scheduledTask = { ...task(42, "응답 유실 일정"), status: "SCHEDULED" };
+	const synced = { ...recommendation(77), status: "SYNCED" };
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			if (url === "/recommendations/77/select") throw new Error("응답 유실");
+			if (url === "/tasks/42") return jsonResponse(200, scheduledTask);
+			if (url === "/tasks/42/recommendations?includeHistory=true") return jsonResponse(200, [synced]);
+			throw new Error(`예상하지 않은 요청: ${url}`);
+		}
+	});
+	harness.element("naturalMessage").value = "응답 유실 일정";
+	harness.call("state.calendarConnected = true");
+	harness.call(`state.currentTask = ${JSON.stringify(task(42, "응답 유실 일정"))}`);
+	harness.call("state.parsedInput = '응답 유실 일정'");
+	harness.call(`state.recommendations = ${JSON.stringify([recommendation(77)])}`);
+
+	await harness.call("selectRecommendation(77)");
+
+	assert.deepEqual(calls, [
+		"/recommendations/77/select",
+		"/tasks/42",
+		"/tasks/42/recommendations?includeHistory=true"
+	]);
+	assert.equal(harness.state().selection.body.status, "SYNCED");
+	assert.match(harness.element("selectionResult").innerHTML, /Google Calendar 등록 완료/);
+});
+
+test("Calendar 연결 뒤 기존 후보를 검증 완료로 표시하지 않고 최신 검증을 안내한다", async () => {
+	const harness = createHarness();
+	harness.call("state.calendarConnected = true");
+	harness.call(`state.recommendations = ${JSON.stringify([recommendation(77)])}`);
+	harness.call("renderRecommendations()");
+	harness.call("renderRecommendationConditions()");
+
+	assert.doesNotMatch(harness.element("recommendationList").innerHTML, /Google Calendar 일정과 겹치지 않음/);
+	assert.match(harness.element("recommendationList").innerHTML, /최신 조회로 다시 검증/);
+	assert.match(harness.element("recommendationConditionList").innerHTML, /선택 직전에 최신 충돌 재검증/);
+});
+
+test("선택 뒤 서버 상태 조회도 실패하면 중복 선택을 막고 서버 재확인을 안내한다", async () => {
+	const calls = [];
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			if (url === "/recommendations/77/select") throw new Error("응답 유실");
+			throw new Error("서버 조회 실패");
+		}
+	});
+	harness.element("naturalMessage").value = "확인 필요 일정";
+	harness.call("state.calendarConnected = true");
+	harness.call(`state.currentTask = ${JSON.stringify(task(42, "확인 필요 일정"))}`);
+	harness.call("state.parsedInput = '확인 필요 일정'");
+	harness.call(`state.recommendations = ${JSON.stringify([recommendation(77)])}`);
+
+	await harness.call("selectRecommendation(77)");
+	await harness.call("selectRecommendation(77)");
+
+	assert.equal(calls.filter((url) => url === "/recommendations/77/select").length, 1);
+	assert.equal(harness.state().needsServerConfirmation, true);
+	assert.match(harness.element("selectionResult").innerHTML, /서버 상태 확인/);
+});
+
+test("저장된 Task 자동 복원은 GET 조회만 사용하고, 늦은 이전 계정 응답은 새 로그인 상태를 덮어쓰지 않는다", async () => {
+	const calls = [];
+	const taskListGate = deferred();
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			return taskListGate.promise;
+		}
+	});
+	harness.storage.set("demoCurrentTaskId", "42");
+	const loading = harness.call("loadExistingTasks(true)");
+	harness.call("saveAuth({ accessToken: 'new-access', refreshToken: 'new-refresh' })");
+	taskListGate.resolve(jsonResponse(200, [task(42, "이전 계정 Task")]));
+	await loading;
+
+	assert.deepEqual(calls, ["/tasks"]);
+	assert.equal(harness.state().accessToken, "new-access");
+	assert.deepEqual(asPlainJson(harness.state().existingTasks), []);
+	assert.equal(harness.storage.has("demoCurrentTaskId"), false);
+});
+
+test("Google Calendar 미연동 상태에서는 후보 선택 요청을 보내지 않고 연결 필요를 안내한다", async () => {
+	const calls = [];
+	const harness = createHarness({
+		fetchImpl: async (url) => {
+			calls.push(url);
+			throw new Error(`요청하면 안 됩니다: ${url}`);
+		}
+	});
+	harness.element("naturalMessage").value = "미연동 일정";
+	harness.call(`state.currentTask = ${JSON.stringify(task(42, "미연동 일정"))}`);
+	harness.call("state.parsedInput = '미연동 일정'");
+	harness.call(`state.recommendations = ${JSON.stringify([recommendation(77)])}`);
+	harness.call("renderRecommendations()");
+
+	await harness.call("selectRecommendation(77)");
+
+	assert.deepEqual(calls, []);
+	assert.match(harness.element("recommendationList").innerHTML, /Google Calendar 연결 필요/);
+	assert.match(harness.element("selectionResult").innerHTML, /Google Calendar 연결이 필요합니다/);
+});
+
+test("복원한 미배정 Task에서도 기존 추천 생성 API로 작업을 재개한다", async () => {
+	const calls = [];
+	const harness = createHarness({ fetchImpl: async (url, options = {}) => {
+		calls.push({ url, method: options.method || 'GET' });
+		if (url === '/tasks/42') return jsonResponse(200, task(42));
+		if (url.endsWith('?includeHistory=true')) return jsonResponse(200, []);
+		if (url === '/tasks/42/recommendations') return jsonResponse(200, { recommendations: [recommendation(77)] });
+		throw new Error('예상하지 않은 API');
+	} });
+	await harness.call('restoreTask(42)');
+	await harness.call('generateRecommendations()');
+	assert.deepEqual(calls, [
+		{ url: '/tasks/42', method: 'GET' },
+		{ url: '/tasks/42/recommendations?includeHistory=true', method: 'GET' },
+		{ url: '/tasks/42/recommendations', method: 'POST' }
+	]);
+	assert.equal(harness.state().recommendations[0].id, 77);
+});
+
+test("select 성공 응답 뒤 조회가 실패해도 완료로 단정하지 않고 확인 버튼을 제공한다", async () => {
+	const harness = createHarness({ fetchImpl: async (url) => {
+		if (url === '/recommendations/77/select') return jsonResponse(200, { ...recommendation(77), status: 'SYNCED' });
+		throw new Error('상태 조회 장애');
+	} });
+	harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.restoredTask = true; state.calendarConnected = true; state.recommendations = [${JSON.stringify(recommendation(77))}];`);
+	await harness.call('selectRecommendation(77)');
+	assert.equal(harness.state().needsServerConfirmation, true);
+	assert.match(harness.element('selectionResult').innerHTML, /확인/);
+	assert.match(harness.element('selectionResult').innerHTML, /data-refresh-recommendation-state/);
+	assert.doesNotMatch(harness.element('selectionResult').innerHTML, /등록 완료/);
+	assert.equal(harness.element('recommendButton').disabled, true);
+});
+
+test("확정 진행 중 중복 선택을 차단하고 완료된 Task의 재추천 버튼도 잠근다", async () => {
+	const pending = deferred();
+	const calls = [];
+	const harness = createHarness({ fetchImpl: async (url) => {
+		calls.push(url);
+		if (url === '/recommendations/77/select') return pending.promise;
+		if (url === '/tasks/42') return jsonResponse(200, { ...task(42), status: 'SCHEDULED' });
+		return jsonResponse(200, [{ ...recommendation(77), status: 'SYNCED' }]);
+	} });
+	harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.restoredTask = true; state.calendarConnected = true; state.recommendations = [${JSON.stringify(recommendation(77))}]; renderRecommendations();`);
+	const first = harness.call('selectRecommendation(77)');
+	assert.equal(harness.recommendationButton(77).disabled, true);
+	await harness.call('selectRecommendation(77)');
+	pending.resolve(jsonResponse(200, { ...recommendation(77), status: 'SYNCED' }));
+	await first;
+	await harness.call('selectRecommendation(77)');
+	assert.equal(calls.filter(url => url === '/recommendations/77/select').length, 1);
+	assert.equal(harness.state().currentTask.status, 'SCHEDULED');
+	assert.equal(harness.element('recommendButton').disabled, true);
+	assert.match(harness.element('recommendationList').innerHTML, /이미 동기화됨/);
+});
+
+test("늦은 Task 복원과 초기 목록 응답이 새 입력 분석 결과를 덮어쓰지 않는다", async () => {
+	for (const operation of ['restoreTask(42)', 'loadExistingTasks(true)']) {
+		const pending = deferred();
+		const calls = [];
+		const harness = createHarness({ fetchImpl: async (url) => {
+			calls.push(url);
+			if (url === '/tasks/natural-language') return jsonResponse(201, task(99, '새 입력'));
+			return pending.promise;
+		} });
+		harness.call('bindEvents()');
+		harness.storage.set('demoCurrentTaskId', '42');
+		const restoring = harness.call(operation);
+		harness.element('naturalMessage').value = '새 입력';
+		harness.element('naturalMessage').dispatch('input');
+		await harness.call('parseNaturalLanguage()');
+		pending.resolve(jsonResponse(200, operation.startsWith('load') ? [task(42)] : task(42)));
+		await restoring;
+		assert.equal(harness.state().currentTask.id, 99);
+		assert.equal(harness.storage.get('demoCurrentTaskId'), '99');
+		assert.equal(harness.state().isRestoring, false);
+		assert.equal(calls.filter(url => url.startsWith('/tasks/42') && operation.startsWith('load')).length, 0);
+	}
+});
+
+test("페이지 초기화는 저장된 Task를 서버 GET으로만 복원하며 Calendar 등록을 재실행하지 않는다", async () => {
+	const calls = [];
+	const scheduled = { ...task(42), status: 'SCHEDULED' };
+	const synced = { ...recommendation(77), status: 'SYNCED' };
+	const harness = createHarness({ fetchImpl: async (url, options = {}) => {
+		calls.push({ url, method: options.method || 'GET' });
+		if (url === '/tasks') return jsonResponse(200, [scheduled]);
+		if (url === '/tasks/42') return jsonResponse(200, scheduled);
+		if (url.endsWith('?includeHistory=true')) return jsonResponse(200, [synced]);
+		if (url === '/api/calendar/status') return jsonResponse(200, { connected: true });
+		if (url === '/preferences') return jsonResponse(200, { preferredTimeRange: 'LUNCH', scheduleStartTime: '08:00', scheduleEndTime: '22:00', minimumGapMinutes: 10 });
+		if (url === '/timetable-slots') return jsonResponse(200, []);
+		throw new Error('예상하지 않은 초기화 요청');
+	} });
+	harness.storage.set('demoCurrentTaskId', '42');
+	await harness.call('loadInitialData()');
+	assert.ok(calls.every(call => call.method === 'GET'));
+	assert.ok(calls.some(call => call.url.endsWith('?includeHistory=true')));
+	assert.equal(harness.state().currentTask.status, 'SCHEDULED');
+	assert.equal(harness.state().selection.body.status, 'SYNCED');
+	assert.match(harness.element('selectionResult').innerHTML, /등록 완료/);
+	assert.equal(harness.element('recommendButton').disabled, true);
+});
+
+test("예약 ID가 없는 실패 이력은 Calendar 미연동이어도 연결 대신 수동 확인을 안내한다", async () => {
+	const harness = createHarness({ fetchImpl: async () => { throw new Error('외부 호출 금지'); } });
+	harness.call(`state.currentTask = ${JSON.stringify({ ...task(42), status: 'SCHEDULED' })}; state.restoredTask = true; state.calendarConnected = false; state.recommendations = [${JSON.stringify({ ...recommendation(77), status: 'SYNC_FAILED', syncRetryable: false })}]; renderRecommendations();`);
+	assert.match(harness.element('recommendationList').innerHTML, /수동 확인/);
+	await harness.call('selectRecommendation(77)');
+	assert.match(harness.element('selectionResult').innerHTML, /수동 확인/);
+});
+
+test("이전 계정의 늦은 Calendar 조회 실패가 새 계정의 연결 상태를 덮어쓰지 않는다", async () => {
+	const old = deferred();
+	let reads = 0;
+	const harness = createHarness({ fetchImpl: async () => ++reads === 1 ? old.promise : jsonResponse(200, { connected: true }) });
+	const loading = harness.call('refreshCalendarStatus()');
+	harness.call("saveAuth({ accessToken: 'account-b-access', refreshToken: 'account-b-refresh' })");
+	await harness.call('refreshCalendarStatus()');
+	assert.equal(harness.state().calendarConnected, true);
+	old.resolve(jsonResponse(200, { connected: false }));
+	await loading;
+	assert.equal(harness.state().calendarConnected, true);
+	assert.equal(harness.element('calendarText').textContent, '연결됨');
+});
+
+test("기존 Task를 드롭다운에서 선택하면 불러오기 버튼이 활성화된다", () => {
+	const harness = createHarness();
+	harness.call('bindEvents(); updateTaskControls();');
+	assert.equal(harness.element('loadTaskButton').disabled, true);
+	harness.element('existingTaskSelect').value = '42';
+	harness.element('existingTaskSelect').dispatch('change');
+	assert.equal(harness.element('loadTaskButton').disabled, false);
+});
+
+test("Task 복원 중 계정을 바꿔도 로딩 잠금이 남지 않고 새 계정 Task를 불러올 수 있다", async () => {
+	const old = deferred();
+	const harness = createHarness({ fetchImpl: async (url) => {
+		if (url.startsWith('/tasks/42')) return old.promise;
+		if (url === '/tasks/99') return jsonResponse(200, task(99));
+		return jsonResponse(200, []);
+	} });
+	const loading = harness.call('restoreTask(42)');
+	harness.call("saveAuth({ accessToken: 'new-account', refreshToken: 'new-refresh' })");
+	const loadingAfterSwitch = harness.state().isRestoring;
+	await harness.call('restoreTask(99)');
+	old.resolve(jsonResponse(200, task(42)));
+	await loading;
+	assert.equal(loadingAfterSwitch, false);
+	assert.equal(harness.state().currentTask.id, 99);
+	assert.equal(harness.state().isRestoring, false);
 });

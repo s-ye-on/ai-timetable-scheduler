@@ -132,15 +132,18 @@ public class Recommendation {
 	}
 
 	public void validateCalendarSync() {
-		if ((status != RecommendationStatus.SELECTED && status != RecommendationStatus.SYNC_FAILED)
-			|| googleEventId == null || googleEventId.isBlank()) {
+		if (!isCalendarSyncRetryable()) {
 			throw new RecommendationException(ExceptionCode.GOOGLE_CALENDAR_SYNC_RECOVERY_REQUIRED);
 		}
-		if (task.getStatus() != TaskStatus.SCHEDULED
-			|| !recommendedStartAt.equals(task.getScheduledStartAt())
-			|| !recommendedEndAt.equals(task.getScheduledEndAt())) {
-			throw new RecommendationException(ExceptionCode.GOOGLE_CALENDAR_SYNC_RECOVERY_REQUIRED);
-		}
+	}
+
+	// 외부 등록의 성공 보장이 아니라, T08의 안전한 확인·복구를 시도할 수 있는 내부 상태다.
+	public boolean isCalendarSyncRetryable() {
+		return (status == RecommendationStatus.SELECTED || status == RecommendationStatus.SYNC_FAILED)
+			&& googleEventId != null && !googleEventId.isBlank()
+			&& task.getStatus() == TaskStatus.SCHEDULED
+			&& recommendedStartAt.equals(task.getScheduledStartAt())
+			&& recommendedEndAt.equals(task.getScheduledEndAt());
 	}
 
 	public void reject() {

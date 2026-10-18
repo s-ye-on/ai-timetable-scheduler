@@ -129,6 +129,17 @@ public class RecommendationService {
 			.toList();
 	}
 
+	public List<RecommendationResponse.Read> readByTask(Long userId, Long taskId, boolean includeHistory) {
+		if (!includeHistory) {
+			return readProposedByTask(userId, taskId);
+		}
+		findTask(taskId, userId);
+		return recommendationRepository.findAllByTaskIdAndUserId(taskId, userId).stream()
+			.sorted(Comparator.comparing(Recommendation::getId).reversed())
+			.map(this::toReadResponse)
+			.toList();
+	}
+
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public RecommendationResponse.Read select(Long userId, Long recommendationId) {
 		var transaction = new TransactionTemplate(transactionManager);
@@ -307,7 +318,8 @@ public class RecommendationService {
 			recommendation.getRank(),
 			recommendation.getScore(),
 			recommendation.getReason(),
-			recommendation.getStatus()
+			recommendation.getStatus(),
+			recommendation.isCalendarSyncRetryable()
 		);
 	}
 

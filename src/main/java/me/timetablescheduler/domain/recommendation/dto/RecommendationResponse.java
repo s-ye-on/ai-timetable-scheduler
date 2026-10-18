@@ -21,7 +21,8 @@ public sealed interface RecommendationResponse
 		Integer rank,
 		Integer score,
 		String reason,
-		RecommendationStatus status
+		RecommendationStatus status,
+		boolean syncRetryable
 	) implements RecommendationResponse {
 	}
 }
