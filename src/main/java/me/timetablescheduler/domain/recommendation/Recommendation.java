@@ -1,5 +1,6 @@
 package me.timetablescheduler.domain.recommendation;
 
+import me.timetablescheduler.domain.recommendation.type.RecommendationMatchType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -56,6 +57,10 @@ public class Recommendation {
 	private String reason;
 
 	@Enumerated(EnumType.STRING)
+	@Column(length = 32)
+	private RecommendationMatchType matchType;
+
+	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private RecommendationStatus status;
 
@@ -106,6 +111,16 @@ public class Recommendation {
 		String reason
 	) {
 		return new Recommendation(user, task, recommendedStartAt, recommendedEndAt, rank, score, reason);
+	}
+
+
+	public static Recommendation create(
+		User user, Task task, LocalDateTime start, LocalDateTime end,
+		Integer rank, Integer score, String reason, RecommendationMatchType matchType
+	) {
+		Recommendation recommendation = new Recommendation(user, task, start, end, rank, score, reason);
+		recommendation.matchType = matchType;
+		return recommendation;
 	}
 
 	public void select() {

@@ -65,6 +65,7 @@ class RecommendationServiceTest {
 		timetableSlotRepository = Mockito.mock(TimetableSlotRepository.class);
 		userReader = Mockito.mock(UserReader.class);
 		recommendationPolicy = Mockito.mock(RecommendationPolicy.class);
+		Mockito.doCallRealMethod().when(recommendationPolicy).resolveCandidateDates(Mockito.any(), Mockito.any());
 		calendarService = Mockito.mock(CalendarService.class);
 		recommendationService = new RecommendationService(
 			recommendationRepository,
@@ -103,6 +104,7 @@ class RecommendationServiceTest {
 		RecommendationResponse.Generate response = recommendationService.recommend(1L, 10L);
 
 		assertEquals(expectedCount, response.recommendations().size());
+		org.junit.jupiter.api.Assertions.assertTrue(response.recommendations().stream().allMatch(r -> r.recommendedStartAt().isAfter(LocalDateTime.ofInstant(finishedAt, java.time.ZoneId.of("Asia/Seoul")))));
 		if (expectedCount == 0) {
 			Mockito.verify(recommendationRepository, Mockito.never()).saveAll(Mockito.anyList());
 		} else {
@@ -115,11 +117,11 @@ class RecommendationServiceTest {
 
 	@ParameterizedTest
 	@CsvSource({
-		"2026-05-17T14:59:59Z, 2026-05-17, 1",
-		"2026-05-17T15:00:00Z, 2026-05-18, 2"
+		"2026-05-17T14:59:59Z, 2026-05-17, 2026-05-25, 1",
+		"2026-05-17T15:00:00Z, 2026-05-24, 2026-06-01, 2"
 	})
 	void 서울_자정에도_Calendar_조회와_후보는_동일한_14일_기준을_사용한다(
-		Instant instant, LocalDate expectedStartDate, int expectedCandidateCount
+		Instant instant, LocalDate expectedStartDate, LocalDate expectedEndExclusive, int expectedCandidateCount
 	) {
 		Clock advancingClock = Mockito.mock(Clock.class);
 		when(advancingClock.instant()).thenReturn(instant, instant.plusSeconds(1));
@@ -139,13 +141,13 @@ class RecommendationServiceTest {
 		when(recommendationRepository.findAllByTaskIdAndUserIdAndStatus(10L, 1L, RecommendationStatus.PROPOSED))
 			.thenReturn(List.of());
 		when(calendarService.getCalendarBusyBlocksOrEmpty(1L, expectedStartDate.atStartOfDay(),
-			expectedStartDate.plusDays(13).atTime(LocalTime.MAX))).thenReturn(List.of());
+			expectedEndExclusive.atStartOfDay())).thenReturn(List.of());
 		when(recommendationRepository.saveAll(Mockito.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		recommendationService.recommend(1L, 10L);
 
 		Mockito.verify(calendarService).getCalendarBusyBlocksOrEmpty(1L, expectedStartDate.atStartOfDay(),
-			expectedStartDate.plusDays(13).atTime(LocalTime.MAX));
+			expectedEndExclusive.atStartOfDay());
 		ArgumentCaptor<List<Recommendation>> captor = ArgumentCaptor.forClass(List.class);
 		Mockito.verify(recommendationRepository).saveAll(captor.capture());
 		List<Recommendation> saved = captor.getValue();

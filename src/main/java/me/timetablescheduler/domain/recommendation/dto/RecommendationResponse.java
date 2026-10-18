@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.recommendation.dto;
 
 import java.time.LocalDateTime;
+import me.timetablescheduler.domain.recommendation.type.RecommendationMatchType;
 import java.util.List;
 
 import me.timetablescheduler.domain.recommendation.type.RecommendationStatus;
@@ -22,7 +23,8 @@ public sealed interface RecommendationResponse
 		Integer score,
 		String reason,
 		RecommendationStatus status,
-		boolean syncRetryable
+		boolean syncRetryable,
+		RecommendationMatchType matchType
 	) implements RecommendationResponse {
 	}
 }

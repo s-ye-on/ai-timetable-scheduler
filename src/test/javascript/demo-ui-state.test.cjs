@@ -892,3 +892,68 @@ test("Task 복원 중 계정을 바꿔도 로딩 잠금이 남지 않고 새 계
 	assert.equal(harness.state().currentTask.id, 99);
 	assert.equal(harness.state().isRestoring, false);
 });
+
+test("추천 유형·적합도·서버 이유를 그대로 표시하고 원조건과 대안을 구분한다", () => {
+	const harness = createHarness();
+	const exact = {
+		...recommendation(77),
+		rank: 1,
+		score: 120,
+		matchType: "EXACT",
+		reason: "요청한 목요일 19:00 시작 조건을 충족했습니다."
+	};
+	const alternative = {
+		...recommendation(78),
+		rank: 2,
+		score: 98,
+		matchType: "DATE_CHANGED",
+		reason: "<img src=x onerror=alert(1)> 날짜를 변경한 대안입니다."
+	};
+
+	harness.call(`state.recommendations = ${JSON.stringify([exact, alternative])}; renderRecommendations();`);
+
+	const markup = harness.element("recommendationList").innerHTML;
+	assert.match(markup, /정확히 일치하는 시간대가 존재해요!/);
+	assert.match(markup, /다른 대안도 있어요/);
+	assert.match(markup, /추천 적합도<\/dt><dd>85\.7점/);
+	assert.match(markup, /내부 원점수<\/dt><dd>120점/);
+	assert.match(markup, /요청한 목요일 19:00 시작 조건을 충족했습니다/);
+	assert.match(markup, /&lt;img src=x onerror=alert\(1\)&gt;/);
+	assert.doesNotMatch(markup, /<img src=x onerror=alert\(1\)>/);
+	assert.ok(markup.indexOf("추천 1순위") < markup.indexOf("추천 2순위"));
+});
+
+test("분석·복원 화면은 정확한 목표 시각과 필수 조건을 요약하고 기존 null 의미를 보존한다", () => {
+	const harness = createHarness();
+	const explicit = {
+		...task(42, "알고리즘 공부"),
+		preferredDayOfWeek: "THURSDAY",
+		preferredTimeRange: "EVENING",
+		preferredStartTime: "19:00:00",
+		dateRequired: true,
+		timeRequired: true
+	};
+
+	harness.call(`state.currentTask = ${JSON.stringify(explicit)}; renderParsedResult();`);
+	assert.match(harness.element("parsedResult").innerHTML, /목표 시작 시각<\/dt><dd>19:00/);
+	assert.match(harness.element("parsedResult").innerHTML, /날짜 조건<\/dt><dd>필수/);
+	assert.match(harness.element("parsedResult").innerHTML, /시간 조건<\/dt><dd>필수/);
+	assert.match(harness.element("parsedResult").innerHTML, /요청 날짜<\/dt><dd>목요일/);
+
+	const dateAndRange = {
+		...task(44, "기간이 있는 Task"),
+		preferredDate: "2026-10-22",
+		preferredDayOfWeek: null,
+		preferredStartDate: "2026-10-22",
+		preferredEndDate: "2026-11-04",
+		dateRequired: false,
+		timeRequired: false
+	};
+	harness.call(`state.currentTask = ${JSON.stringify(dateAndRange)}; renderParsedResult();`);
+	assert.match(harness.element("parsedResult").innerHTML, /2026-10-22 · 허용 기간 2026-10-22 ~ 2026-11-04/);
+
+	harness.call(`state.currentTask = ${JSON.stringify(task(43, "기존 Task"))}; renderParsedResult();`);
+	assert.match(harness.element("parsedResult").innerHTML, /목표 시작 시각<\/dt><dd>지정하지 않음/);
+	assert.match(harness.element("parsedResult").innerHTML, /날짜 조건<\/dt><dd>기존 Task: 날짜 조건 제한/);
+	assert.match(harness.element("parsedResult").innerHTML, /시간 조건<\/dt><dd>기존 Task: 시간대 가점/);
+});

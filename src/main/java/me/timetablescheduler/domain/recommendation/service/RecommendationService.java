@@ -1,10 +1,10 @@
 package me.timetablescheduler.domain.recommendation.service;
 
+import me.timetablescheduler.domain.recommendation.type.RecommendationMatchType;
 import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,7 +45,6 @@ public class RecommendationService {
 	private static final String RECOMMENDATION_CREATED_MESSAGE = "추천 가능한 시간을 찾았습니다.";
 	private static final String NO_RECOMMENDATION_MESSAGE = "추천 가능한 시간이 없습니다. 시간표 또는 선호 시간 범위를 조정해 주세요.";
 	private static final int MAX_RECOMMENDATION_COUNT = 3;
-	private static final int DAY_OF_WEEK_SEARCH_DAYS = 14;
 	private static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
 
 	private final RecommendationRepository recommendationRepository;
@@ -68,7 +67,7 @@ public class RecommendationService {
 		List<TimetableSlot> timetableSlots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(userId);
 		List<Task> scheduledTasks = taskRepository.findAllByUserIdAndStatus(userId, TaskStatus.SCHEDULED);
 		LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID);
-		List<BusyBlock> calendarBusyBlocks = findCalendarBusyBlocks(userId, task, now.toLocalDate());
+		List<BusyBlock> calendarBusyBlocks = findCalendarBusyBlocks(userId, task, now.toLocalDate(), preference);
 
 		expireExistingProposedRecommendations(taskId, userId);
 
@@ -82,11 +81,10 @@ public class RecommendationService {
 		);
 
 		LocalDateTime selectionTime = LocalDateTime.ofInstant(clock.instant(), SEOUL_ZONE_ID);
-		List<CandidateSlot> topCandidates = candidates.stream()
+		List<CandidateSlot> topCandidates = selectDiverseCandidates(candidates.stream()
 			.filter(candidate -> candidate.startAt().isAfter(selectionTime))
 			.sorted(Comparator.comparingInt(CandidateSlot::score).reversed())
-			.limit(MAX_RECOMMENDATION_COUNT)
-			.toList();
+			.toList());
 
 		if (topCandidates.isEmpty()) {
 			return new RecommendationResponse.Generate(NO_RECOMMENDATION_MESSAGE, List.of());
@@ -104,7 +102,8 @@ public class RecommendationService {
 				candidate.endAt(),
 				i + 1,
 				candidate.score(),
-				candidate.reason()
+				candidate.reason(),
+				candidate.matchType()
 			));
 		}
 
@@ -262,32 +261,70 @@ public class RecommendationService {
 			task.getDescription(), recommendation.getRecommendedStartAt(), recommendation.getRecommendedEndAt());
 	}
 
-	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task, LocalDate baseDate) {
-		SearchDateTimeRange searchDateTimeRange = resolveSearchDateTimeRange(task, baseDate);
-
-		List<BusyBlock> calendarBusyBlocks = calendarService.getCalendarBusyBlocksOrEmpty(
-			userId,
-			searchDateTimeRange.startAt(),
-			searchDateTimeRange.endAt()
-		);
-		return calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
+	private List<BusyBlock> findCalendarBusyBlocks(Long userId, Task task, LocalDate baseDate, Preference preference) {
+		List<LocalDate> dates = recommendationPolicy.resolveCandidateDates(task, baseDate);
+		if (dates.isEmpty()) return List.of();
+		int gap = preference.getMinimumGapMinutes();
+		List<BusyBlock> blocks = calendarService.getCalendarBusyBlocksOrEmpty(userId,
+			dates.getFirst().atStartOfDay().minusMinutes(gap),
+			dates.getLast().plusDays(1).atStartOfDay().plusMinutes(gap));
+		if (blocks == null) throw new CalendarException(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED);
+		return blocks;
 	}
 
-	private SearchDateTimeRange resolveSearchDateTimeRange(Task task, LocalDate today) {
-		if (task.getPreferredDate() != null) {
-			return SearchDateTimeRange.of(task.getPreferredDate(), task.getPreferredDate());
+	/** 원점수순 후보에서 원조건 대표와 변경 내용이 다른 대안을 고른다. */
+	private List<CandidateSlot> selectDiverseCandidates(List<CandidateSlot> sorted) {
+		// 분류 정보가 없는 기존 CandidateSlot 호출은 종전 점수순을 유지한다.
+		if (sorted.stream().allMatch(candidate -> candidate.matchType() == null)) {
+			return sorted.stream().limit(MAX_RECOMMENDATION_COUNT).toList();
 		}
-
-		if (task.getPreferredStartDate() != null && task.getPreferredEndDate() != null) {
-			return SearchDateTimeRange.of(task.getPreferredStartDate(), task.getPreferredEndDate());
+		List<CandidateSlot> selected = new ArrayList<>();
+		sorted.stream().filter(candidate -> candidate.matchType() == RecommendationMatchType.EXACT)
+			.findFirst().ifPresent(selected::add);
+		// 같은 요일의 다음 주 후보를 '같은 날짜' 대안으로 오인하지 않는다.
+		List<CandidateSlot> sameDate = selected.isEmpty() ? sorted : sorted.stream()
+			.filter(candidate -> candidate.startAt().toLocalDate().equals(selected.getFirst().startAt().toLocalDate())).toList();
+		if (!selected.isEmpty() && !addRepresentative(sameDate, selected, RecommendationMatchType.TIME_CHANGED)) {
+			if (!addRepresentative(sorted, selected, RecommendationMatchType.DATE_CHANGED)) {
+				addRepresentative(sorted, selected, RecommendationMatchType.DATE_AND_TIME_CHANGED);
+			}
 		}
-
-		return SearchDateTimeRange.of(today, today.plusDays(DAY_OF_WEEK_SEARCH_DAYS - 1L));
+		while (selected.size() < MAX_RECOMMENDATION_COUNT) {
+			// 남은 자리는 고정 유형 할당 없이 새 날짜와 실제 시간 차이를 고려한다.
+			var next = sorted.stream().filter(candidate -> isDistinctChoice(candidate, selected))
+				.min(Comparator.<CandidateSlot>comparingInt(candidate -> selected.stream().anyMatch(existing ->
+					existing.startAt().toLocalDate().equals(candidate.startAt().toLocalDate())) ? 1 : 0)
+					.thenComparing(Comparator.comparingInt(CandidateSlot::score).reversed())
+					.thenComparingInt(candidate -> candidate.matchType() == RecommendationMatchType.DATE_AND_TIME_CHANGED ? 1 : 0)
+					.thenComparing(candidate -> candidate.startAt().toLocalDate())
+					.thenComparingLong(candidate -> -selected.stream().mapToLong(existing ->
+						Math.abs(java.time.Duration.between(existing.startAt(), candidate.startAt()).toMinutes())).min().orElse(0)));
+			if (next.isEmpty()) break;
+			selected.add(next.get());
+		}
+		// 최종 표시 순위와 동점 순서는 원래의 점수 안정 정렬로 복원한다.
+		return sorted.stream().filter(selected::contains).toList();
 	}
 
-	/// todo : reader로 만들면 좋을듯
-	/// taskId로 찾되, 현재 userId 소유여야하고, 없으면 예외를 던짐
-	/// 현재 TaskService에서도 똑같은 코드가 반복중
+	private boolean addRepresentative(List<CandidateSlot> sorted, List<CandidateSlot> selected,
+		RecommendationMatchType type) {
+		// 같은 원점수의 대안에서는 원조건에서 가까운 시각을 대표로 고른다. 최종 정렬은 바꾸지 않는다.
+		return sorted.stream().filter(candidate -> candidate.matchType() == type)
+			.filter(candidate -> isDistinctChoice(candidate, selected))
+			.min(Comparator.comparingInt(CandidateSlot::score).reversed().thenComparingLong(candidate ->
+				selected.stream().mapToLong(existing -> Math.abs(java.time.Duration.between(
+					existing.startAt(), candidate.startAt()).toMinutes())).min().orElse(0)))
+			.map(candidate -> {
+				selected.add(candidate);
+				return true;
+			}).orElse(false);
+	}
+
+	private boolean isDistinctChoice(CandidateSlot candidate, List<CandidateSlot> selected) {
+		return selected.stream().noneMatch(existing -> candidate.equals(existing)
+			|| (candidate.startAt().isBefore(existing.endAt()) && candidate.endAt().isAfter(existing.startAt())));
+	}
+
 	private Task findTask(Long taskId, Long userId) {
 		return taskRepository.findByIdAndUserId(taskId, userId)
 			.orElseThrow(() -> new TaskException(ExceptionCode.NOT_FOUND_TASK));
@@ -319,19 +356,9 @@ public class RecommendationService {
 			recommendation.getScore(),
 			recommendation.getReason(),
 			recommendation.getStatus(),
-			recommendation.isCalendarSyncRetryable()
+			recommendation.isCalendarSyncRetryable(),
+			recommendation.getMatchType()
 		);
 	}
 
-	private record SearchDateTimeRange(
-		LocalDateTime startAt,
-		LocalDateTime endAt
-	) {
-		private static SearchDateTimeRange of(LocalDate startDate, LocalDate endDate) {
-			return new SearchDateTimeRange(
-				startDate.atStartOfDay(),
-				endDate.atTime(LocalTime.MAX)
-			);
-		}
-	}
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -81,8 +82,8 @@ class TaskTest {
 	}
 
 	@Test
-	void 날짜조건이_없으면_Task를_생성할_수_없다() {
-		TaskException exception = assertThrows(TaskException.class, () -> Task.create(
+	void 날짜조건이_없어도_Task를_생성할_수_있다() {
+		Task task = assertDoesNotThrow(() -> Task.create(
 			user(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
@@ -95,6 +96,79 @@ class TaskTest {
 			null,
 			TaskPriority.NORMAL,
 			"과제할 시간 잡아줘"
+		));
+
+		assertNull(task.getPreferredDate());
+		assertNull(task.getPreferredDayOfWeek());
+		assertNull(task.getPreferredStartDate());
+		assertNull(task.getPreferredEndDate());
+	}
+
+	@Test
+	void 선호요일과_허용기간을_함께_저장할_수_있다() {
+		Task task = assertDoesNotThrow(() -> Task.create(
+			user(),
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			null,
+			DayOfWeek.TUESDAY,
+			LocalDate.of(2026, 10, 19),
+			LocalDate.of(2026, 10, 25),
+			PreferredTimeRange.LUNCH,
+			null,
+			TaskPriority.NORMAL,
+			"이번 주 안에 화요일 점심이면 좋겠어"
+		));
+
+		assertEquals(DayOfWeek.TUESDAY, task.getPreferredDayOfWeek());
+		assertEquals(LocalDate.of(2026, 10, 19), task.getPreferredStartDate());
+		assertEquals(LocalDate.of(2026, 10, 25), task.getPreferredEndDate());
+	}
+
+	@Test
+	void 명시적인_30분_간격_밖_시작시각과_필수조건을_보존한다() {
+		Task task = Task.create(
+			user(),
+			"알고리즘 공부",
+			TaskCategory.STUDY,
+			120,
+			null,
+			DayOfWeek.THURSDAY,
+			null,
+			null,
+			PreferredTimeRange.EVENING,
+			null,
+			TaskPriority.NORMAL,
+			"목요일 저녁 7시 10분에 알고리즘 공부 2시간",
+			true,
+			true,
+			LocalTime.of(19, 10)
+		);
+
+		assertEquals(Boolean.TRUE, task.getDateRequired());
+		assertEquals(Boolean.TRUE, task.getTimeRequired());
+		assertEquals(LocalTime.of(19, 10), task.getPreferredStartTime());
+	}
+
+	@Test
+	void 초나_나노초가_있는_명시시각은_거부한다() {
+		TaskException exception = assertThrows(TaskException.class, () -> Task.create(
+			user(),
+			"과제",
+			TaskCategory.ASSIGNMENT,
+			60,
+			null,
+			DayOfWeek.TUESDAY,
+			null,
+			null,
+			PreferredTimeRange.EVENING,
+			null,
+			TaskPriority.NORMAL,
+			"화요일 저녁 과제",
+			true,
+			true,
+			LocalTime.of(19, 0, 1)
 		));
 
 		assertEquals(ExceptionCode.INVALID_TASK, exception.getExceptionCode());

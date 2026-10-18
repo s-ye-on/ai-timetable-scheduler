@@ -4,6 +4,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.TreeSet;
+import me.timetablescheduler.domain.recommendation.type.RecommendationMatchType;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -61,58 +64,39 @@ public class RecommendationPolicy {
 	}
 
 	public List<CandidateSlot> generateCandidates(
-		Task task,
-		Preference preference,
-		List<TimetableSlot> timetableSlots,
-		List<Task> scheduledTasks,
-		List<BusyBlock> calendarBusyBlocks,
-		LocalDateTime now
+		Task task, Preference preference, List<TimetableSlot> timetableSlots,
+		List<Task> scheduledTasks, List<BusyBlock> calendarBusyBlocks, LocalDateTime now
 	) {
-		LocalDate baseDate = now.toLocalDate();
-		List<LocalDate> candidateDates = resolveCandidateDates(task, baseDate);
-		List<BusyBlock> safeCalendarBusyBlocks = calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
 		List<CandidateSlot> candidates = new ArrayList<>();
-
-		for (LocalDate date : candidateDates) {
-			if (date.isBefore(baseDate) || isAfterDeadline(task, date)) {
-				continue;
+		List<BusyBlock> safeCalendar = calendarBusyBlocks == null ? List.of() : calendarBusyBlocks;
+		for (LocalDate date : resolveCandidateDates(task, now.toLocalDate())) {
+			// 충돌 검사는 여유 시간이 닿는 인접 날짜까지, 밀도 점수는 기존 당일 입력을 사용한다.
+			List<BusyBlock> scoringBusy = buildBusyBlocks(date, timetableSlots, scheduledTasks, safeCalendar, task);
+			TreeSet<LocalTime> starts = new TreeSet<>();
+			for (LocalDateTime start = date.atTime(preference.getScheduleStartTime());
+				!start.plusMinutes(task.getDurationMinutes()).isAfter(date.atTime(preference.getScheduleEndTime()));
+				start = start.plusMinutes(CANDIDATE_SEARCH_INTERVAL_MINUTES)) {
+				starts.add(start.toLocalTime());
 			}
-
-			List<BusyBlock> busyBlocks = buildBusyBlocks(
-				date,
-				timetableSlots,
-				scheduledTasks,
-				safeCalendarBusyBlocks,
-				task
-			);
-
-			LocalDateTime start = LocalDateTime.of(date, preference.getScheduleStartTime());
-			LocalDateTime dayEndLimit = LocalDateTime.of(date, preference.getScheduleEndTime());
-
-			while (!start.plusMinutes(task.getDurationMinutes()).isAfter(dayEndLimit)) {
+			if (task.getPreferredStartTime() != null) {
+				starts.add(task.getPreferredStartTime());
+			}
+			for (LocalTime time : starts) {
+				LocalDateTime start = date.atTime(time);
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
-
-				if (start.isAfter(now) && !conflictsWithBusyBlocks(
-					start,
-					end,
-					busyBlocks,
-					preference.getMinimumGapMinutes()
-				)) {
-					int score = calculateScore(
-						task,
-						preference,
-						start,
-						end,
-						busyBlocks,
-						baseDate
-					);
-
-					String reason = buildReason(task, preference, start, end, busyBlocks, score);
-
-					candidates.add(new CandidateSlot(start, end, score, reason));
+				if (!meetsRequestConditions(task, preference, start, end, now)) {
+					continue;
 				}
-
-				start = start.plusMinutes(CANDIDATE_SEARCH_INTERVAL_MINUTES);
+				List<BusyBlock> collisionBusy = buildSelectionBusyBlocks(start, end,
+					preference.getMinimumGapMinutes(), timetableSlots, scheduledTasks, safeCalendar, task);
+				if (conflictsWithBusyBlocks(start, end, collisionBusy, preference.getMinimumGapMinutes())) {
+					continue;
+				}
+				int score = calculateScore(task, preference, start, end, scoringBusy, now.toLocalDate());
+				RecommendationMatchType type = classify(task, start, end);
+				String detail = buildReason(task, preference, start, end, scoringBusy, score);
+				String reason = describeRequest(task, type) + (detail.isBlank() ? "" : ", " + detail);
+				candidates.add(new CandidateSlot(start, end, score, reason, type));
 			}
 		}
 		return candidates;
@@ -137,15 +121,7 @@ public class RecommendationPolicy {
 			return false;
 		}
 
-		if (!start.isAfter(now) || !end.isAfter(start)
-			|| !Duration.between(start, end).equals(Duration.ofMinutes(task.getDurationMinutes()))) {
-			return false;
-		}
-
-		LocalDate candidateDate = start.toLocalDate();
-		if (!resolveCandidateDates(task, now.toLocalDate()).contains(candidateDate)
-			|| isAfterDeadline(task, candidateDate)
-			|| !isWithinAvailableTimeRange(preference, start, end)) {
+		if (!meetsRequestConditions(task, preference, start, end, now)) {
 			return false;
 		}
 
@@ -162,35 +138,84 @@ public class RecommendationPolicy {
 		return !conflictsWithBusyBlocks(start, end, busyBlocks, preference.getMinimumGapMinutes());
 	}
 
-	// Task의 preferredDate / preferredDayOfWeek / preferredStartDate~EndDate를 실제 날짜 목록으로 변환
-	private List<LocalDate> resolveCandidateDates(Task task, LocalDate baseDate) {
-		if (task.getPreferredDate() != null) {
-			return List.of(task.getPreferredDate());
+	/** 생성·선택·Calendar 조회에 함께 사용하는 실제 탐색 날짜다. */
+	public List<LocalDate> resolveCandidateDates(Task task, LocalDate today) {
+		boolean dateHard = task.getDateRequired() == null || task.getDateRequired();
+		LocalDate requested = task.getPreferredDate();
+		if (requested != null && dateHard && requested.isBefore(today)) {
+			return List.of();
 		}
-
-		if (task.getPreferredStartDate() != null && task.getPreferredEndDate() != null) {
-			List<LocalDate> dates = new ArrayList<>();
-			LocalDate date = task.getPreferredStartDate();
-
-			while (!date.isAfter(task.getPreferredEndDate())) {
-				dates.add(date);
-				date = date.plusDays(1);
+		LocalDate first;
+		LocalDate last;
+		if (requested != null && dateHard) {
+			first = requested;
+			last = requested;
+		} else if (task.getPreferredStartDate() != null && task.getPreferredEndDate() != null) {
+			// 명시한 허용 기간은 기존처럼 보존하며 기본 14일로 재해석하지 않는다.
+			first = task.getPreferredStartDate();
+			last = task.getPreferredEndDate();
+			if (requested != null) {
+				first = first.isAfter(requested) ? first : requested;
+				LocalDate limit = requested.plusDays(13);
+				last = last.isBefore(limit) ? last : limit;
 			}
-			return dates;
+		} else {
+			first = requested != null ? requested : today;
+			last = first.plusDays(13);
 		}
-
-		if (task.getPreferredDayOfWeek() != null) {
-			List<LocalDate> dates = new ArrayList<>();
-
-			for (int i = 0; i < 14; i++) {
-				LocalDate date = baseDate.plusDays(i);
-				if (date.getDayOfWeek() == task.getPreferredDayOfWeek()) {
-					dates.add(date);
-				}
-			}
-			return dates;
+		if (first.isBefore(today)) first = today;
+		if (task.getPreferredStartDate() != null && first.isBefore(task.getPreferredStartDate())) first = task.getPreferredStartDate();
+		if (task.getPreferredEndDate() != null && last.isAfter(task.getPreferredEndDate())) last = task.getPreferredEndDate();
+		if (task.getDeadline() != null && last.isAfter(task.getDeadline())) last = task.getDeadline();
+		List<LocalDate> dates = new ArrayList<>();
+		for (LocalDate date = first; !date.isAfter(last); date = date.plusDays(1)) {
+			if (!dateHard || task.getPreferredDayOfWeek() == null || date.getDayOfWeek() == task.getPreferredDayOfWeek()) dates.add(date);
 		}
-		return List.of();
+		return dates;
+	}
+
+	private boolean meetsRequestConditions(Task task, Preference preference, LocalDateTime start,
+		LocalDateTime end, LocalDateTime now) {
+		return start.isAfter(now) && end.isAfter(start)
+			&& Duration.between(start, end).equals(Duration.ofMinutes(task.getDurationMinutes()))
+			&& resolveCandidateDates(task, now.toLocalDate()).contains(start.toLocalDate())
+			&& !isAfterDeadline(task, start.toLocalDate())
+			&& isWithinAvailableTimeRange(preference, start, end)
+			&& (!Boolean.TRUE.equals(task.getTimeRequired()) || matchesRequestedTime(task, start, end));
+	}
+
+	private boolean matchesRequestedDate(Task task, LocalDate date) {
+		if (task.getPreferredDate() != null) return date.equals(task.getPreferredDate());
+		return task.getPreferredDayOfWeek() == null || date.getDayOfWeek() == task.getPreferredDayOfWeek();
+	}
+
+	private boolean matchesRequestedTime(Task task, LocalDateTime start, LocalDateTime end) {
+		if (task.getPreferredStartTime() != null) return start.toLocalTime().equals(task.getPreferredStartTime());
+		if (task.getPreferredTimeRange() == null || task.getPreferredTimeRange() == PreferredTimeRange.ANYTIME) return true;
+		return matchesPreferredTimeRange(task.getPreferredTimeRange(), start, end);
+	}
+
+	private RecommendationMatchType classify(Task task, LocalDateTime start, LocalDateTime end) {
+		boolean hasDate = task.getPreferredDate() != null || task.getPreferredDayOfWeek() != null;
+		boolean hasTime = task.getPreferredStartTime() != null || (task.getPreferredTimeRange() != null
+			&& task.getPreferredTimeRange() != PreferredTimeRange.ANYTIME);
+		if (!hasDate && !hasTime) return RecommendationMatchType.GENERAL;
+		boolean dateMatches = matchesRequestedDate(task, start.toLocalDate());
+		boolean timeMatches = matchesRequestedTime(task, start, end);
+		if (dateMatches && timeMatches) return RecommendationMatchType.EXACT;
+		if (dateMatches) return RecommendationMatchType.TIME_CHANGED;
+		if (timeMatches) return RecommendationMatchType.DATE_CHANGED;
+		return RecommendationMatchType.DATE_AND_TIME_CHANGED;
+	}
+
+	private String describeRequest(Task task, RecommendationMatchType type) {
+		return switch (type) {
+			case EXACT -> "요청한 날짜·요일·시작 시각·시간대 중 지정한 조건에 일치합니다";
+			case TIME_CHANGED -> "요청 날짜 조건은 유지하고 시작 시각 또는 시간대를 변경한 대안입니다";
+			case DATE_CHANGED -> "요청 시간 조건은 유지하고 날짜를 변경한 대안입니다";
+			case DATE_AND_TIME_CHANGED -> "요청 날짜와 시간 조건을 모두 변경한 대안입니다";
+			case GENERAL -> "요청한 소요 시간과 허용 조건 안에서 찾은 후보입니다";
+		};
 	}
 
 	private boolean isWithinAvailableTimeRange(
@@ -496,7 +521,6 @@ public class RecommendationPolicy {
 			reasons.add("기존 일정과 충분히 떨어진 시간대를 우선 반영했습니다");
 		}
 
-		reasons.add("점수 " + score + "점");
 
 		return String.join(", ", reasons);
 	}

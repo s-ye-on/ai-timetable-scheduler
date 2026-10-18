@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -217,13 +219,189 @@ class LlmParsingServiceTest {
 	}
 
 	@Test
-	void 날짜조건이_없으면_INVALID_LLM_DATE_CONDITION을_던진다() {
+	void 날짜조건이_없어도_기본_탐색을_위한_파싱결과를_반환한다() {
 		ParsedTaskResponse parsed = responseBuilder().build();
 		LlmParsingService service = serviceWith(parsed);
 
-		LlmException exception = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("과제할 시간 잡아줘")));
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("과제할 시간 잡아줘"));
 
-		assertEquals(ExceptionCode.INVALID_LLM_DATE_CONDITION, exception.getExceptionCode());
+		assertNull(result.preferredDate());
+		assertNull(result.preferredDayOfWeek());
+		assertNull(result.preferredDateRange());
+	}
+
+	@Test
+	void 선호요일과_허용기간을_함께_보존한다() {
+		ParsedTaskResponse parsed = responseBuilder()
+			.preferredDayOfWeek(DayOfWeek.TUESDAY)
+			.preferredDateRange(new DateRange(LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 25)))
+			.build();
+		LlmParsingService service = serviceWith(parsed);
+
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("이번 주 안에 화요일이 좋아"));
+
+		assertEquals(DayOfWeek.TUESDAY, result.preferredDayOfWeek());
+		assertEquals(new DateRange(LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 25)), result.preferredDateRange());
+	}
+
+	@Test
+	void 명시적인_시작시각과_필수조건을_보존한다() {
+		ParsedTaskResponse parsed = new ParsedTaskResponse(
+			"알고리즘 공부",
+			TaskCategory.STUDY,
+			120,
+			null,
+			DayOfWeek.THURSDAY,
+			null,
+			PreferredTimeRange.EVENING,
+			null,
+			TaskPriority.NORMAL,
+			"목요일 저녁 7시 10분에 알고리즘 공부 2시간",
+			true,
+			true,
+			LocalTime.of(19, 10),
+			null
+		);
+		LlmParsingService service = serviceWith(parsed);
+
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("목요일 저녁 7시 10분에 알고리즘 공부 2시간"));
+
+		assertTrue(result.dateRequired());
+		assertTrue(result.timeRequired());
+		assertEquals(LocalTime.of(19, 10), result.preferredStartTime());
+	}
+
+	@Test
+	void 필수여부를_판단하지_못한_LLM_결과는_확인을_요청한다() {
+		ParsedTaskResponse parsed = new ParsedTaskResponse(
+			"공부",
+			TaskCategory.STUDY,
+			60,
+			null,
+			DayOfWeek.THURSDAY,
+			null,
+			null,
+			null,
+			TaskPriority.NORMAL,
+			"목요일 공부",
+			null,
+			false,
+			null,
+			null
+		);
+		LlmParsingService service = serviceWith(parsed);
+
+		LlmException exception = assertThrows(LlmException.class,
+			() -> service.parseTask(new LlmParseRequest("목요일 공부")));
+
+		assertEquals(ExceptionCode.LLM_CLARIFICATION_REQUIRED, exception.getExceptionCode());
+	}
+
+	@Test
+	void 오전오후가_모호한_시각은_확인을_요청한다() {
+		ParsedTaskResponse parsed = new ParsedTaskResponse(
+			"공부",
+			TaskCategory.STUDY,
+			60,
+			null,
+			DayOfWeek.THURSDAY,
+			null,
+			null,
+			null,
+			TaskPriority.NORMAL,
+			"목요일 7시에만 공부",
+			null,
+			null,
+			null,
+			"오전 또는 오후 7시인지 확인이 필요합니다."
+		);
+		LlmParsingService service = serviceWith(parsed);
+
+		LlmException exception = assertThrows(LlmException.class,
+			() -> service.parseTask(new LlmParseRequest("목요일 7시에만 공부")));
+
+		assertEquals(ExceptionCode.LLM_CLARIFICATION_REQUIRED, exception.getExceptionCode());
+	}
+
+	@Test
+	void 원문에_명확한_시각이_있으면_LLM_결과가_같은_시각을_보존해야_한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.THURSDAY, LocalTime.of(19, 0), false, false);
+		LlmParsingService service = serviceWith(parsed);
+
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("목요일 저녁 7시에 알고리즘 공부 2시간 잡아줘"));
+
+		assertEquals(LocalTime.of(19, 0), result.preferredStartTime());
+	}
+
+	@Test
+	void 원문의_명확한_시각이_LLM_결과에서_누락되면_확인을_요청한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.THURSDAY, null, false, false);
+		LlmParsingService service = serviceWith(parsed);
+
+		assertClarificationRequired(service, "목요일 저녁 7시에 알고리즘 공부 2시간 잡아줘");
+	}
+
+	@Test
+	void 원문의_명확한_시각과_LLM_결과가_다르면_확인을_요청한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.THURSDAY, LocalTime.of(18, 0), false, false);
+		LlmParsingService service = serviceWith(parsed);
+
+		assertClarificationRequired(service, "목요일 19시 10분에 공부하고 싶어");
+	}
+
+	@Test
+	void 오전오후가_없는_7시는_LLM이_19시로_해석해도_확인을_요청한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.THURSDAY, LocalTime.of(19, 0), true, true);
+		LlmParsingService service = serviceWith(parsed);
+
+		assertClarificationRequired(service, "반드시 목요일 7시에만 가능해");
+	}
+
+	@Test
+	void 원문이_시각만_필수라고_했는데_timeRequired가_false이면_확인을_요청한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.THURSDAY, LocalTime.of(19, 0), true, false);
+		LlmParsingService service = serviceWith(parsed);
+
+		assertClarificationRequired(service, "목요일 저녁 7시에만 가능해");
+	}
+
+	@Test
+	void 원문이_요일만_필수라고_했는데_dateRequired가_false이면_확인을_요청한다() {
+		ParsedTaskResponse parsed = parsedWithTime(DayOfWeek.TUESDAY, null, false, false);
+		LlmParsingService service = serviceWith(parsed);
+
+		assertClarificationRequired(service, "화요일만 가능해");
+	}
+
+	@Test
+	void 지원하지_않는_복수조건_제외조건_완화기간_분단위마감은_확인을_요청한다() {
+		LlmParsingService service = serviceWith(parsedWithTime(DayOfWeek.TUESDAY, null, false, false));
+
+		for (String message : List.of(
+			"화요일 또는 수요일에 공부하고 싶어",
+			"화요일 제외하고 공부할 시간 잡아줘",
+			"이번 주쯤 과제할 시간 추천해줘",
+			"금요일 15시 10분까지 과제 끝낼 시간 추천해줘"
+		)) {
+			assertClarificationRequired(service, message);
+		}
+	}
+
+	@Test
+	void 허용된_대안표현과_날짜미지정_요청은_그대로_통과한다() {
+		LlmParsingService dateAlternativeService = serviceWith(
+			parsedWithTime(DayOfWeek.TUESDAY, null, false, false)
+		);
+		LlmParsingService dateUnspecifiedService = serviceWith(
+			parsedWithTime(null, null, false, false)
+		);
+
+		assertDoesNotThrow(() -> dateAlternativeService.parseTask(
+			new LlmParseRequest("화요일 점심이면 좋겠어. 안 되면 다른 날도 괜찮아")
+		));
+		assertDoesNotThrow(() -> dateUnspecifiedService.parseTask(
+			new LlmParseRequest("과제할 시간 1시간 추천해 줘")
+		));
 	}
 
 	@Test
@@ -263,8 +441,56 @@ class LlmParsingServiceTest {
 		assertEquals(ExceptionCode.INVALID_LLM_DATE_RANGE, exception.getExceptionCode());
 	}
 
+	@Test
+	void 명확한시각부터_시작과_제목의또는은_조건모호함으로_오인하지않는다() {
+		var service=serviceWith(parsedWithTime(DayOfWeek.THURSDAY,LocalTime.of(19,0),false,false));
+		assertEquals(LocalTime.of(19,0),service.parseTask(new LlmParseRequest("목요일 저녁 일곱시부터 알고리즘 또는 자료구조 공부 2시간")).preferredStartTime());
+		assertEquals(LocalTime.of(19,0),service.parseTask(new LlmParseRequest("목요일 19:00부터 공부 2시간")).preferredStartTime());
+	}
+
+	@Test
+	void 콜론시각의오후와_밤한시도_정상응답을_오류로보지않는다() {
+		assertEquals(LocalTime.of(19,10),serviceWith(parsedWithTime(DayOfWeek.THURSDAY,LocalTime.of(19,10),false,false))
+			.parseTask(new LlmParseRequest("목요일 오후 7:10에 공부")).preferredStartTime());
+		assertEquals(LocalTime.of(1,0),serviceWith(new ParsedTaskResponse("공부", TaskCategory.STUDY, 60, null, DayOfWeek.THURSDAY, null, null, null, TaskPriority.NORMAL, "공부", false, false, LocalTime.of(1,0), null))
+			.parseTask(new LlmParseRequest("목요일 밤 한 시에 공부")).preferredStartTime());
+	}
+
 	private LlmParsingService serviceWith(ParsedTaskResponse response) {
 		return new LlmParsingService(new FakeOpenAiClient(response));
+	}
+
+	private ParsedTaskResponse parsedWithTime(
+		DayOfWeek preferredDayOfWeek,
+		LocalTime preferredStartTime,
+		boolean dateRequired,
+		boolean timeRequired
+	) {
+		return new ParsedTaskResponse(
+			"공부",
+			TaskCategory.STUDY,
+			60,
+			null,
+			preferredDayOfWeek,
+			null,
+			preferredStartTime == null ? PreferredTimeRange.LUNCH : PreferredTimeRange.EVENING,
+			null,
+			TaskPriority.NORMAL,
+			"공부할 시간",
+			dateRequired,
+			timeRequired,
+			preferredStartTime,
+			null
+		);
+	}
+
+	private void assertClarificationRequired(LlmParsingService service, String message) {
+		LlmException exception = assertThrows(
+			LlmException.class,
+			() -> service.parseTask(new LlmParseRequest(message))
+		);
+
+		assertEquals(ExceptionCode.LLM_CLARIFICATION_REQUIRED, exception.getExceptionCode());
 	}
 
 	private ParsedTaskResponse validResponse() {

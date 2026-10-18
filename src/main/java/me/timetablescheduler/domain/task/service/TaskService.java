@@ -1,6 +1,7 @@
 package me.timetablescheduler.domain.task.service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.DateRange;
@@ -47,7 +48,10 @@ public class TaskService {
 			response.preferredTimeRange(),
 			response.deadline(),
 			response.priority(),
-			response.description()
+			response.description(),
+			response.dateRequired(),
+			response.timeRequired(),
+			response.preferredStartTime()
 		);
 
 		taskRepository.save(task);
@@ -72,6 +76,7 @@ public class TaskService {
 	public TaskResponse.Read update(Long taskId, TaskRequest.Update request, Long userId) {
 		userReader.readForUpdate(userId);
 		Task task = findTask(taskId, userId);
+		validatePreferredStartTimeUpdate(request);
 
 		task.updateDetails(
 			request.title(),
@@ -84,7 +89,10 @@ public class TaskService {
 			request.preferredTimeRange(),
 			request.deadline(),
 			request.priority(),
-			request.description()
+			request.description(),
+			resolveDateRequired(task, request),
+			resolveTimeRequired(task, request),
+			resolvePreferredStartTime(task, request)
 		);
 
 		recommendationRepository.findAllByTaskIdAndUserIdAndStatus(taskId, userId, RecommendationStatus.PROPOSED)
@@ -124,6 +132,9 @@ public class TaskService {
 			task.getDeadline(),
 			task.getPriority(),
 			task.getDescription(),
+			task.getDateRequired(),
+			task.getTimeRequired(),
+			task.getPreferredStartTime(),
 			task.getStatus()
 		);
 	}
@@ -142,10 +153,34 @@ public class TaskService {
 			task.getDeadline(),
 			task.getPriority(),
 			task.getDescription(),
+			task.getDateRequired(),
+			task.getTimeRequired(),
+			task.getPreferredStartTime(),
 			task.getScheduledStartAt(),
 			task.getScheduledEndAt(),
 			task.getStatus()
 		);
+	}
+
+	private void validatePreferredStartTimeUpdate(TaskRequest.Update request) {
+		if (Boolean.TRUE.equals(request.clearPreferredStartTime()) && request.preferredStartTime() != null) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+	}
+
+	private Boolean resolveDateRequired(Task task, TaskRequest.Update request) {
+		return request.dateRequired() == null ? task.getDateRequired() : request.dateRequired();
+	}
+
+	private Boolean resolveTimeRequired(Task task, TaskRequest.Update request) {
+		return request.timeRequired() == null ? task.getTimeRequired() : request.timeRequired();
+	}
+
+	private LocalTime resolvePreferredStartTime(Task task, TaskRequest.Update request) {
+		if (Boolean.TRUE.equals(request.clearPreferredStartTime())) {
+			return null;
+		}
+		return request.preferredStartTime() == null ? task.getPreferredStartTime() : request.preferredStartTime();
 	}
 
 	private LocalDate getPreferredStartDate(DateRange dateRange) {

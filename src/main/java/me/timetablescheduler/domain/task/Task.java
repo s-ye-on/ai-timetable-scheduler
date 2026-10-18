@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
 import lombok.AccessLevel;
@@ -69,6 +70,13 @@ public class Task {
 	// Task.preferredTimeRange는 비어 있을 수 있음
 	private PreferredTimeRange preferredTimeRange;
 
+	private Boolean dateRequired;
+
+	private Boolean timeRequired;
+
+	@Column(columnDefinition = "TIME(0)")
+	private LocalTime preferredStartTime;
+
 	private LocalDate deadline;
 
 	@Enumerated(EnumType.STRING)
@@ -104,11 +112,24 @@ public class Task {
 		PreferredTimeRange preferredTimeRange,
 		LocalDate deadline,
 		TaskPriority priority,
-		String description
+		String description,
+		Boolean dateRequired,
+		Boolean timeRequired,
+		LocalTime preferredStartTime
 	) {
 		validateRequiredFields(user, title, category, durationMinutes, priority);
 		validateDuration(durationMinutes);
 		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
+		validateIntentCondition(
+			preferredDate,
+			preferredDayOfWeek,
+			preferredTimeRange,
+			dateRequired,
+			timeRequired,
+			preferredStartTime
+		);
+
+		validateIntentBounds(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate, deadline, dateRequired);
 
 		this.user = user;
 		this.title = title;
@@ -119,6 +140,9 @@ public class Task {
 		this.preferredStartDate = preferredStartDate;
 		this.preferredEndDate = preferredEndDate;
 		this.preferredTimeRange = preferredTimeRange;
+		this.dateRequired = dateRequired;
+		this.timeRequired = timeRequired;
+		this.preferredStartTime = preferredStartTime;
 		this.deadline = deadline;
 		this.priority = priority;
 		this.description = description;
@@ -141,6 +165,42 @@ public class Task {
 		TaskPriority priority,
 		String description
 	) {
+		return create(
+			user,
+			title,
+			category,
+			durationMinutes,
+			preferredDate,
+			preferredDayOfWeek,
+			preferredStartDate,
+			preferredEndDate,
+			preferredTimeRange,
+			deadline,
+			priority,
+			description,
+			null,
+			null,
+			null
+		);
+	}
+
+	public static Task create(
+		User user,
+		String title,
+		TaskCategory category,
+		Integer durationMinutes,
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate,
+		PreferredTimeRange preferredTimeRange,
+		LocalDate deadline,
+		TaskPriority priority,
+		String description,
+		Boolean dateRequired,
+		Boolean timeRequired,
+		LocalTime preferredStartTime
+	) {
 		return new Task(
 			user,
 			title,
@@ -153,7 +213,10 @@ public class Task {
 			preferredTimeRange,
 			deadline,
 			priority,
-			description
+			description,
+			dateRequired,
+			timeRequired,
+			preferredStartTime
 		);
 	}
 
@@ -170,10 +233,54 @@ public class Task {
 		TaskPriority priority,
 		String description
 	) {
+		updateDetails(
+			title,
+			category,
+			durationMinutes,
+			preferredDate,
+			preferredDayOfWeek,
+			preferredStartDate,
+			preferredEndDate,
+			preferredTimeRange,
+			deadline,
+			priority,
+			description,
+			this.dateRequired,
+			this.timeRequired,
+			this.preferredStartTime
+		);
+	}
+
+	public void updateDetails(
+		String title,
+		TaskCategory category,
+		Integer durationMinutes,
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		LocalDate preferredStartDate,
+		LocalDate preferredEndDate,
+		PreferredTimeRange preferredTimeRange,
+		LocalDate deadline,
+		TaskPriority priority,
+		String description,
+		Boolean dateRequired,
+		Boolean timeRequired,
+		LocalTime preferredStartTime
+	) {
 		validateStatus(TaskStatus.UNSCHEDULED);
 		validateRequiredFields(this.user, title, category, durationMinutes, priority);
 		validateDuration(durationMinutes);
 		validateDateCondition(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate);
+		validateIntentCondition(
+			preferredDate,
+			preferredDayOfWeek,
+			preferredTimeRange,
+			dateRequired,
+			timeRequired,
+			preferredStartTime
+		);
+
+		validateIntentBounds(preferredDate, preferredDayOfWeek, preferredStartDate, preferredEndDate, deadline, dateRequired);
 
 		this.title = title;
 		this.category = category;
@@ -183,6 +290,9 @@ public class Task {
 		this.preferredStartDate = preferredStartDate;
 		this.preferredEndDate = preferredEndDate;
 		this.preferredTimeRange = preferredTimeRange;
+		this.dateRequired = dateRequired;
+		this.timeRequired = timeRequired;
+		this.preferredStartTime = preferredStartTime;
 		this.deadline = deadline;
 		this.priority = priority;
 		this.description = description;
@@ -264,24 +374,59 @@ public class Task {
 		boolean hasPreferredDayOfWeek = preferredDayOfWeek != null;
 		boolean hasPreferredDateRange = preferredStartDate != null || preferredEndDate != null;
 
-		int dateConditionCount = 0;
-		if (hasPreferredDate) {
-			dateConditionCount++;
-		}
-		if (hasPreferredDayOfWeek) {
-			dateConditionCount++;
-		}
-		if (hasPreferredDateRange) {
-			dateConditionCount++;
-		}
-
-		if (dateConditionCount != 1) {
+		if (hasPreferredDate && hasPreferredDayOfWeek) {
 			throw new TaskException(ExceptionCode.INVALID_TASK);
 		}
 
 		if (hasPreferredDateRange && (preferredStartDate == null || preferredEndDate == null
 			|| preferredStartDate.isAfter(preferredEndDate))) {
 			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+	}
+
+	private void validateIntentCondition(
+		LocalDate preferredDate,
+		DayOfWeek preferredDayOfWeek,
+		PreferredTimeRange preferredTimeRange,
+		Boolean dateRequired,
+		Boolean timeRequired,
+		LocalTime preferredStartTime
+	) {
+		if (Boolean.TRUE.equals(dateRequired) && preferredDate == null && preferredDayOfWeek == null) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+
+		if (preferredStartTime != null && (preferredStartTime.getSecond() != 0 || preferredStartTime.getNano() != 0)) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+
+		boolean hasUsableTimeRange = preferredTimeRange != null && preferredTimeRange != PreferredTimeRange.ANYTIME;
+		if (Boolean.TRUE.equals(timeRequired) && preferredStartTime == null && !hasUsableTimeRange) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+
+		if (preferredStartTime != null && hasUsableTimeRange
+			&& (preferredStartTime.isBefore(preferredTimeRange.getStartTime())
+				|| !preferredStartTime.isBefore(preferredTimeRange.getEndTime()))) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+	}
+
+	private void validateIntentBounds(LocalDate date, DayOfWeek day, LocalDate first, LocalDate last,
+		LocalDate deadline, Boolean dateRequired) {
+		if (dateRequired == null) return;
+		if (first != null && deadline != null && first.isAfter(deadline)) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+		if (!dateRequired) return;
+		if (date != null && ((first != null && date.isBefore(first)) || (last != null && date.isAfter(last))
+			|| (deadline != null && date.isAfter(deadline)))) {
+			throw new TaskException(ExceptionCode.INVALID_TASK);
+		}
+		if (day != null && first != null && last != null) {
+			LocalDate end = deadline != null && deadline.isBefore(last) ? deadline : last;
+			LocalDate next = first.with(java.time.temporal.TemporalAdjusters.nextOrSame(day));
+			if (next.isAfter(end)) throw new TaskException(ExceptionCode.INVALID_TASK);
 		}
 	}
 

@@ -1,14 +1,20 @@
 package me.timetablescheduler.domain.llm.service;
 
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
 import me.timetablescheduler.domain.llm.dto.ParsedTaskResponse;
 import me.timetablescheduler.domain.llm.external.OpenAiClient;
+import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskPriority;
 import me.timetablescheduler.global.exception.ExceptionCode;
 import me.timetablescheduler.global.exception.LlmException;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalTime;
 
 // LLM 호출
 // 응답 검증
@@ -39,16 +45,25 @@ public class LlmParsingService {
 
 		ParsedTaskResponse normalized = normalize(parsed, request.message());
 		validate(normalized);
+		validateSourceIntent(request.message(), normalized);
 
 		return normalized;
 	}
 
 	// 검증
 	private void validate(ParsedTaskResponse response) {
+		validateClarification(response);
 		validateRequiredFields(response);
 		validateDuration(response.durationMinutes());
 		validateDateCondition(response);
 		validateDateRange(response.preferredDateRange());
+		validateIntentCondition(response);
+	}
+
+	private void validateClarification(ParsedTaskResponse response) {
+		if (response.clarificationReason() != null && !response.clarificationReason().isBlank()) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
 	}
 
 	private void validateRequiredFields(ParsedTaskResponse response) {
@@ -68,22 +83,36 @@ public class LlmParsingService {
 	}
 
 	private void validateDateCondition(ParsedTaskResponse response) {
-		int dateConditionCount = 0;
-
-		if (response.preferredDate() != null) {
-			dateConditionCount++;
-		}
-
-		if (response.preferredDayOfWeek() != null) {
-			dateConditionCount++;
-		}
-
-		if (response.preferredDateRange() != null) {
-			dateConditionCount++;
-		}
-
-		if (dateConditionCount != 1) {
+		if (response.preferredDate() != null && response.preferredDayOfWeek() != null) {
 			throw new LlmException(ExceptionCode.INVALID_LLM_DATE_CONDITION);
+		}
+	}
+
+	private void validateIntentCondition(ParsedTaskResponse response) {
+		if (response.dateRequired() == null || response.timeRequired() == null) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+
+		boolean hasDateOrDay = response.preferredDate() != null || response.preferredDayOfWeek() != null;
+		if (Boolean.TRUE.equals(response.dateRequired()) && !hasDateOrDay) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
+		}
+
+		LocalTime preferredStartTime = response.preferredStartTime();
+		if (preferredStartTime != null && (preferredStartTime.getSecond() != 0 || preferredStartTime.getNano() != 0)) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
+		}
+
+		boolean hasUsableTimeRange = response.preferredTimeRange() != null
+			&& response.preferredTimeRange() != PreferredTimeRange.ANYTIME;
+		if (Boolean.TRUE.equals(response.timeRequired()) && preferredStartTime == null && !hasUsableTimeRange) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
+		}
+
+		if (preferredStartTime != null && hasUsableTimeRange
+			&& (preferredStartTime.isBefore(response.preferredTimeRange().getStartTime())
+				|| !preferredStartTime.isBefore(response.preferredTimeRange().getEndTime()))) {
+			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
 		}
 	}
 
@@ -111,6 +140,81 @@ public class LlmParsingService {
 		}
 	}
 
+	/** 원문을 다시 구조화하지 않고, 지원하는 명백한 시각 표기가 응답에서 유실됐는지만 확인한다. */
+	private void validateSourceIntent(String source, ParsedTaskResponse parsed) {
+		if (Pattern.compile("(?:요일.{0,8}(?:제외|빼고|말고)|(?:요일|오전|오후|점심|저녁|밤)\\s*(?:또는|혹은)|(?:이번|다음)\\s*주\\s*(?:쯤|정도)|(?:되도록|가능하면)\\s*(?:이번|다음)\\s*주)")
+			.matcher(source).find()) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		if (Pattern.compile("(?:요일|\\d{1,2}일)\\s*(?:에)?만").matcher(source).find()
+			&& !Boolean.TRUE.equals(parsed.dateRequired())) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		if (Pattern.compile("(?:시(?:\\s*\\d{1,2}분)?|분|오전|오후|점심|저녁)\\s*(?:에)?만").matcher(source).find()
+			&& !Boolean.TRUE.equals(parsed.timeRequired())) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		Matcher hours = Pattern.compile("(?<!\\d)(\\d{1,2}|열두|열한|열|아홉|여덟|일곱|여섯|다섯|네|세|두|한)\\s*시(?!간)(?:\\s*(\\d{1,2})\\s*분|\\s*(반))?").matcher(source);
+		LocalTime sourceTime = null;
+		while (hours.find()) {
+			String suffix = source.substring(hours.end()).stripLeading();
+			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
+				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+			}
+			String period = periodBefore(source, hours.start());
+			int hour = hourNumber(hours.group(1));
+			int minute = hours.group(2) != null ? Integer.parseInt(hours.group(2)) : hours.group(3) != null ? 30 : 0;
+			if (hour >= 1 && hour <= 12 && period == null) {
+				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+			}
+			hour = normalizePeriodHour(hour, period);
+			sourceTime = verifySourceTime(parsed, sourceTime, hour, minute);
+		}
+		Matcher clockTimes = Pattern.compile("(?<!\\d)(\\d{1,2}):(\\d{2})(?!\\d)").matcher(source);
+		while (clockTimes.find()) {
+			String suffix = source.substring(clockTimes.end()).stripLeading();
+			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
+				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+			}
+			sourceTime = verifySourceTime(parsed, sourceTime,
+				normalizePeriodHour(Integer.parseInt(clockTimes.group(1)), periodBefore(source, clockTimes.start())),
+				Integer.parseInt(clockTimes.group(2)));
+		}
+	}
+
+	private String periodBefore(String source, int offset) {
+		String period = null;
+		Matcher periods = Pattern.compile("오전|오후|아침|저녁|밤|새벽|점심").matcher(source.substring(0, offset));
+		while (periods.find()) period = periods.group();
+		return period;
+	}
+
+	private int normalizePeriodHour(int hour, String period) {
+		if (hour < 1 || hour > 12 || period == null) return hour;
+		// 밤 12시와 밤 1~5시는 자정 이후 시각으로 비교한다.
+		if (period.equals("밤")) return hour == 12 ? 0 : hour <= 5 ? hour : hour + 12;
+		boolean afternoon = period.equals("오후") || period.equals("저녁") || period.equals("점심");
+		return hour % 12 + (afternoon ? 12 : 0);
+	}
+
+	private LocalTime verifySourceTime(ParsedTaskResponse parsed, LocalTime previous, int hour, int minute) {
+		if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		LocalTime time = LocalTime.of(hour, minute);
+		if ((previous != null && !previous.equals(time)) || !time.equals(parsed.preferredStartTime())) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		return time;
+	}
+
+	private int hourNumber(String value) {
+		Map<String, Integer> korean = Map.ofEntries(Map.entry("한",1), Map.entry("두",2), Map.entry("세",3),
+			Map.entry("네",4), Map.entry("다섯",5), Map.entry("여섯",6), Map.entry("일곱",7),
+			Map.entry("여덟",8), Map.entry("아홉",9), Map.entry("열",10), Map.entry("열한",11), Map.entry("열두",12));
+		return korean.containsKey(value) ? korean.get(value) : Integer.parseInt(value);
+	}
+
 	// 값 보정
 	private ParsedTaskResponse normalize(ParsedTaskResponse parsed, String originalMessage) {
 		int duration = parsed.durationMinutes() == null
@@ -133,7 +237,11 @@ public class LlmParsingService {
 			parsed.preferredTimeRange(),
 			parsed.deadline(),
 			priority,
-			description
+			description,
+			parsed.dateRequired(),
+			parsed.timeRequired(),
+			parsed.preferredStartTime(),
+			parsed.clarificationReason()
 		);
 	}
 }

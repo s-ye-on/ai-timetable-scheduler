@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import me.timetablescheduler.domain.recommendation.type.PreferredTimeRange;
 import me.timetablescheduler.domain.task.type.TaskCategory;
 import me.timetablescheduler.domain.task.type.TaskPriority;
@@ -41,6 +42,14 @@ public sealed interface TaskRequest
 
 		PreferredTimeRange preferredTimeRange,
 
+		Boolean dateRequired,
+
+		Boolean timeRequired,
+
+		LocalTime preferredStartTime,
+
+		Boolean clearPreferredStartTime,
+
 		LocalDate deadline,
 
 		@NotNull(message = "할 일 우선순위는 필수입니다.")
@@ -49,5 +58,36 @@ public sealed interface TaskRequest
 		@Size(max = 500, message = "할 일 설명은 500자를 넘어갈 수 없습니다.")
 		String description
 	) implements TaskRequest {
+		public Update(
+			String title,
+			TaskCategory category,
+			Integer durationMinutes,
+			LocalDate preferredDate,
+			DayOfWeek preferredDayOfWeek,
+			LocalDate preferredStartDate,
+			LocalDate preferredEndDate,
+			PreferredTimeRange preferredTimeRange,
+			LocalDate deadline,
+			TaskPriority priority,
+			String description
+		) {
+			this(
+				title,
+				category,
+				durationMinutes,
+				preferredDate,
+				preferredDayOfWeek,
+				preferredStartDate,
+				preferredEndDate,
+				preferredTimeRange,
+				null,
+				null,
+				null,
+				false,
+				deadline,
+				priority,
+				description
+			);
+		}
 	}
 }

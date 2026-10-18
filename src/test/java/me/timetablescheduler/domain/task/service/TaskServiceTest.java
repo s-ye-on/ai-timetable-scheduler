@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,6 +84,50 @@ class TaskServiceTest {
 
 		assertNull(task.getPreferredTimeRange());
 		assertNull(response.preferredTimeRange());
+	}
+
+	@Test
+	void 자연어_생성시_필수조건과_명시시각을_Task에_보존한다() {
+		User user = user();
+		ParsedTaskResponse parsed = new ParsedTaskResponse(
+			"알고리즘 공부", TaskCategory.STUDY, 120, null, DayOfWeek.THURSDAY, null,
+			PreferredTimeRange.EVENING, null, TaskPriority.NORMAL,
+			"목요일 저녁 7시 10분에 알고리즘 공부 2시간", true, true, LocalTime.of(19, 10), null
+		);
+		when(userReader.read(1L)).thenReturn(user);
+		when(llmParsingService.parseTask(any(LlmParseRequest.class))).thenReturn(parsed);
+		when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		TaskResponse.Create response = taskService.createFromNaturalLanguage(
+			1L, new TaskRequest.NaturalLanguage("목요일 저녁 7시 10분에 알고리즘 공부 2시간")
+		);
+
+		ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+		Mockito.verify(taskRepository).save(taskCaptor.capture());
+		assertEquals(Boolean.TRUE, taskCaptor.getValue().getDateRequired());
+		assertEquals(Boolean.TRUE, taskCaptor.getValue().getTimeRequired());
+		assertEquals(LocalTime.of(19, 10), taskCaptor.getValue().getPreferredStartTime());
+		assertEquals(LocalTime.of(19, 10), response.preferredStartTime());
+	}
+
+	@Test
+	void 수정_요청에_새_조건필드가_없으면_기존_명시시각과_필수조건을_보존한다() {
+		Task task = Task.create(
+			user(), "공부", TaskCategory.STUDY, 60, null, DayOfWeek.THURSDAY,
+			null, null, PreferredTimeRange.EVENING, null, TaskPriority.NORMAL, "목요일 저녁 7시 공부",
+			true, true, LocalTime.of(19, 0)
+		);
+		TaskRequest.Update request = new TaskRequest.Update(
+			"공부", TaskCategory.STUDY, 60, null, DayOfWeek.THURSDAY, null, null,
+			PreferredTimeRange.EVENING, null, null, null, false, null, TaskPriority.NORMAL, "목요일 저녁 공부"
+		);
+		when(taskRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(task));
+
+		TaskResponse.Read response = taskService.update(10L, request, 1L);
+
+		assertEquals(Boolean.TRUE, response.dateRequired());
+		assertEquals(Boolean.TRUE, response.timeRequired());
+		assertEquals(LocalTime.of(19, 0), response.preferredStartTime());
 	}
 
 	@Test

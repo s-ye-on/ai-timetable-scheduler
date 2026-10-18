@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS task (
     preferred_start_date DATE,
     preferred_end_date DATE,
     preferred_time_range VARCHAR(20),
+    date_required BOOLEAN,
+    time_required BOOLEAN,
+    preferred_start_time TIME(0),
     deadline DATE,
     priority VARCHAR(10) NOT NULL,
     description VARCHAR(500),
@@ -85,11 +88,13 @@ CREATE TABLE IF NOT EXISTS recommendation (
     reason VARCHAR(500) NOT NULL,
     status VARCHAR(20) NOT NULL,
     google_event_id VARCHAR(255),
+    match_type VARCHAR(32),
     created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     CONSTRAINT fk_recommendation_user FOREIGN KEY (user_id) REFERENCES users (id),
     CONSTRAINT fk_recommendation_task FOREIGN KEY (task_id) REFERENCES task (id),
-    CONSTRAINT ck_recommendation_status CHECK (status IN ('PROPOSED', 'SELECTED', 'REJECTED', 'EXPIRED', 'SYNCED', 'SYNC_FAILED'))
+    CONSTRAINT ck_recommendation_status CHECK (status IN ('PROPOSED', 'SELECTED', 'REJECTED', 'EXPIRED', 'SYNCED', 'SYNC_FAILED')),
+    CONSTRAINT ck_recommendation_match_type CHECK (match_type IS NULL OR match_type IN ('EXACT', 'TIME_CHANGED', 'DATE_CHANGED', 'DATE_AND_TIME_CHANGED', 'GENERAL'))
 );
 
 CREATE TABLE IF NOT EXISTS calendar_token (

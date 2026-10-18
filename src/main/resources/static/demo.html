@@ -1561,8 +1561,11 @@
 				<dt>제목</dt><dd>${escapeHtml(task.title)}</dd>
 				<dt>분류</dt><dd>${formatCategory(task.category)}</dd>
 				<dt>소요 시간</dt><dd>${formatDuration(task.durationMinutes)}</dd>
-				<dt>선호 요일</dt><dd>${formatDayOfWeek(task.preferredDayOfWeek)}</dd>
+				<dt>요청 날짜</dt><dd>${formatRequestedDate(task)}</dd>
 				<dt>선호 시간대</dt><dd>${formatTimeRange(task.preferredTimeRange)}</dd>
+				<dt>목표 시작 시각</dt><dd>${formatPreferredStartTime(task.preferredStartTime)}</dd>
+				<dt>날짜 조건</dt><dd>${formatDateRequirement(task)}</dd>
+				<dt>시간 조건</dt><dd>${formatTimeRequirement(task)}</dd>
 				<dt>상태</dt><dd><span class="badge neutral">${formatTaskStatus(task.status)}</span></dd>
 			</dl>
 			<pre>${escapeHtml(JSON.stringify(task, null, 2))}</pre>
@@ -1641,11 +1644,14 @@
 					<h3>추천 ${recommendation.rank}순위</h3>
 					<span class="badge neutral">${recommendation.status}</span>
 				</div>
+				${renderRecommendationMatchMessage(recommendation.matchType)}
+				${renderCalendarValidationNotice()}
 				<dl class="kv">
 					<dt>추천 시간</dt><dd>${formatDateTimeRange(recommendation.recommendedStartAt, recommendation.recommendedEndAt)}</dd>
-					<dt>점수</dt><dd>${recommendation.score}점</dd>
+					<dt>추천 적합도</dt><dd>${formatSuitabilityScore(recommendation.score)}</dd>
+					<dt>내부 원점수</dt><dd>${formatRawScore(recommendation.score)}</dd>
 				</dl>
-				<div class="reason-heading">반영 조건</div>
+				<div class="reason-heading">서버 계산 근거</div>
 				<ul class="reason-list">
 					${renderReasonChecklist(recommendation.reason)}
 				</ul>
@@ -1926,23 +1932,33 @@
 	}
 
 	function renderReasonChecklist(reason) {
-		const items = [
-			"등록된 시간표와 겹치지 않음",
-			"사용자 선호 시간대 반영",
-			"일정 간 최소 여유 시간 반영",
-			state.calendarConnected
-				? "Google Calendar 일정은 선택 시 최신 조회로 다시 검증"
-				: "Google Calendar는 연결되지 않아 반영하지 않음"
-		];
+		const serverReason = reason || "저장된 추천 이유가 없습니다.";
+		return `<li><span class="check">✓</span><span>${escapeHtml(serverReason)}</span></li>`;
+	}
 
-		if (reason && reason.includes("기존 일정과 적당한 간격")) {
-			items.push("기존 일정과 적당한 간격 반영");
+	function renderRecommendationMatchMessage(matchType) {
+		if (matchType === "EXACT") {
+			return `<div class="notice success">정확히 일치하는 시간대가 존재해요!</div>`;
 		}
 
-		return items
-			.filter(Boolean)
-			.map((item) => `<li><span class="check">✓</span><span>${escapeHtml(item)}</span></li>`)
-			.join("");
+		const alternativeMessages = {
+			TIME_CHANGED: "날짜는 유지하고 시간을 변경했어요.",
+			DATE_CHANGED: "시간대는 유지하고 날짜를 변경했어요.",
+			DATE_AND_TIME_CHANGED: "날짜와 시간을 조정한 대안이에요."
+		};
+		if (alternativeMessages[matchType]) {
+			return `<div class="notice">다른 대안도 있어요<br>${alternativeMessages[matchType]}</div>`;
+		}
+		if (matchType === "GENERAL") {
+			return `<div class="notice">요청 조건과 현재 일정 상태를 바탕으로 찾은 추천이에요.</div>`;
+		}
+		return `<div class="notice">분류 정보가 없는 기존 추천입니다.</div>`;
+	}
+
+	function renderCalendarValidationNotice() {
+		return state.calendarConnected
+			? `<div class="notice">Google Calendar 일정은 선택 시 최신 조회로 다시 검증합니다.</div>`
+			: `<div class="notice">현재 Google Calendar가 연결되지 않아 확정할 수 없습니다. 미연결 상태에서 새로 추천하면 Google 일정은 반영하지 않습니다. 연결 후 선택 시 최신 조건을 다시 검증합니다.</div>`;
 	}
 
 	function renderRecommendationConditions() {
@@ -1975,6 +1991,68 @@
 
 	function formatDuration(durationMinutes) {
 		return durationMinutes ? `${durationMinutes}분` : "-";
+	}
+
+	function formatRequestedDate(task) {
+		const requestedDate = task.preferredDate
+			? escapeHtml(task.preferredDate)
+			: task.preferredDayOfWeek
+				? formatDayOfWeek(task.preferredDayOfWeek)
+				: null;
+		const allowedRange = task.preferredStartDate && task.preferredEndDate
+			? `${escapeHtml(task.preferredStartDate)} ~ ${escapeHtml(task.preferredEndDate)}`
+			: null;
+
+		if (requestedDate && allowedRange) {
+			return `${requestedDate} · 허용 기간 ${allowedRange}`;
+		}
+		if (requestedDate) {
+			return requestedDate;
+		}
+		if (allowedRange) {
+			return `허용 기간 ${allowedRange}`;
+		}
+		// 구버전 API가 아직 DateRange 객체를 반환하는 경우도 읽기 전용으로 표시한다.
+		if (task.preferredDateRange?.startDate && task.preferredDateRange?.endDate) {
+			return `허용 기간 ${escapeHtml(task.preferredDateRange.startDate)} ~ ${escapeHtml(task.preferredDateRange.endDate)}`;
+		}
+		return "지정하지 않음";
+	}
+
+	function formatDateRequirement(task) {
+		if (task.dateRequired === true) {
+			return "필수";
+		}
+		if (task.dateRequired === false) {
+			return "선호 · 대안 탐색 가능";
+		}
+		return "기존 Task: 날짜 조건 제한";
+	}
+
+	function formatPreferredStartTime(preferredStartTime) {
+		return preferredStartTime ? formatTime(preferredStartTime) : "지정하지 않음";
+	}
+
+	function formatTimeRequirement(task) {
+		if (task.timeRequired === true) {
+			return task.preferredStartTime ? "필수 · 목표 시작 시각 준수" : "필수 · 시간대 준수";
+		}
+		if (task.timeRequired === false) {
+			return "선호 · 대안 탐색 가능";
+		}
+		return "기존 Task: 시간대 가점";
+	}
+
+	function formatSuitabilityScore(score) {
+		if (!Number.isFinite(Number(score))) {
+			return "-";
+		}
+		const normalized = Math.round((Number(score) / 140) * 1000) / 10;
+		return `${normalized}점`;
+	}
+
+	function formatRawScore(score) {
+		return Number.isFinite(Number(score)) ? `${score}점` : "-";
 	}
 
 	function formatDayOfWeek(dayOfWeek) {

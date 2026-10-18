@@ -112,9 +112,13 @@ public class OpenAiClient {
 			- preferredDate: 특정 날짜가 하나 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- preferredDayOfWeek: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY 중 하나입니다. 없으면 null입니다.
 			- preferredDateRange: 기간 조건이 있으면 startDate/endDate를 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
-			- 날짜 조건이 있으면 preferredDate, preferredDayOfWeek, preferredDateRange 중 하나만 non-null이어야 합니다.
+			- preferredDate와 preferredDayOfWeek는 함께 설정하지 마세요. preferredDateRange는 날짜 또는 요일 선호와 함께 설정할 수 있습니다.
 			- 날짜 조건이 없으면 세 필드는 모두 null입니다.
 			- preferredTimeRange: MORNING, LUNCH, AFTERNOON, EVENING, ANYTIME 중 하나입니다. 시간 조건이 없으면 null입니다.
+			- dateRequired: 특정 날짜 또는 요일이 반드시 지켜져야 하면 true, 선호이면 false입니다. 날짜 또는 요일이 없으면 false입니다. 판단할 수 없으면 null입니다.
+			- timeRequired: preferredStartTime이 있으면 그 시각, 없으면 preferredTimeRange가 반드시 지켜져야 하면 true, 선호이면 false입니다. 시간 조건이 없으면 false입니다. 판단할 수 없으면 null입니다.
+			- preferredStartTime: 사용자가 명시한 시작 시각이 있으면 HH:mm 형식으로 설정하고, 아니면 null입니다. "7시"처럼 오전/오후를 판단할 수 없으면 null입니다.
+			- clarificationReason: 모호하거나 현재 지원하지 않는 조건 때문에 확인이 필요하면 그 이유를 한국어로 설정하고, 아니면 null입니다.
 			- deadline: 마감일이 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- priority: LOW, NORMAL, HIGH 중 하나입니다. 불명확하면 null입니다.
 			- description: 사용자의 원문 메시지를 그대로 넣으세요.
@@ -147,6 +151,10 @@ public class OpenAiClient {
 		));
 		properties.put("preferredDateRange", nullableDateRange());
 		properties.put("preferredTimeRange", nullableEnum("MORNING", "LUNCH", "AFTERNOON", "EVENING", "ANYTIME"));
+		properties.put("dateRequired", nullableBoolean());
+		properties.put("timeRequired", nullableBoolean());
+		properties.put("preferredStartTime", nullableString());
+		properties.put("clarificationReason", nullableString());
 		properties.put("deadline", nullableString());
 		properties.put("priority", nullableEnum("LOW", "NORMAL", "HIGH"));
 		properties.put("description", nullableString());
@@ -162,12 +170,20 @@ public class OpenAiClient {
 				"preferredDayOfWeek",
 				"preferredDateRange",
 				"preferredTimeRange",
+				"dateRequired",
+				"timeRequired",
+				"preferredStartTime",
+				"clarificationReason",
 				"deadline",
 				"priority",
 				"description"
 			)),
 			entry("properties", properties)
 		);
+	}
+
+	private Map<String, Object> nullableBoolean() {
+		return Map.of("type", List.of("boolean", "null"));
 	}
 
 	private Map<String, Object> nullableDateRange() {

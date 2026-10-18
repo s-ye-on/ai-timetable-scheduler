@@ -65,4 +65,28 @@ spring.config.import=classpath:database.properties
 
 격리 DB에서 통과하더라도 실제 기존 DB의 스키마 호환성까지 확인한 것은 아니다. 실제 DB는 이 작업에서 연결하거나 수정하지 않는다.
 
+## T09: 요청 조건과 추천 유형의 비파괴 마이그레이션
+
+위의 실제 DB 미접속 설명은 T01 당시 검증 범위다. T09에서는 사용자 요청에 따라 서버 종료 후 백업, 복제본 검증, 실제 DB 적용과 재시작까지 수행했다.
+
+일반 실행의 SQL 초기화 순서는 `schema-h2.sql` 다음 `db/migration/t09-add-recommendation-quality-columns.sql`이다. 초기 스키마는 신규 DB를 만들고, 후속 SQL은 기존 DB에 다음 nullable 컬럼만 추가한다.
+
+- `task.date_required`, `task.time_required`, `task.preferred_start_time`
+- `recommendation.match_type` 및 허용된 유형만 저장하는 CHECK 제약
+
+`ADD ... IF NOT EXISTS`로 재실행할 수 있다. 기존 행을 UPDATE하거나 삭제하지 않으며, Hibernate `ddl-auto=validate`는 유지한다. H2 DDL 전체가 하나의 롤백 가능한 트랜잭션이라고 가정하지 않는다. 적용 전 백업이 필요하다. 초기 CREATE 정의만 변경하는 방식으로 기존 DB까지 갱신됐다고 판단해서는 안 된다.
+
+기존 Task의 두 Boolean 컬럼은 NULL을 그대로 유지한다. NULL 날짜 조건은 종전 날짜 제한, NULL 시간 조건은 종전 시간대 가점으로 해석한다. 기존 추천의 NULL 유형은 새로 추정하지 않고 분류 정보 없는 이력으로 표시한다. `TIME(0)`은 소수 초를 제거하는 타입이며, 분 단위 입력 제한은 Java 검증에서 수행한다.
+
+다른 환경에 배포할 때도 다음 절차를 따른다.
+
+1. 서버를 완전히 종료하고 기존 파일 DB를 접근 권한이 제한된 별도 위치에 백업한다. 비밀정보가 들어 있는 DB를 Git에 추가하지 않는다.
+2. 복제본에서 마이그레이션을 적용하고, 기존 7개 테이블의 행·기존 컬럼·ID·Google 이벤트 ID를 비교한다.
+3. 신규 DB 초기화와 복제본 재시작의 JPA 검증을 확인한다.
+4. 실제 DB에 적용하고 재시작 전후 기존 값을 다시 비교한다. 실패하면 `create`로 우회하지 말고 서버를 중지한 상태에서 원인을 조사한다.
+
+이번 로컬 적용에서는 기존 사용자 1개, Task 2개, Recommendation 3개와 나머지 테이블을 백업과 비교했다. 모든 기존 컬럼의 정렬된 값에 대한 해시가 일치했고 Google 이벤트 ID도 보존됐다. 실제 파일 DB로 두 번 시작·정상 종료한 후 같은 비교가 통과했다. 백업은 프로젝트 밖 `~/.timetable-scheduler-backups/` 아래에 보관했다.
+
+`T09SchemaMigrationIntegrationTest`는 별도의 임시 파일 DB에서 기존 스키마 → 마이그레이션 두 번 적용 → 재접속, 기존 행 보존, nullable 호환성, 유형 제약을 검증한다. 전체 테스트는 실제 사용자 DB를 사용하지 않는다.
+
 참고: [Spring Boot 설정 우선순위](https://docs.spring.io/spring-boot/4.0/reference/features/external-config.html), [Hibernate 스키마 동작](https://docs.hibernate.org/stable/orm/javadocs/org/hibernate/tool/schema/Action.html).
