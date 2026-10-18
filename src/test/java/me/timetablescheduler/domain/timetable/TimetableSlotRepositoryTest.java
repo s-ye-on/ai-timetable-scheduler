@@ -25,9 +25,9 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 사용자_ID와_시간표_ID로_본인_시간표만_조회한다() {
-		User owner = userRepository.save(user("owner@example.com"));
-		User other = userRepository.save(user("other@example.com"));
-		TimetableSlot slot = timetableSlotRepository.save(slot(owner, "자료구조", DayOfWeek.MONDAY, 9, 10));
+		User owner = userRepository.save(사용자_생성("owner@example.com"));
+		User other = userRepository.save(사용자_생성("other@example.com"));
+		TimetableSlot slot = timetableSlotRepository.save(수업_생성(owner, "자료구조", DayOfWeek.MONDAY, 9, 10));
 
 		assertTrue(timetableSlotRepository.findByIdAndUserId(slot.getId(), owner.getId()).isPresent());
 		assertFalse(timetableSlotRepository.findByIdAndUserId(slot.getId(), other.getId()).isPresent());
@@ -35,12 +35,12 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 사용자별_시간표_목록을_요일과_시작시간_순서로_조회한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		User other = userRepository.save(user("other@example.com"));
-		timetableSlotRepository.save(slot(user, "화요일 오후 수업", DayOfWeek.TUESDAY, 13, 14));
-		timetableSlotRepository.save(slot(user, "월요일 오전 수업", DayOfWeek.MONDAY, 9, 10));
-		timetableSlotRepository.save(slot(user, "월요일 오후 수업", DayOfWeek.MONDAY, 13, 14));
-		timetableSlotRepository.save(slot(other, "다른 사용자 수업", DayOfWeek.MONDAY, 8, 9));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		User other = userRepository.save(사용자_생성("other@example.com"));
+		timetableSlotRepository.save(수업_생성(user, "화요일 오후 수업", DayOfWeek.TUESDAY, 13, 14));
+		timetableSlotRepository.save(수업_생성(user, "월요일 오전 수업", DayOfWeek.MONDAY, 9, 10));
+		timetableSlotRepository.save(수업_생성(user, "월요일 오후 수업", DayOfWeek.MONDAY, 13, 14));
+		timetableSlotRepository.save(수업_생성(other, "다른 사용자 수업", DayOfWeek.MONDAY, 8, 9));
 
 		List<TimetableSlot> slots = timetableSlotRepository.findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(user.getId());
 
@@ -52,8 +52,8 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 같은_요일의_시간이_겹치면_true를_반환한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		timetableSlotRepository.save(slot(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		timetableSlotRepository.save(수업_생성(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
 
 		boolean exists = timetableSlotRepository.existsOverlappingSlot(
 			user.getId(),
@@ -67,8 +67,8 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 같은_요일이어도_시간이_맞닿기만_하면_false를_반환한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		timetableSlotRepository.save(slot(user, "자료구조", DayOfWeek.MONDAY, 9, 10));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		timetableSlotRepository.save(수업_생성(user, "자료구조", DayOfWeek.MONDAY, 9, 10));
 
 		boolean exists = timetableSlotRepository.existsOverlappingSlot(
 			user.getId(),
@@ -82,8 +82,8 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 다른_요일의_시간이_같으면_false를_반환한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		timetableSlotRepository.save(slot(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		timetableSlotRepository.save(수업_생성(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
 
 		boolean exists = timetableSlotRepository.existsOverlappingSlot(
 			user.getId(),
@@ -97,8 +97,8 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 제외할_시간표는_겹침_검사에서_무시한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		TimetableSlot slot = timetableSlotRepository.save(slot(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		TimetableSlot slot = timetableSlotRepository.save(수업_생성(user, "자료구조", DayOfWeek.MONDAY, 9, 11));
 
 		boolean exists = timetableSlotRepository.existsOverlappingSlotExcept(
 			user.getId(),
@@ -113,9 +113,9 @@ class TimetableSlotRepositoryTest {
 
 	@Test
 	void 제외한_시간표_외에_겹치는_시간표가_있으면_true를_반환한다() {
-		User user = userRepository.save(user("owner@example.com"));
-		TimetableSlot excluded = timetableSlotRepository.save(slot(user, "자료구조", DayOfWeek.MONDAY, 9, 10));
-		timetableSlotRepository.save(slot(user, "알고리즘", DayOfWeek.MONDAY, 10, 12));
+		User user = userRepository.save(사용자_생성("owner@example.com"));
+		TimetableSlot excluded = timetableSlotRepository.save(수업_생성(user, "자료구조", DayOfWeek.MONDAY, 9, 10));
+		timetableSlotRepository.save(수업_생성(user, "알고리즘", DayOfWeek.MONDAY, 10, 12));
 
 		boolean exists = timetableSlotRepository.existsOverlappingSlotExcept(
 			user.getId(),
@@ -128,7 +128,7 @@ class TimetableSlotRepositoryTest {
 		assertTrue(exists);
 	}
 
-	private TimetableSlot slot(User user, String subjectName, DayOfWeek dayOfWeek, int startHour, int endHour) {
+	private TimetableSlot 수업_생성(User user, String subjectName, DayOfWeek dayOfWeek, int startHour, int endHour) {
 		return TimetableSlot.create(
 			user,
 			subjectName,
@@ -139,7 +139,7 @@ class TimetableSlotRepositoryTest {
 		);
 	}
 
-	private User user(String email) {
+	private User 사용자_생성(String email) {
 		return new User("Tester", email, "encodedPassword");
 	}
 }

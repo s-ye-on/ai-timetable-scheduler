@@ -23,7 +23,7 @@ class JwtSecretConfigurationTest {
 		.withUserConfiguration(JwtTokenServiceConfiguration.class);
 
 	@Test
-	void failsContextStartupWhenJwtSecretIsMissing() {
+	void JWT_비밀키가_없으면_컨텍스트_시작에_실패한다() {
 		contextRunner.run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(context.getStartupFailure())
@@ -33,9 +33,9 @@ class JwtSecretConfigurationTest {
 	}
 
 	@Test
-	void startsContextWhenJwtSecretIsConfigured() {
+	void JWT_비밀키가_설정되면_컨텍스트가_시작된다() {
 		contextRunner
-			.withPropertyValues("app.jwt.secret=" + randomAsciiSecret())
+			.withPropertyValues("app.jwt.secret=" + 무작위_ASCII_비밀키_생성())
 			.run(context -> assertThat(context).hasNotFailed());
 	}
 
@@ -54,7 +54,7 @@ class JwtSecretConfigurationTest {
 		}
 	}
 
-	private String randomAsciiSecret() {
+	private String 무작위_ASCII_비밀키_생성() {
 		String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 		SecureRandom secureRandom = new SecureRandom();
 		StringBuilder secret = new StringBuilder(32);

@@ -36,7 +36,7 @@ class TaskServiceTest {
 	private TaskService taskService;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		taskRepository = Mockito.mock(TaskRepository.class);
 		llmParsingService = Mockito.mock(LlmParsingService.class);
 		userReader = Mockito.mock(UserReader.class);
@@ -45,8 +45,8 @@ class TaskServiceTest {
 
 	@Test
 	void 자연어_생성시_LLM_선호시간대가_null이면_Task에도_null로_저장한다() {
-		User user = user();
-		ParsedTaskResponse parsed = parsedResponse(null);
+		User user = 사용자_생성();
+		ParsedTaskResponse parsed = 분석_응답_생성(null);
 		when(userReader.read(1L)).thenReturn(user);
 		when(llmParsingService.parseTask(any(LlmParseRequest.class))).thenReturn(parsed);
 		when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -64,7 +64,7 @@ class TaskServiceTest {
 
 	@Test
 	void 수정시_선호시간대를_null로_변경할_수_있다() {
-		Task task = taskWithPreferredTimeRange(PreferredTimeRange.AFTERNOON);
+		Task task = 선호_시간대가_있는_Task_생성(PreferredTimeRange.AFTERNOON);
 		TaskRequest.Update request = new TaskRequest.Update(
 			"과제",
 			TaskCategory.ASSIGNMENT,
@@ -88,7 +88,7 @@ class TaskServiceTest {
 
 	@Test
 	void 자연어_생성시_필수조건과_명시시각을_Task에_보존한다() {
-		User user = user();
+		User user = 사용자_생성();
 		ParsedTaskResponse parsed = new ParsedTaskResponse(
 			"알고리즘 공부", TaskCategory.STUDY, 120, null, DayOfWeek.THURSDAY, null,
 			PreferredTimeRange.EVENING, null, TaskPriority.NORMAL,
@@ -113,7 +113,7 @@ class TaskServiceTest {
 	@Test
 	void 수정_요청에_새_조건필드가_없으면_기존_명시시각과_필수조건을_보존한다() {
 		Task task = Task.create(
-			user(), "공부", TaskCategory.STUDY, 60, null, DayOfWeek.THURSDAY,
+			사용자_생성(), "공부", TaskCategory.STUDY, 60, null, DayOfWeek.THURSDAY,
 			null, null, PreferredTimeRange.EVENING, null, TaskPriority.NORMAL, "목요일 저녁 7시 공부",
 			true, true, LocalTime.of(19, 0)
 		);
@@ -132,8 +132,8 @@ class TaskServiceTest {
 
 	@Test
 	void 사용자의_Task_목록을_최신순으로_조회한다() {
-		Task firstTask = taskWithTitle("첫 번째 과제");
-		Task secondTask = taskWithTitle("두 번째 과제");
+		Task firstTask = 제목이_있는_Task_생성("첫 번째 과제");
+		Task secondTask = 제목이_있는_Task_생성("두 번째 과제");
 		when(taskRepository.findAllByUserIdOrderByCreatedAtDesc(1L))
 			.thenReturn(List.of(secondTask, firstTask));
 
@@ -144,7 +144,7 @@ class TaskServiceTest {
 		assertEquals("첫 번째 과제", responses.get(1).title());
 	}
 
-	private ParsedTaskResponse parsedResponse(PreferredTimeRange preferredTimeRange) {
+	private ParsedTaskResponse 분석_응답_생성(PreferredTimeRange preferredTimeRange) {
 		return new ParsedTaskResponse(
 			"과제",
 			TaskCategory.ASSIGNMENT,
@@ -159,17 +159,17 @@ class TaskServiceTest {
 		);
 	}
 
-	private Task taskWithPreferredTimeRange(PreferredTimeRange preferredTimeRange) {
-		return taskWithTitleAndPreferredTimeRange("과제", preferredTimeRange);
+	private Task 선호_시간대가_있는_Task_생성(PreferredTimeRange preferredTimeRange) {
+		return 제목과_선호_시간대가_있는_Task_생성("과제", preferredTimeRange);
 	}
 
-	private Task taskWithTitle(String title) {
-		return taskWithTitleAndPreferredTimeRange(title, null);
+	private Task 제목이_있는_Task_생성(String title) {
+		return 제목과_선호_시간대가_있는_Task_생성(title, null);
 	}
 
-	private Task taskWithTitleAndPreferredTimeRange(String title, PreferredTimeRange preferredTimeRange) {
+	private Task 제목과_선호_시간대가_있는_Task_생성(String title, PreferredTimeRange preferredTimeRange) {
 		return Task.create(
-			user(),
+			사용자_생성(),
 			title,
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -184,7 +184,7 @@ class TaskServiceTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

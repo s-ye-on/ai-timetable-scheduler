@@ -16,7 +16,7 @@ class TimetableSlotTest {
 
 	@Test
 	void 시간표를_생성하면_필드와_생성시간_수정시간이_설정된다() {
-		User user = user();
+		User user = 사용자_생성();
 
 		TimetableSlot slot = TimetableSlot.create(
 			user,
@@ -39,7 +39,7 @@ class TimetableSlotTest {
 
 	@Test
 	void 시간표를_수정하면_자신의_상태를_변경한다() {
-		TimetableSlot slot = validSlot();
+		TimetableSlot slot = 유효한_수업_생성();
 
 		slot.update(
 			"운영체제",
@@ -61,7 +61,7 @@ class TimetableSlotTest {
 		TimetableSlotException exception = assertThrows(
 			TimetableSlotException.class,
 			() -> TimetableSlot.create(
-				user(),
+				사용자_생성(),
 				" ",
 				DayOfWeek.MONDAY,
 				"공학관 101",
@@ -78,7 +78,7 @@ class TimetableSlotTest {
 		TimetableSlotException exception = assertThrows(
 			TimetableSlotException.class,
 			() -> TimetableSlot.create(
-				user(),
+				사용자_생성(),
 				"자료구조",
 				null,
 				"공학관 101",
@@ -95,7 +95,7 @@ class TimetableSlotTest {
 		TimetableSlotException exception = assertThrows(
 			TimetableSlotException.class,
 			() -> TimetableSlot.create(
-				user(),
+				사용자_생성(),
 				"자료구조",
 				DayOfWeek.MONDAY,
 				"공학관 101",
@@ -112,7 +112,7 @@ class TimetableSlotTest {
 		TimetableSlotException exception = assertThrows(
 			TimetableSlotException.class,
 			() -> TimetableSlot.create(
-				user(),
+				사용자_생성(),
 				"자료구조",
 				DayOfWeek.MONDAY,
 				"공학관 101",
@@ -124,9 +124,9 @@ class TimetableSlotTest {
 		assertEquals(ExceptionCode.INVALID_TIMETABLE_SLOT_TIME, exception.getExceptionCode());
 	}
 
-	private TimetableSlot validSlot() {
+	private TimetableSlot 유효한_수업_생성() {
 		return TimetableSlot.create(
-			user(),
+			사용자_생성(),
 			"자료구조",
 			DayOfWeek.MONDAY,
 			"공학관 101",
@@ -135,7 +135,7 @@ class TimetableSlotTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

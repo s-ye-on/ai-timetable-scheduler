@@ -31,7 +31,7 @@ class PreferenceServiceTest {
 	private PreferenceService preferenceService;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		preferenceRepository = Mockito.mock(PreferenceRepository.class);
 		userReader = Mockito.mock(UserReader.class);
 		preferenceService = new PreferenceService(preferenceRepository, userReader);
@@ -39,7 +39,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 기본_사용자_선호를_생성한다() {
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		when(preferenceRepository.existsByUserId(1L)).thenReturn(false);
 		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -57,7 +57,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 기본_사용자_선호가_이미_있으면_새로_저장하지_않고_반환한다() {
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		Preference preference = Preference.createDefault(user);
 		when(preferenceRepository.existsByUserId(1L)).thenReturn(true);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
@@ -70,7 +70,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호를_조회한다() {
-		Preference preference = Preference.createDefault(user(1L));
+		Preference preference = Preference.createDefault(사용자_생성(1L));
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 
 		PreferenceResponse.Read response = preferenceService.read(1L);
@@ -81,7 +81,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호가_없으면_조회시_기본값으로_복구한다() {
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		when(userReader.read(1L)).thenReturn(user);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
 		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -95,8 +95,8 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호를_수정하면_customized가_true가_된다() {
-		Preference preference = Preference.createDefault(user(1L));
-		PreferenceRequest.Update request = updateRequest();
+		Preference preference = Preference.createDefault(사용자_생성(1L));
+		PreferenceRequest.Update request = 수정_요청_생성();
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(preference));
 
 		PreferenceResponse.Read response = preferenceService.update(1L, request);
@@ -112,8 +112,8 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호가_없으면_수정시_기본값으로_복구한_뒤_수정한다() {
-		User user = user(1L);
-		PreferenceRequest.Update request = updateRequest();
+		User user = 사용자_생성(1L);
+		PreferenceRequest.Update request = 수정_요청_생성();
 		when(userReader.read(1L)).thenReturn(user);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
 		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -132,7 +132,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호를_기본값으로_되돌리면_customized가_false가_된다() {
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.EVENING,
@@ -157,7 +157,7 @@ class PreferenceServiceTest {
 
 	@Test
 	void 사용자_선호가_없어도_기본값으로_되돌리면_기본_선호를_생성한다() {
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		when(userReader.read(1L)).thenReturn(user);
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
 		when(preferenceRepository.save(any(Preference.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -169,7 +169,7 @@ class PreferenceServiceTest {
 		verify(preferenceRepository).save(any(Preference.class));
 	}
 
-	private PreferenceRequest.Update updateRequest() {
+	private PreferenceRequest.Update 수정_요청_생성() {
 		return new PreferenceRequest.Update(
 			PreferredTimeRange.EVENING,
 			LocalTime.of(10, 0),
@@ -180,7 +180,7 @@ class PreferenceServiceTest {
 		);
 	}
 
-	private User user(Long id) {
+	private User 사용자_생성(Long id) {
 		User user = new User("Tester", "tester@example.com", "encodedPassword");
 		ReflectionTestUtils.setField(user, "id", id);
 		return user;

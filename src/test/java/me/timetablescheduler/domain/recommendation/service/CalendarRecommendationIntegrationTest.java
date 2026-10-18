@@ -51,7 +51,7 @@ class CalendarRecommendationIntegrationTest {
 	private Task task;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		when(clock.instant()).thenReturn(Instant.parse("2026-10-19T00:00:00Z"));
 		when(clock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
 		user = users.save(new User("테스터", "t05-" + UUID.randomUUID().toString().substring(0, 8) + "@example.com", "test-only-password-hash"));
@@ -60,34 +60,34 @@ class CalendarRecommendationIntegrationTest {
 	}
 
 	@Test
-	void disconnectedUserCanGenerateButCannotFinalizeOrChangeStoredState() {
+	void 미연동_사용자는_추천할_수_있지만_확정하거나_저장_상태를_변경할_수_없다() {
 		var result = service.recommend(user.getId(), task.getId());
 		assertThat(result.recommendations()).hasSize(3);
 		Long id = result.recommendations().getFirst().id();
 		assertThatThrownBy(() -> service.select(user.getId(), id)).isInstanceOf(CalendarException.class)
 			.satisfies(error -> assertThat(((CalendarException) error).getExceptionCode())
 				.isEqualTo(ExceptionCode.GOOGLE_CALENDAR_NOT_CONNECTED));
-		assertTaskUnscheduled();
+		Task_미확정_검증();
 		assertThat(recommendations.findById(id).orElseThrow().getStatus()).isEqualTo(RecommendationStatus.PROPOSED);
-		assertNoEventCreated();
+		이벤트_미생성_검증();
 		verify(calendarClient, never()).getBusyBlocks(anyString(), anyString(), any(), any());
 	}
 
 	@Test
-	void connectedEmptyCalendarAllowsRecommendationsWithoutAutoScheduling() {
-		connect();
+	void 연결된_Calendar에_일정이_없으면_자동_확정_없이_추천한다() {
+		연결_설정();
 		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any())).thenReturn(List.of());
 		var result = service.recommend(user.getId(), task.getId());
 		assertThat(result.recommendations()).hasSize(3);
 		assertThat(recommendations.findAllByTaskIdAndUserIdAndStatus(task.getId(), user.getId(), RecommendationStatus.PROPOSED))
 			.hasSize(3);
-		assertTaskUnscheduled();
-		assertNoEventCreated();
+		Task_미확정_검증();
+		이벤트_미생성_검증();
 	}
 
 	@Test
-	void failedFreeBusyBlocksNewRecommendationsAndPreservesExistingCandidates() {
-		connect();
+	void FreeBusy_조회에_실패하면_새_추천을_차단하고_기존_후보를_보존한다() {
+		연결_설정();
 		var previous = recommendations.save(Recommendation.create(user, task,
 			LocalDateTime.of(2026, 10, 20, 10, 0), LocalDateTime.of(2026, 10, 20, 11, 0), 1, 80, "기존 후보"));
 		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
@@ -98,22 +98,22 @@ class CalendarRecommendationIntegrationTest {
 				.isEqualTo(ExceptionCode.GOOGLE_CALENDAR_FREE_BUSY_FAILED));
 		assertThat(recommendations.findAllByTaskIdAndUserIdAndStatus(task.getId(), user.getId(), RecommendationStatus.PROPOSED))
 			.extracting(Recommendation::getId).containsExactly(previous.getId());
-		assertTaskUnscheduled();
-		assertNoEventCreated();
+		Task_미확정_검증();
+		이벤트_미생성_검증();
 	}
 
-	private void connect() {
+	private void 연결_설정() {
 		tokens.save(CalendarToken.create(user, "test-only-access", "test-only-refresh", LocalDateTime.of(2026, 10, 30, 0, 0)));
 	}
 
-	private void assertTaskUnscheduled() {
+	private void Task_미확정_검증() {
 		var stored = tasks.findById(task.getId()).orElseThrow();
 		assertThat(stored.getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
 		assertThat(stored.getScheduledStartAt()).isNull();
 		assertThat(stored.getScheduledEndAt()).isNull();
 	}
 
-	private void assertNoEventCreated() {
+	private void 이벤트_미생성_검증() {
 		verify(calendarClient, never()).createEvent(anyString(), anyString(), anyString(), anyString(), any(), any(), any());
 	}
 }

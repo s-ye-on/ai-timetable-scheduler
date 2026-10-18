@@ -29,7 +29,7 @@ class GoogleOAuthStateServiceTest {
 		MockHttpSession session = new MockHttpSession();
 		String state = service.issue(session, 1L);
 
-		clock.setInstant(Instant.parse("2026-10-16T00:04:59.999Z"));
+		clock.기준_시각_설정(Instant.parse("2026-10-16T00:04:59.999Z"));
 
 		assertThat(service.consume(session, state)).isEqualTo(1L);
 	}
@@ -41,13 +41,13 @@ class GoogleOAuthStateServiceTest {
 		MockHttpSession expiresAtSession = new MockHttpSession();
 		String expiresAtState = service.issue(expiresAtSession, 1L);
 
-		clock.setInstant(Instant.parse("2026-10-16T00:05:00Z"));
-		assertInvalidState(() -> service.consume(expiresAtSession, expiresAtState));
+		clock.기준_시각_설정(Instant.parse("2026-10-16T00:05:00Z"));
+		유효하지_않은_state_검증(() -> service.consume(expiresAtSession, expiresAtState));
 
 		MockHttpSession afterExpirySession = new MockHttpSession();
 		String afterExpiryState = service.issue(afterExpirySession, 2L);
-		clock.setInstant(Instant.parse("2026-10-16T00:10:01Z"));
-		assertInvalidState(() -> service.consume(afterExpirySession, afterExpiryState));
+		clock.기준_시각_설정(Instant.parse("2026-10-16T00:10:01Z"));
+		유효하지_않은_state_검증(() -> service.consume(afterExpirySession, afterExpiryState));
 	}
 
 	@Test
@@ -60,10 +60,10 @@ class GoogleOAuthStateServiceTest {
 		String tamperedState = state.substring(0, state.length() - 1)
 			+ (state.endsWith("A") ? "B" : "A");
 
-		assertInvalidState(() -> service.consume(issuedSession, null));
-		assertInvalidState(() -> service.consume(issuedSession, tamperedState));
-		assertInvalidState(() -> service.consume(new MockHttpSession(), state));
-		assertInvalidState(() -> service.consume(null, state));
+		유효하지_않은_state_검증(() -> service.consume(issuedSession, null));
+		유효하지_않은_state_검증(() -> service.consume(issuedSession, tamperedState));
+		유효하지_않은_state_검증(() -> service.consume(new MockHttpSession(), state));
+		유효하지_않은_state_검증(() -> service.consume(null, state));
 	}
 
 	@Test
@@ -75,7 +75,7 @@ class GoogleOAuthStateServiceTest {
 		String firstState = service.issue(session, 1L);
 		String replacementState = service.issue(session, 1L);
 
-		assertInvalidState(() -> service.consume(session, firstState));
+		유효하지_않은_state_검증(() -> service.consume(session, firstState));
 		assertThat(service.consume(session, replacementState)).isEqualTo(1L);
 	}
 
@@ -88,7 +88,7 @@ class GoogleOAuthStateServiceTest {
 		String state = service.issue(session, 1L);
 
 		assertThat(service.consume(session, state)).isEqualTo(1L);
-		assertInvalidState(() -> service.consume(session, state));
+		유효하지_않은_state_검증(() -> service.consume(session, state));
 	}
 
 	@Test
@@ -132,8 +132,8 @@ class GoogleOAuthStateServiceTest {
 		}
 	}
 
-	private void assertInvalidState(ThrowingRunnable action) {
-		assertThatThrownBy(action::run)
+	private void 유효하지_않은_state_검증(ThrowingRunnable action) {
+		assertThatThrownBy(action::실행)
 			.isInstanceOf(CalendarException.class)
 			.extracting(exception -> ((CalendarException) exception).getExceptionCode())
 			.isEqualTo(ExceptionCode.INVALID_GOOGLE_OAUTH_STATE);
@@ -141,7 +141,7 @@ class GoogleOAuthStateServiceTest {
 
 	@FunctionalInterface
 	private interface ThrowingRunnable {
-		void run();
+		void 실행();
 	}
 
 	private static final class MutableClock extends Clock {
@@ -151,7 +151,7 @@ class GoogleOAuthStateServiceTest {
 			this.instant = instant;
 		}
 
-		void setInstant(Instant instant) {
+		void 기준_시각_설정(Instant instant) {
 			this.instant = instant;
 		}
 

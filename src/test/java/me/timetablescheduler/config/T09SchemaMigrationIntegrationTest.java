@@ -24,11 +24,11 @@ class T09SchemaMigrationIntegrationTest {
 	@Test
 	void 기존_파일_DB에_T09_열을_비파괴적으로_추가하고_재시작_후에도_기존_행을_보존한다() throws Exception {
 		Path databasePath = temporaryDirectory.resolve("legacy-t09");
-		createLegacyDatabase(databasePath);
+		기존_형식_DB_생성(databasePath);
 
-		try (Connection connection = connect(databasePath)) {
-			applyMigration(connection);
-			applyMigration(connection);
+		try (Connection connection = 연결_설정(databasePath)) {
+			마이그레이션_적용(connection);
+			마이그레이션_적용(connection);
 
 			try (Statement statement = connection.createStatement();
 				 ResultSet task = statement.executeQuery("""
@@ -60,12 +60,12 @@ class T09SchemaMigrationIntegrationTest {
 				assertThat(recommendation.getObject("match_type")).isNull();
 			}
 
-			assertThatThrownBy(() -> statementExecute(connection,
+			assertThatThrownBy(() -> SQL_실행(connection,
 				"UPDATE recommendation SET match_type = 'UNSUPPORTED' WHERE id = 19"))
 				.isInstanceOf(SQLException.class);
 		}
 
-		try (Connection restartedConnection = connect(databasePath);
+		try (Connection restartedConnection = 연결_설정(databasePath);
 			 Statement statement = restartedConnection.createStatement();
 			 ResultSet resultSet = statement.executeQuery("""
 				 SELECT t.id, r.id, r.google_event_id, r.match_type
@@ -80,8 +80,8 @@ class T09SchemaMigrationIntegrationTest {
 		}
 	}
 
-	private void createLegacyDatabase(Path databasePath) throws SQLException {
-		try (Connection connection = connect(databasePath); Statement statement = connection.createStatement()) {
+	private void 기존_형식_DB_생성(Path databasePath) throws SQLException {
+		try (Connection connection = 연결_설정(databasePath); Statement statement = connection.createStatement()) {
 			statement.execute("CREATE TABLE users (id BIGINT PRIMARY KEY)");
 			statement.execute("""
 				CREATE TABLE task (
@@ -114,18 +114,18 @@ class T09SchemaMigrationIntegrationTest {
 		}
 	}
 
-	private void applyMigration(Connection connection) {
+	private void 마이그레이션_적용(Connection connection) {
 		ScriptUtils.executeSqlScript(connection,
 			new ClassPathResource("db/migration/t09-add-recommendation-quality-columns.sql"));
 	}
 
-	private void statementExecute(Connection connection, String sql) throws SQLException {
+	private void SQL_실행(Connection connection, String sql) throws SQLException {
 		try (Statement statement = connection.createStatement()) {
 			statement.execute(sql);
 		}
 	}
 
-	private Connection connect(Path databasePath) throws SQLException {
+	private Connection 연결_설정(Path databasePath) throws SQLException {
 		return DriverManager.getConnection(
 			"jdbc:h2:file:" + databasePath.toAbsolutePath()
 				+ ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_ON_EXIT=FALSE",

@@ -7,6 +7,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 class TimetableSchedulerApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void 애플리케이션_컨텍스트가_정상적으로_시작된다() {
 	}
 }

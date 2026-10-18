@@ -18,7 +18,7 @@ class PreferenceTest {
 
 	@Test
 	void 기본_사용자_선호를_생성한다() {
-		Preference preference = Preference.createDefault(user());
+		Preference preference = Preference.createDefault(사용자_생성());
 
 		assertEquals(PreferredTimeRange.ANYTIME, preference.getPreferredTimeRange());
 		assertEquals(LocalTime.of(9, 0), preference.getScheduleStartTime());
@@ -32,7 +32,7 @@ class PreferenceTest {
 	@Test
 	void 사용자_선호를_생성한다() {
 		Preference preference = Preference.create(
-			user(),
+			사용자_생성(),
 			PreferredTimeRange.EVENING,
 			LocalTime.of(10, 0),
 			LocalTime.of(21, 0),
@@ -52,7 +52,7 @@ class PreferenceTest {
 
 	@Test
 	void 사용자_선호를_수정한다() {
-		Preference preference = Preference.createDefault(user());
+		Preference preference = Preference.createDefault(사용자_생성());
 
 		preference.update(
 			PreferredTimeRange.MORNING,
@@ -75,7 +75,7 @@ class PreferenceTest {
 	@Test
 	void 사용자_선호를_기본값으로_되돌린다() {
 		Preference preference = Preference.create(
-			user(),
+			사용자_생성(),
 			PreferredTimeRange.EVENING,
 			LocalTime.of(10, 0),
 			LocalTime.of(21, 0),
@@ -113,7 +113,7 @@ class PreferenceTest {
 	@Test
 	void 추천_가능_시작시간이_종료시간보다_빠르지_않으면_생성할_수_없다() {
 		PreferenceException exception = assertThrows(PreferenceException.class, () -> Preference.create(
-			user(),
+			사용자_생성(),
 			PreferredTimeRange.ANYTIME,
 			LocalTime.of(22, 0),
 			LocalTime.of(9, 0),
@@ -128,7 +128,7 @@ class PreferenceTest {
 	@Test
 	void 최소_여유시간이_음수이면_생성할_수_없다() {
 		PreferenceException exception = assertThrows(PreferenceException.class, () -> Preference.create(
-			user(),
+			사용자_생성(),
 			PreferredTimeRange.ANYTIME,
 			LocalTime.of(9, 0),
 			LocalTime.of(22, 0),
@@ -143,7 +143,7 @@ class PreferenceTest {
 	@Test
 	void 최소_여유시간이_5분_단위가_아니면_생성할_수_없다() {
 		PreferenceException exception = assertThrows(PreferenceException.class, () -> Preference.create(
-			user(),
+			사용자_생성(),
 			PreferredTimeRange.ANYTIME,
 			LocalTime.of(9, 0),
 			LocalTime.of(22, 0),
@@ -155,7 +155,7 @@ class PreferenceTest {
 		assertEquals(ExceptionCode.INVALID_PREFERENCE_GAP, exception.getExceptionCode());
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

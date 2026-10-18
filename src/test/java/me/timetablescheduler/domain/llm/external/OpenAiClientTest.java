@@ -36,7 +36,7 @@ class OpenAiClientTest {
 	private OpenAiClient client;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		RestClient.Builder builder = RestClient.builder();
 		server = MockRestServiceServer.bindTo(builder).build();
 		client = new OpenAiClient(new OpenAiProperties("test-only-key", "test-model", "https://openai.test/v1"), mapper, builder);
@@ -44,49 +44,49 @@ class OpenAiClientTest {
 
 	@ParameterizedTest
 	@ValueSource(ints = {400, 401, 429, 500, 503})
-	void httpFailuresAreUpstreamErrorsWithoutLeakingResponse(int status, CapturedOutput output) {
+	void HTTP_실패는_응답을_노출하지_않고_외부_API_오류로_처리한다(int status, CapturedOutput output) {
 		server.expect(requestTo("https://openai.test/v1/responses"))
 			.andRespond(withStatus(HttpStatus.valueOf(status)).contentType(MediaType.APPLICATION_JSON)
 				.body("{\"error\":{\"message\":\"" + PRIVATE_TEXT + "\"}}"));
 
-		assertError("OPENAI_API_FAILED", () -> client.parseTask(PRIVATE_TEXT));
+		오류_검증("OPENAI_API_FAILED", () -> client.parseTask(PRIVATE_TEXT));
 		assertThat(output.getAll()).doesNotContain(PRIVATE_TEXT, "test-only-key");
 		server.verify();
 	}
 
 	@Test
-	void timeoutIsAnUpstreamErrorWithoutLeakingExceptionMessage(CapturedOutput output) {
+	void 시간_초과는_예외_메시지를_노출하지_않고_외부_API_오류로_처리한다(CapturedOutput output) {
 		server.expect(requestTo("https://openai.test/v1/responses"))
 			.andRespond(withException(new SocketTimeoutException(PRIVATE_TEXT)));
 
-		assertError("OPENAI_API_FAILED", () -> client.parseTask(PRIVATE_TEXT));
+		오류_검증("OPENAI_API_FAILED", () -> client.parseTask(PRIVATE_TEXT));
 		assertThat(output.getAll()).doesNotContain(PRIVATE_TEXT);
 		server.verify();
 	}
 
 	@ParameterizedTest
 	@ValueSource(strings = {"{", "{}", "null", "{\"output\":[]}"})
-	void invalidSuccessfulResponsesRemainParsingErrors(String body, CapturedOutput output) {
+	void 유효하지_않은_성공_응답은_파싱_오류로_처리한다(String body, CapturedOutput output) {
 		server.expect(requestTo("https://openai.test/v1/responses"))
 			.andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
-		assertError(ExceptionCode.INVALID_LLM_PARSE_RESULT.name(), () -> client.parseTask(PRIVATE_TEXT));
+		오류_검증(ExceptionCode.INVALID_LLM_PARSE_RESULT.name(), () -> client.parseTask(PRIVATE_TEXT));
 		assertThat(output.getAll()).doesNotContain(PRIVATE_TEXT);
 		server.verify();
 	}
 
 	@Test
-	void malformedStructuredOutputRemainsAParsingErrorAndDoesNotLeakText(CapturedOutput output) {
+	void 잘못된_구조화_응답은_원문을_노출하지_않고_파싱_오류로_처리한다(CapturedOutput output) {
 		server.expect(requestTo("https://openai.test/v1/responses"))
-			.andRespond(withSuccess(envelope("{\"title\":\"" + PRIVATE_TEXT + "\",\"category\":\"INVALID\"}"), MediaType.APPLICATION_JSON));
-		assertError(ExceptionCode.INVALID_LLM_PARSE_RESULT.name(), () -> client.parseTask(PRIVATE_TEXT));
+			.andRespond(withSuccess(응답_본문_감싸기("{\"title\":\"" + PRIVATE_TEXT + "\",\"category\":\"INVALID\"}"), MediaType.APPLICATION_JSON));
+		오류_검증(ExceptionCode.INVALID_LLM_PARSE_RESULT.name(), () -> client.parseTask(PRIVATE_TEXT));
 		assertThat(output.getAll()).doesNotContain(PRIVATE_TEXT);
 		server.verify();
 	}
 
 	@Test
-	void validStructuredOutputIsParsedWithoutChangingConditions() {
+	void 유효한_구조화_응답은_조건을_변경하지_않고_해석한다() {
 		server.expect(requestTo("https://openai.test/v1/responses"))
-			.andRespond(withSuccess(envelope("""
+			.andRespond(withSuccess(응답_본문_감싸기("""
 				{"title":"과제","category":"ASSIGNMENT","durationMinutes":90,
 				 "preferredDate":"2026-10-20","preferredTimeRange":"AFTERNOON","priority":"HIGH"}
 				"""), MediaType.APPLICATION_JSON));
@@ -99,11 +99,11 @@ class OpenAiClientTest {
 		server.verify();
 	}
 
-	private String envelope(String text) {
+	private String 응답_본문_감싸기(String text) {
 		return mapper.writeValueAsString(Map.of("output", List.of(Map.of("content", List.of(Map.of("text", text))))));
 	}
 
-	private void assertError(String expected, Runnable action) {
+	private void 오류_검증(String expected, Runnable action) {
 		assertThatThrownBy(action::run).isInstanceOf(LlmException.class)
 			.satisfies(error -> {
 				var code = ((LlmException) error).getExceptionCode();

@@ -42,7 +42,7 @@ class DatabasePersistenceIntegrationTest {
 		Path databasePath = temporaryDirectory.resolve("persistence-check");
 		long persistedUserId;
 
-		try (ConfigurableApplicationContext context = startFileDatabase(
+		try (ConfigurableApplicationContext context = 파일_DB_시작(
 			databasePath,
 			"spring.jpa.hibernate.ddl-auto=create"
 		)) {
@@ -62,7 +62,7 @@ class DatabasePersistenceIntegrationTest {
 			persistedUserId = user.getId();
 		}
 
-		try (ConfigurableApplicationContext context = startFileDatabase(databasePath)) {
+		try (ConfigurableApplicationContext context = 파일_DB_시작(databasePath)) {
 			UserRepository userRepository = context.getBean(UserRepository.class);
 			TimetableSlotRepository timetableSlotRepository = context.getBean(TimetableSlotRepository.class);
 			User restoredUser = userRepository.findByEmail("persisted@example.com").orElseThrow();
@@ -90,7 +90,7 @@ class DatabasePersistenceIntegrationTest {
 			.bannerMode(Banner.Mode.OFF)
 			.run(
 				"--spring.config.location=classpath:/application.yaml",
-				"--spring.datasource.url=" + fileUrl(databasePath),
+				"--spring.datasource.url=" + 파일_DB_URL(databasePath),
 				"--spring.datasource.username=sa",
 				"--spring.datasource.password=",
 				"--spring.sql.init.mode=never",
@@ -102,7 +102,7 @@ class DatabasePersistenceIntegrationTest {
 			userId = user.getId();
 		}
 
-		try (ConfigurableApplicationContext context = startFileDatabase(databasePath)) {
+		try (ConfigurableApplicationContext context = 파일_DB_시작(databasePath)) {
 			User restored = context.getBean(UserRepository.class).findByEmail("legacy@example.com").orElseThrow();
 			assertThat(restored.getId()).isEqualTo(userId);
 			assertThat(restored.getName()).isEqualTo("Legacy");
@@ -113,25 +113,25 @@ class DatabasePersistenceIntegrationTest {
 	void 스키마가_달라지면_validate가_실패하고_기존_행은_삭제하지_않는다() throws Exception {
 		Path databasePath = temporaryDirectory.resolve("schema-drift-check");
 
-		try (ConfigurableApplicationContext context = startFileDatabase(databasePath)) {
+		try (ConfigurableApplicationContext context = 파일_DB_시작(databasePath)) {
 			context.getBean(UserRepository.class)
 				.saveAndFlush(new User("Persisted", "schema-drift@example.com", "encodedPassword"));
 		}
 
-		try (Connection connection = DriverManager.getConnection(fileUrl(databasePath), "sa", "");
+		try (Connection connection = DriverManager.getConnection(파일_DB_URL(databasePath), "sa", "");
 			 Statement statement = connection.createStatement()) {
 			statement.execute("ALTER TABLE users DROP COLUMN password");
 		}
 
 		assertThatThrownBy(() -> {
-			try (ConfigurableApplicationContext ignored = startFileDatabase(databasePath)) {
+			try (ConfigurableApplicationContext ignored = 파일_DB_시작(databasePath)) {
 				// The application context must not start with a stale schema.
 			}
 		})
 			.hasRootCauseInstanceOf(SchemaManagementException.class)
 			.hasStackTraceContaining("missing column [password]");
 
-		try (Connection connection = DriverManager.getConnection(fileUrl(databasePath), "sa", "");
+		try (Connection connection = DriverManager.getConnection(파일_DB_URL(databasePath), "sa", "");
 			 Statement statement = connection.createStatement();
 			 ResultSet resultSet = statement.executeQuery(
 				"SELECT COUNT(*) FROM users WHERE email = 'schema-drift@example.com'"
@@ -143,7 +143,7 @@ class DatabasePersistenceIntegrationTest {
 
 	@Test
 	void 테스트_기본_설정은_메모리_DB와_create_drop을_계속_사용한다() {
-		StandardEnvironment environment = newIsolatedEnvironment();
+		StandardEnvironment environment = 격리_환경_생성();
 
 		ConfigDataEnvironmentPostProcessor.applyTo(environment);
 
@@ -160,7 +160,7 @@ class DatabasePersistenceIntegrationTest {
 			spring.jpa.hibernate.ddl-auto=create
 			spring.config.import=classpath:database.properties
 			""");
-		StandardEnvironment environment = newIsolatedEnvironment();
+		StandardEnvironment environment = 격리_환경_생성();
 		environment.getPropertySources().addFirst(new MapPropertySource("testConfig", java.util.Map.of(
 			"spring.config.location", "classpath:/application.yaml," + legacyProperties.toUri()
 		)));
@@ -170,12 +170,12 @@ class DatabasePersistenceIntegrationTest {
 		assertThat(environment.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
 	}
 
-	private ConfigurableApplicationContext startFileDatabase(Path databasePath, String... defaultProperties) {
+	private ConfigurableApplicationContext 파일_DB_시작(Path databasePath, String... defaultProperties) {
 		SpringApplicationBuilder applicationBuilder = new SpringApplicationBuilder(PersistenceOnlyApplication.class)
 			.web(WebApplicationType.NONE)
 			.bannerMode(Banner.Mode.OFF)
 			.listeners((ApplicationListener<ApplicationEnvironmentPreparedEvent>) event -> {
-				assertThat(event.getEnvironment().getProperty("spring.datasource.url")).isEqualTo(fileUrl(databasePath));
+				assertThat(event.getEnvironment().getProperty("spring.datasource.url")).isEqualTo(파일_DB_URL(databasePath));
 				assertThat(event.getEnvironment().getProperty("spring.sql.init.mode")).isEqualTo("always");
 				assertThat(event.getEnvironment().getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
 			})
@@ -183,18 +183,18 @@ class DatabasePersistenceIntegrationTest {
 
 		return applicationBuilder.run(
 			"--spring.config.location=classpath:/application.yaml",
-			"--spring.datasource.url=" + fileUrl(databasePath),
+			"--spring.datasource.url=" + 파일_DB_URL(databasePath),
 			"--spring.datasource.username=sa",
 			"--spring.datasource.password=",
 			"--spring.h2.console.enabled=false"
 		);
 	}
 
-	private String fileUrl(Path databasePath) {
+	private String 파일_DB_URL(Path databasePath) {
 		return "jdbc:h2:file:" + databasePath.toAbsolutePath() + ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_ON_EXIT=FALSE";
 	}
 
-	private StandardEnvironment newIsolatedEnvironment() {
+	private StandardEnvironment 격리_환경_생성() {
 		StandardEnvironment environment = new StandardEnvironment();
 		environment.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
 		environment.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);

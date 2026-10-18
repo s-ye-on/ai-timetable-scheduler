@@ -18,7 +18,7 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보를_생성하면_PROPOSED_상태가_된다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		assertEquals(RecommendationStatus.PROPOSED, recommendation.getStatus());
 		assertEquals(1, recommendation.getRank());
@@ -29,10 +29,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보_시간이_Task_소요시간과_다르면_생성할_수_없다() {
-		User user = user();
+		User user = 사용자_생성();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
 			user,
-			task(user),
+			Task_생성(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 30),
 			1,
@@ -45,10 +45,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보_종료시간이_시작시간보다_빠르거나_같으면_생성할_수_없다() {
-		User user = user();
+		User user = 사용자_생성();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
 			user,
-			task(user),
+			Task_생성(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			1,
@@ -61,10 +61,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_순위는_1이상이어야_한다() {
-		User user = user();
+		User user = 사용자_생성();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
 			user,
-			task(user),
+			Task_생성(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			0,
@@ -77,10 +77,10 @@ class RecommendationTest {
 
 	@Test
 	void 추천_점수는_0이상이어야_한다() {
-		User user = user();
+		User user = 사용자_생성();
 		RecommendationException exception = assertThrows(RecommendationException.class, () -> Recommendation.create(
 			user,
-			task(user),
+			Task_생성(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			1,
@@ -93,7 +93,7 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보를_선택하면_SELECTED가_된다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		recommendation.select();
 
@@ -102,7 +102,7 @@ class RecommendationTest {
 
 	@Test
 	void 선택된_추천_후보는_SYNCED가_될_수_있다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 		recommendation.select();
 
 		recommendation.sync("google-event-id");
@@ -113,7 +113,7 @@ class RecommendationTest {
 
 	@Test
 	void 선택되지_않은_추천_후보는_SYNCED가_될_수_없다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		RecommendationException exception = assertThrows(
 			RecommendationException.class,
@@ -125,7 +125,7 @@ class RecommendationTest {
 
 	@Test
 	void Google_Event_Id가_없으면_SYNCED가_될_수_없다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 		recommendation.select();
 
 		RecommendationException exception = assertThrows(
@@ -138,7 +138,7 @@ class RecommendationTest {
 
 	@Test
 	void 선택된_추천_후보는_SYNC_FAILED가_될_수_있다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 		recommendation.select();
 
 		recommendation.failSync();
@@ -148,7 +148,7 @@ class RecommendationTest {
 
 	@Test
 	void 선택되지_않은_추천_후보는_SYNC_FAILED가_될_수_없다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		RecommendationException exception = assertThrows(RecommendationException.class, recommendation::failSync);
 
@@ -157,7 +157,7 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보는_거절될_수_있다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		recommendation.reject();
 
@@ -166,7 +166,7 @@ class RecommendationTest {
 
 	@Test
 	void 추천_후보는_만료될_수_있다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 
 		recommendation.expire();
 
@@ -175,7 +175,7 @@ class RecommendationTest {
 
 	@Test
 	void 이미_선택된_추천은_거절할_수_없다() {
-		Recommendation recommendation = recommendation();
+		Recommendation recommendation = 추천_생성();
 		recommendation.select();
 
 		RecommendationException exception = assertThrows(RecommendationException.class, recommendation::reject);
@@ -183,11 +183,11 @@ class RecommendationTest {
 		assertEquals(ExceptionCode.INVALID_RECOMMENDATION_STATUS_TRANSITION, exception.getExceptionCode());
 	}
 
-	private Recommendation recommendation() {
-		User user = user();
+	private Recommendation 추천_생성() {
+		User user = 사용자_생성();
 		return Recommendation.create(
 			user,
-			task(user),
+			Task_생성(user),
 			LocalDateTime.of(2026, 5, 18, 10, 0),
 			LocalDateTime.of(2026, 5, 18, 11, 0),
 			1,
@@ -196,7 +196,7 @@ class RecommendationTest {
 		);
 	}
 
-	private Task task(User user) {
+	private Task Task_생성(User user) {
 		return Task.create(
 			user,
 			"과제",
@@ -213,7 +213,7 @@ class RecommendationTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

@@ -21,7 +21,7 @@ class TaskTest {
 	@Test
 	void 선호시간대가_null이어도_Task를_생성할_수_있다() {
 		Task task = Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -41,7 +41,7 @@ class TaskTest {
 
 	@Test
 	void 선호시간대를_null로_수정할_수_있다() {
-		Task task = taskWithPreferredTimeRange(PreferredTimeRange.AFTERNOON);
+		Task task = 선호_시간대가_있는_Task_생성(PreferredTimeRange.AFTERNOON);
 
 		task.updateDetails(
 			"과제",
@@ -62,7 +62,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄된_Task는_상세정보를_수정할_수_없다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		TaskException exception = assertThrows(TaskException.class, () -> task.updateDetails(
 			"수정된 과제",
@@ -84,7 +84,7 @@ class TaskTest {
 	@Test
 	void 날짜조건이_없어도_Task를_생성할_수_있다() {
 		Task task = assertDoesNotThrow(() -> Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -107,7 +107,7 @@ class TaskTest {
 	@Test
 	void 선호요일과_허용기간을_함께_저장할_수_있다() {
 		Task task = assertDoesNotThrow(() -> Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -129,7 +129,7 @@ class TaskTest {
 	@Test
 	void 명시적인_30분_간격_밖_시작시각과_필수조건을_보존한다() {
 		Task task = Task.create(
-			user(),
+			사용자_생성(),
 			"알고리즘 공부",
 			TaskCategory.STUDY,
 			120,
@@ -154,7 +154,7 @@ class TaskTest {
 	@Test
 	void 초나_나노초가_있는_명시시각은_거부한다() {
 		TaskException exception = assertThrows(TaskException.class, () -> Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -177,7 +177,7 @@ class TaskTest {
 	@Test
 	void 날짜조건이_둘_이상이면_Task를_생성할_수_없다() {
 		TaskException exception = assertThrows(TaskException.class, () -> Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -196,7 +196,7 @@ class TaskTest {
 
 	@Test
 	void 미배정_Task를_스케줄_확정하면_SCHEDULED가_된다() {
-		Task task = task();
+		Task task = Task_생성();
 		LocalDateTime startAt = LocalDateTime.of(2026, 5, 14, 10, 0);
 		LocalDateTime endAt = LocalDateTime.of(2026, 5, 14, 11, 0);
 
@@ -209,7 +209,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄_확정시_Task_소요시간과_배정시간이_다르면_실패한다() {
-		Task task = task();
+		Task task = Task_생성();
 
 		TaskException exception = assertThrows(TaskException.class, () -> task.schedule(
 			LocalDateTime.of(2026, 5, 14, 10, 0),
@@ -221,7 +221,7 @@ class TaskTest {
 
 	@Test
 	void 이미_스케줄된_Task는_다시_스케줄_확정할_수_없다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		TaskException exception = assertThrows(TaskException.class, () -> task.schedule(
 			LocalDateTime.of(2026, 5, 14, 12, 0),
@@ -233,7 +233,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄된_Task는_미배정으로_되돌릴_수_있다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		task.unschedule();
 
@@ -244,7 +244,7 @@ class TaskTest {
 
 	@Test
 	void 미배정_Task는_미배정으로_되돌릴_수_없다() {
-		Task task = task();
+		Task task = Task_생성();
 
 		TaskException exception = assertThrows(TaskException.class, task::unschedule);
 
@@ -253,7 +253,7 @@ class TaskTest {
 
 	@Test
 	void 미배정_Task는_취소할_수_있다() {
-		Task task = task();
+		Task task = Task_생성();
 
 		task.cancel();
 
@@ -262,7 +262,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄된_Task는_취소할_수_있다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		task.cancel();
 
@@ -271,7 +271,7 @@ class TaskTest {
 
 	@Test
 	void 취소된_Task는_다른_상태로_전이할_수_없다() {
-		Task task = task();
+		Task task = Task_생성();
 		task.cancel();
 
 		TaskException exception = assertThrows(TaskException.class, () -> task.schedule(
@@ -284,7 +284,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄된_Task는_종료시간이_지났으면_완료할_수_있다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		task.complete(LocalDateTime.of(2026, 5, 14, 11, 0));
 
@@ -293,7 +293,7 @@ class TaskTest {
 
 	@Test
 	void 스케줄된_Task는_종료시간이_지나기_전에는_완료할_수_없다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 
 		TaskException exception = assertThrows(TaskException.class, () -> task.complete(
 			LocalDateTime.of(2026, 5, 14, 10, 59)
@@ -304,7 +304,7 @@ class TaskTest {
 
 	@Test
 	void 완료된_Task는_취소하거나_미배정으로_되돌릴_수_없다() {
-		Task task = scheduledTask();
+		Task task = 확정된_Task_생성();
 		task.complete(LocalDateTime.of(2026, 5, 14, 11, 0));
 
 		TaskException cancelException = assertThrows(TaskException.class, task::cancel);
@@ -314,8 +314,8 @@ class TaskTest {
 		assertEquals(ExceptionCode.INVALID_TASK_STATUS_TRANSITION, unscheduleException.getExceptionCode());
 	}
 
-	private Task scheduledTask() {
-		Task task = task();
+	private Task 확정된_Task_생성() {
+		Task task = Task_생성();
 		task.schedule(
 			LocalDateTime.of(2026, 5, 14, 10, 0),
 			LocalDateTime.of(2026, 5, 14, 11, 0)
@@ -324,13 +324,13 @@ class TaskTest {
 		return task;
 	}
 
-	private Task task() {
-		return taskWithPreferredTimeRange(null);
+	private Task Task_생성() {
+		return 선호_시간대가_있는_Task_생성(null);
 	}
 
-	private Task taskWithPreferredTimeRange(PreferredTimeRange preferredTimeRange) {
+	private Task 선호_시간대가_있는_Task_생성(PreferredTimeRange preferredTimeRange) {
 		return Task.create(
-			user(),
+			사용자_생성(),
 			"과제",
 			TaskCategory.ASSIGNMENT,
 			60,
@@ -345,7 +345,7 @@ class TaskTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

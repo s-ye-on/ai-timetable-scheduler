@@ -35,8 +35,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 과거_날짜의_후보는_생성하지_않는다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2000, 1, 1));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2000, 1, 1));
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
 			LocalTime.of(9, 0), LocalTime.of(10, 0), 0, ScheduleDensity.BALANCED, DeadlineTiming.BALANCED);
 
@@ -45,7 +45,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void ASAP은_마감에_가까운_날보다_빠른_날에_높은_가점을_준다() {
-		User user = user();
+		User user = 사용자_생성();
 		LocalDate date = LocalDate.of(2026, 5, 18);
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 60,
 			null, null, date, date.plusDays(2), null, date.plusDays(2), TaskPriority.LOW, "가능한 빨리");
@@ -54,11 +54,11 @@ class RecommendationPolicyTest {
 
 		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
-		assertTrue(scoreOf(candidates, date, LocalTime.of(9, 0))
-			> scoreOf(candidates, date.plusDays(2), LocalTime.of(9, 0)));
-		assertEquals(75, scoreOf(candidates, date, LocalTime.of(9, 0)));
-		assertEquals(74, scoreOf(candidates, date.plusDays(1), LocalTime.of(9, 0)));
-		assertEquals(73, scoreOf(candidates, date.plusDays(2), LocalTime.of(9, 0)));
+		assertTrue(점수_조회(candidates, date, LocalTime.of(9, 0))
+			> 점수_조회(candidates, date.plusDays(2), LocalTime.of(9, 0)));
+		assertEquals(75, 점수_조회(candidates, date, LocalTime.of(9, 0)));
+		assertEquals(74, 점수_조회(candidates, date.plusDays(1), LocalTime.of(9, 0)));
+		assertEquals(73, 점수_조회(candidates, date.plusDays(2), LocalTime.of(9, 0)));
 	}
 
 	@ParameterizedTest
@@ -71,7 +71,7 @@ class RecommendationPolicyTest {
 	void 오늘은_현재_시각보다_뒤인_30분_격자_후보만_생성한다(
 		Instant instant, LocalTime expectedFirstStart, int expectedCount
 	) {
-		List<CandidateSlot> candidates = candidatesAt(instant, TODAY, LocalTime.of(9, 0), LocalTime.of(11, 0));
+		List<CandidateSlot> candidates = 기준_시각의_후보_생성(instant, TODAY, LocalTime.of(9, 0), LocalTime.of(11, 0));
 
 		assertEquals(expectedCount, candidates.size());
 		assertEquals(expectedFirstStart, candidates.getFirst().startAt().toLocalTime());
@@ -88,7 +88,7 @@ class RecommendationPolicyTest {
 	void UTC_날짜가_달라도_서울_자정_경계로_후보를_판단한다(
 		Instant instant, LocalTime expectedFirstStart, int expectedCount
 	) {
-		List<CandidateSlot> candidates = candidatesAt(instant, TODAY, LocalTime.MIDNIGHT, LocalTime.of(1, 0));
+		List<CandidateSlot> candidates = 기준_시각의_후보_생성(instant, TODAY, LocalTime.MIDNIGHT, LocalTime.of(1, 0));
 
 		assertEquals(expectedCount, candidates.size());
 		assertEquals(TODAY.atTime(expectedFirstStart), candidates.getFirst().startAt());
@@ -97,14 +97,14 @@ class RecommendationPolicyTest {
 	@Test
 	void UTC로는_어제여도_서울에서_지난_날짜와_오늘의_끝난_시간은_제외한다() {
 		Instant seoulMidnight = Instant.parse("2026-05-17T15:00:01Z");
-		assertTrue(candidatesAt(seoulMidnight, TODAY.minusDays(1), LocalTime.of(9, 0), LocalTime.of(11, 0)).isEmpty());
-		assertTrue(candidatesAt(Instant.parse("2026-05-18T14:59:59Z"), TODAY,
+		assertTrue(기준_시각의_후보_생성(seoulMidnight, TODAY.minusDays(1), LocalTime.of(9, 0), LocalTime.of(11, 0)).isEmpty());
+		assertTrue(기준_시각의_후보_생성(Instant.parse("2026-05-18T14:59:59Z"), TODAY,
 			LocalTime.of(9, 0), LocalTime.of(11, 0)).isEmpty());
 	}
 
 	@Test
 	void 요청_기간의_과거_부분만_제외하고_허용_기간과_마감일은_유지한다() {
-		User user = user();
+		User user = 사용자_생성();
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 60,
 			null, null, TODAY.minusDays(2), TODAY.plusDays(2), null, TODAY.plusDays(1), TaskPriority.LOW, "기간 내 추천");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -117,7 +117,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void ASAP_가점은_20점을_넘거나_음수가_되지_않는다() {
-		User user = user();
+		User user = 사용자_생성();
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 60,
 			null, null, TODAY, TODAY.plusDays(25), null, TODAY.plusDays(25), TaskPriority.LOW, "가능한 빨리");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -125,10 +125,10 @@ class RecommendationPolicyTest {
 
 		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
-		assertEquals(75, scoreOf(candidates, TODAY, LocalTime.of(9, 0)));
-		assertEquals(56, scoreOf(candidates, TODAY.plusDays(19), LocalTime.of(9, 0)));
-		assertEquals(55, scoreOf(candidates, TODAY.plusDays(20), LocalTime.of(9, 0)));
-		assertEquals(55, scoreOf(candidates, TODAY.plusDays(25), LocalTime.of(9, 0)));
+		assertEquals(75, 점수_조회(candidates, TODAY, LocalTime.of(9, 0)));
+		assertEquals(56, 점수_조회(candidates, TODAY.plusDays(19), LocalTime.of(9, 0)));
+		assertEquals(55, 점수_조회(candidates, TODAY.plusDays(20), LocalTime.of(9, 0)));
+		assertEquals(55, 점수_조회(candidates, TODAY.plusDays(25), LocalTime.of(9, 0)));
 	}
 
 	@ParameterizedTest
@@ -136,7 +136,7 @@ class RecommendationPolicyTest {
 	void 다른_마감_성향과_기본_선호_중요도_밀도_가중치를_유지한다(
 		DeadlineTiming timing, int deadlineOffset, int expectedScore
 	) {
-		User user = user();
+		User user = 사용자_생성();
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 60,
 			TODAY, null, null, null, null, TODAY.plusDays(deadlineOffset), TaskPriority.HIGH, "원점수 검증");
 		Preference preference = Preference.create(user, PreferredTimeRange.MORNING,
@@ -149,7 +149,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 마감일이_없으면_ASAP이어도_기존처럼_마감_가점을_주지_않는다() {
-		User user = user();
+		User user = 사용자_생성();
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 60,
 			null, null, TODAY, TODAY.plusDays(1), null, null, TaskPriority.LOW, "마감 없음");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -157,12 +157,12 @@ class RecommendationPolicyTest {
 
 		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
-		assertEquals(55, scoreOf(candidates, TODAY, LocalTime.of(9, 0)));
-		assertEquals(55, scoreOf(candidates, TODAY.plusDays(1), LocalTime.of(9, 0)));
+		assertEquals(55, 점수_조회(candidates, TODAY, LocalTime.of(9, 0)));
+		assertEquals(55, 점수_조회(candidates, TODAY.plusDays(1), LocalTime.of(9, 0)));
 	}
 
-	private List<CandidateSlot> candidatesAt(Instant instant, LocalDate date, LocalTime startTime, LocalTime endTime) {
-		User user = user();
+	private List<CandidateSlot> 기준_시각의_후보_생성(Instant instant, LocalDate date, LocalTime startTime, LocalTime endTime) {
+		User user = 사용자_생성();
 		Task task = Task.create(user, "약속", TaskCategory.APPOINTMENT, 30,
 			date, null, null, null, null, null, TaskPriority.NORMAL, "시간 경계 검증");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -173,8 +173,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 특정_날짜의_추천_후보를_30분_단위로_생성한다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.ANYTIME,
@@ -195,8 +195,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 시간표와_겹치는_추천_후보는_제외한다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.ANYTIME,
@@ -228,8 +228,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 선호시간대와_일치하는_후보가_더_높은_점수를_받는다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.MORNING,
@@ -258,7 +258,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 우선순위가_높으면_기준일에_가까운_후보가_더_높은_점수를_받는다() {
-		User user = user();
+		User user = 사용자_생성();
 		LocalDate today = TODAY;
 		Task task = Task.create(
 			user,
@@ -302,7 +302,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 특정_요일_후보는_기준일부터_14일_범위에서_생성한다() {
-		User user = user();
+		User user = 사용자_생성();
 		LocalDate today = TODAY;
 		Task task = Task.create(
 			user,
@@ -336,7 +336,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void deadline_이후_날짜의_추천_후보는_생성하지_않는다() {
-		User user = user();
+		User user = 사용자_생성();
 		Task task = Task.create(
 			user,
 			"과제",
@@ -368,7 +368,7 @@ class RecommendationPolicyTest {
 
 	@Test
 	void near_deadline은_마감_당일보다_마감_하루_전_후보에_더_높은_점수를_준다() {
-		User user = user();
+		User user = 사용자_생성();
 		LocalDate deadline = LocalDate.of(2026, 5, 20);
 		Task task = Task.create(
 			user,
@@ -396,17 +396,17 @@ class RecommendationPolicyTest {
 
 		List<CandidateSlot> candidates = recommendationPolicy.generateCandidates(task, preference, List.of(), List.of());
 
-		int dayBeforeScore = scoreOf(candidates, deadline.minusDays(1), LocalTime.of(9, 0));
-		int deadlineDayScore = scoreOf(candidates, deadline, LocalTime.of(9, 0));
+		int dayBeforeScore = 점수_조회(candidates, deadline.minusDays(1), LocalTime.of(9, 0));
+		int deadlineDayScore = 점수_조회(candidates, deadline, LocalTime.of(9, 0));
 
 		assertTrue(dayBeforeScore > deadlineDayScore);
 	}
 
 	@Test
 	void 이미_확정된_Task와_겹치는_추천_후보는_제외한다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
-		Task scheduledTask = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
+		Task scheduledTask = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		scheduledTask.schedule(
 			LocalDate.of(2026, 5, 18).atTime(10, 0),
 			LocalDate.of(2026, 5, 18).atTime(11, 0)
@@ -434,9 +434,9 @@ class RecommendationPolicyTest {
 
 	@Test
 	void Google_Calendar_BusyBlock과_겹치는_추천_후보는_제외한다() {
-		User user = user();
+		User user = 사용자_생성();
 		LocalDate date = LocalDate.of(2026, 5, 18);
-		Task task = taskWithPreferredDate(user, date);
+		Task task = 선호_날짜가_있는_Task_생성(user, date);
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.ANYTIME,
@@ -465,8 +465,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void 시간표와_이미_확정된_Task를_모두_고려해서_추천_후보를_생성한다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		TimetableSlot timetableSlot = TimetableSlot.create(
 			user,
 			"운영체제",
@@ -475,7 +475,7 @@ class RecommendationPolicyTest {
 			LocalTime.of(10, 0),
 			LocalTime.of(11, 0)
 		);
-		Task scheduledTask = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		Task scheduledTask = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		scheduledTask.schedule(
 			LocalDate.of(2026, 5, 18).atTime(12, 0),
 			LocalDate.of(2026, 5, 18).atTime(13, 0)
@@ -508,8 +508,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void compact_밀도는_BusyBlock과_가까운_후보에_더_높은_점수를_준다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		TimetableSlot timetableSlot = TimetableSlot.create(
 			user,
 			"운영체제",
@@ -535,16 +535,16 @@ class RecommendationPolicyTest {
 			List.of()
 		);
 
-		int nearScore = scoreOf(candidates, LocalTime.of(11, 0));
-		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+		int nearScore = 점수_조회(candidates, LocalTime.of(11, 0));
+		int farScore = 점수_조회(candidates, LocalTime.of(13, 0));
 
 		assertTrue(nearScore > farScore);
 	}
 
 	@Test
 	void relaxed_밀도는_BusyBlock과_충분히_떨어진_후보에_더_높은_점수를_준다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		TimetableSlot timetableSlot = TimetableSlot.create(
 			user,
 			"운영체제",
@@ -570,16 +570,16 @@ class RecommendationPolicyTest {
 			List.of()
 		);
 
-		int nearScore = scoreOf(candidates, LocalTime.of(11, 0));
-		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+		int nearScore = 점수_조회(candidates, LocalTime.of(11, 0));
+		int farScore = 점수_조회(candidates, LocalTime.of(13, 0));
 
 		assertTrue(farScore > nearScore);
 	}
 
 	@Test
 	void balanced_밀도는_BusyBlock과_적당한_간격의_후보에_더_높은_점수를_준다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		TimetableSlot timetableSlot = TimetableSlot.create(
 			user,
 			"운영체제",
@@ -605,16 +605,16 @@ class RecommendationPolicyTest {
 			List.of()
 		);
 
-		int balancedScore = scoreOf(candidates, LocalTime.of(11, 30));
-		int farScore = scoreOf(candidates, LocalTime.of(13, 0));
+		int balancedScore = 점수_조회(candidates, LocalTime.of(11, 30));
+		int farScore = 점수_조회(candidates, LocalTime.of(13, 0));
 
 		assertTrue(balancedScore > farScore);
 	}
 
 	@Test
 	void anytime은_선호_시간대_reason을_만들지_않는다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		Preference preference = Preference.create(
 			user,
 			PreferredTimeRange.ANYTIME,
@@ -632,8 +632,8 @@ class RecommendationPolicyTest {
 
 	@Test
 	void scheduledTasks에_현재_Task가_포함되어도_자기_자신은_충돌_대상에서_제외한다() {
-		User user = user();
-		Task task = taskWithPreferredDate(user, LocalDate.of(2026, 5, 18));
+		User user = 사용자_생성();
+		Task task = 선호_날짜가_있는_Task_생성(user, LocalDate.of(2026, 5, 18));
 		ReflectionTestUtils.setField(task, "id", 1L);
 		ReflectionTestUtils.setField(task, "scheduledStartAt", LocalDate.of(2026, 5, 18).atTime(10, 0));
 		ReflectionTestUtils.setField(task, "scheduledEndAt", LocalDate.of(2026, 5, 18).atTime(11, 0));
@@ -657,7 +657,7 @@ class RecommendationPolicyTest {
 		assertEquals(5, candidates.size());
 	}
 
-	private int scoreOf(List<CandidateSlot> candidates, LocalTime startTime) {
+	private int 점수_조회(List<CandidateSlot> candidates, LocalTime startTime) {
 		return candidates.stream()
 			.filter(candidate -> candidate.startAt().toLocalTime().equals(startTime))
 			.findFirst()
@@ -665,7 +665,7 @@ class RecommendationPolicyTest {
 			.score();
 	}
 
-	private int scoreOf(List<CandidateSlot> candidates, LocalDate date, LocalTime startTime) {
+	private int 점수_조회(List<CandidateSlot> candidates, LocalDate date, LocalTime startTime) {
 		return candidates.stream()
 			.filter(candidate -> candidate.startAt().toLocalDate().equals(date))
 			.filter(candidate -> candidate.startAt().toLocalTime().equals(startTime))
@@ -674,7 +674,7 @@ class RecommendationPolicyTest {
 			.score();
 	}
 
-	private Task taskWithPreferredDate(User user, LocalDate preferredDate) {
+	private Task 선호_날짜가_있는_Task_생성(User user, LocalDate preferredDate) {
 		return Task.create(
 			user,
 			"과제",
@@ -691,7 +691,7 @@ class RecommendationPolicyTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

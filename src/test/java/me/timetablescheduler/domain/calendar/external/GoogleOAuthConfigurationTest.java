@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GoogleOAuthConfigurationTest {
 
 	@ParameterizedTest
-	@MethodSource("invalidSettings")
-	void invalidSettingsAreRejectedBeforeOpeningGoogleConsent(String clientId, String secret, String redirectUri) {
+	@MethodSource("잘못된_OAuth_설정_목록")
+	void 잘못된_설정은_Google_동의_화면을_열기_전에_거절한다(String clientId, String secret, String redirectUri) {
 		var properties = new GoogleCalendarProperties(clientId, secret, redirectUri, "calendar-scope", "test-app", "Asia/Seoul");
 		assertThatThrownBy(() -> new GoogleOAuthClient(properties).createAuthorizationUrl("test-state"))
 			.isInstanceOf(CalendarException.class)
@@ -27,7 +27,7 @@ class GoogleOAuthConfigurationTest {
 	}
 
 	@Test
-	void unresolvedSecretPlaceholderCanBindButMustNotReachGoogle() {
+	void 해결되지_않은_비밀키_자리표시자는_설정에_바인딩돼도_Google로_전달하지_않는다() {
 		new ApplicationContextRunner().withUserConfiguration(PropertiesOnly.class)
 			.withPropertyValues("google.calendar.client-id=test-client",
 				"google.calendar.client-secret=${MISSING_TEST_OAUTH_SECRET}",
@@ -41,7 +41,7 @@ class GoogleOAuthConfigurationTest {
 			});
 	}
 
-	static Stream<Arguments> invalidSettings() {
+	static Stream<Arguments> 잘못된_OAuth_설정_목록() {
 		return Stream.of(null, " ", "${MISSING_TEST_OAUTH_SETTING}").flatMap(invalid -> Stream.of(
 			Arguments.of(invalid, "test-only-secret", "http://localhost/callback"),
 			Arguments.of("test-client", invalid, "http://localhost/callback"),

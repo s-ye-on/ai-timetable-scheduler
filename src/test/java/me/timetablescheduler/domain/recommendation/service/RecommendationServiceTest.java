@@ -58,7 +58,7 @@ class RecommendationServiceTest {
 	private RecommendationService recommendationService;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		recommendationRepository = Mockito.mock(RecommendationRepository.class);
 		taskRepository = Mockito.mock(TaskRepository.class);
 		preferenceRepository = Mockito.mock(PreferenceRepository.class);
@@ -87,7 +87,7 @@ class RecommendationServiceTest {
 		recommendationService = new RecommendationService(
 			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
 			new RecommendationPolicy(advancingClock), calendarService, advancingClock, Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class), Mockito.mock(jakarta.persistence.EntityManager.class));
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		Task task = Task.create(user, "과제", TaskCategory.ASSIGNMENT, 30,
 			LocalDate.of(2026, 5, 18), null, null, null, null, null, TaskPriority.LOW, "시간 경계");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -128,7 +128,7 @@ class RecommendationServiceTest {
 		recommendationService = new RecommendationService(
 			recommendationRepository, taskRepository, preferenceRepository, timetableSlotRepository, userReader,
 			new RecommendationPolicy(advancingClock), calendarService, advancingClock, Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class), Mockito.mock(jakarta.persistence.EntityManager.class));
-		User user = user(1L);
+		User user = 사용자_생성(1L);
 		Task task = Task.create(user, "일요일 과제", TaskCategory.ASSIGNMENT, 60,
 			null, DayOfWeek.SUNDAY, null, null, null, null, TaskPriority.LOW, "일요일 추천");
 		Preference preference = Preference.create(user, PreferredTimeRange.ANYTIME,
@@ -160,8 +160,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void 새_추천을_생성하기_전에_기존_PROPOSED_추천을_만료한다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		Preference preference = Preference.createDefault(user);
 		Recommendation existingRecommendation = Recommendation.create(
 			user,
@@ -202,14 +202,14 @@ class RecommendationServiceTest {
 
 	@Test
 	void 점수가_높은_후보_3개만_추천으로_저장한다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		Preference preference = Preference.createDefault(user);
 		List<CandidateSlot> candidateSlots = List.of(
-			candidate(60, 9),
-			candidate(90, 10),
-			candidate(70, 11),
-			candidate(80, 12)
+			후보_생성(60, 9),
+			후보_생성(90, 10),
+			후보_생성(70, 11),
+			후보_생성(80, 12)
 		);
 
 		when(userReader.readForUpdate(1L)).thenReturn(user);
@@ -238,9 +238,9 @@ class RecommendationServiceTest {
 
 	@Test
 	void 사용자_선호가_없으면_기본값을_생성해서_추천에_사용한다() {
-		User user = user(1L);
-		Task task = task(user);
-		List<CandidateSlot> candidateSlots = List.of(candidate(90, 10));
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
+		List<CandidateSlot> candidateSlots = List.of(후보_생성(90, 10));
 
 		when(userReader.readForUpdate(1L)).thenReturn(user);
 		when(userReader.read(1L)).thenReturn(user);
@@ -271,8 +271,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void 추천_후보가_없으면_안내_메시지와_빈_목록을_반환하고_저장하지_않는다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		Preference preference = Preference.createDefault(user);
 
 		when(userReader.readForUpdate(1L)).thenReturn(user);
@@ -293,8 +293,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void 이미_스케줄된_Task는_추천을_생성할_수_없다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		task.schedule(
 			LocalDateTime.of(2026, 5, 18, 9, 0),
 			LocalDateTime.of(2026, 5, 18, 10, 0)
@@ -313,8 +313,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void 추천_후보를_선택하면_Task가_스케줄되고_나머지_PROPOSED_후보를_거절한다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		ReflectionTestUtils.setField(task, "id", 10L);
 		Recommendation recommendation = Recommendation.create(
 			user,
@@ -344,7 +344,7 @@ class RecommendationServiceTest {
 			Mockito.eq(LocalDateTime.of(2026, 5, 18, 9, 0)), Mockito.eq(LocalDateTime.of(2026, 5, 18, 10, 0))
 		)).thenAnswer(invocation -> invocation.getArgument(1));
 
-		prepareSelectionValidation(user);
+		선택_검증_준비(user);
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SYNCED, recommendation.getStatus());
@@ -357,8 +357,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void Google_Calendar가_연동되지_않으면_추천_후보_선택은_실패한다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		ReflectionTestUtils.setField(task, "id", 10L);
 		Recommendation recommendation = Recommendation.create(
 			user,
@@ -385,8 +385,8 @@ class RecommendationServiceTest {
 
 	@Test
 	void Google_Calendar_Event_생성에_실패하면_추천_후보는_SYNC_FAILED가_된다() {
-		User user = user(1L);
-		Task task = task(user);
+		User user = 사용자_생성(1L);
+		Task task = Task_생성(user);
 		ReflectionTestUtils.setField(task, "id", 10L);
 		Recommendation recommendation = Recommendation.create(
 			user,
@@ -407,7 +407,7 @@ class RecommendationServiceTest {
 			Mockito.eq(LocalDateTime.of(2026, 5, 18, 9, 0)), Mockito.eq(LocalDateTime.of(2026, 5, 18, 10, 0))
 		)).thenThrow(new CalendarException(ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED));
 
-		prepareSelectionValidation(user);
+		선택_검증_준비(user);
 		RecommendationResponse.Read response = recommendationService.select(1L, 100L);
 
 		assertEquals(RecommendationStatus.SYNC_FAILED, recommendation.getStatus());
@@ -415,7 +415,7 @@ class RecommendationServiceTest {
 		assertEquals(RecommendationStatus.SYNC_FAILED, response.status());
 	}
 
-	private void prepareSelectionValidation(User user) {
+	private void 선택_검증_준비(User user) {
 		when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(Preference.createDefault(user)));
 		when(calendarService.getCalendarBusyBlocks(Mockito.eq(1L), Mockito.any(), Mockito.any())).thenReturn(List.of());
 		Mockito.doCallRealMethod().when(recommendationPolicy).isSelectable(
@@ -423,7 +423,7 @@ class RecommendationServiceTest {
 			Mockito.any(), Mockito.any(), Mockito.any());
 	}
 
-	private CandidateSlot candidate(int score, int hour) {
+	private CandidateSlot 후보_생성(int score, int hour) {
 		return new CandidateSlot(
 			LocalDateTime.of(2026, 5, 18, hour, 0),
 			LocalDateTime.of(2026, 5, 18, hour + 1, 0),
@@ -432,7 +432,7 @@ class RecommendationServiceTest {
 		);
 	}
 
-	private Task task(User user) {
+	private Task Task_생성(User user) {
 		return Task.create(
 			user,
 			"과제",
@@ -449,7 +449,7 @@ class RecommendationServiceTest {
 		);
 	}
 
-	private User user(Long id) {
+	private User 사용자_생성(Long id) {
 		User user = new User("Tester", "tester@example.com", "encodedPassword");
 		ReflectionTestUtils.setField(user, "id", id);
 		return user;

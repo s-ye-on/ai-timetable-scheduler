@@ -34,7 +34,7 @@ class RequestValidationTest {
 	private MockMvc mockMvc;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		LocalValidatorFactoryBean mvcValidator = new LocalValidatorFactoryBean();
 		mvcValidator.afterPropertiesSet();
 		mockMvc = MockMvcBuilders.standaloneSetup(new ValidationController())
@@ -45,44 +45,44 @@ class RequestValidationTest {
 
 	@Test
 	void 영속_문자열_컬럼_길이를_초과하는_모든_DTO_필드를_거부한다() {
-		assertFieldHasViolation(new AuthRequest.Register("사용자", "a".repeat(20) + "@example.com", "password123"), "email");
-		assertFieldHasViolation(new AuthRequest.Login("a".repeat(20) + "@example.com", "password123"), "email");
-		assertFieldHasViolation(new UserRequest.Update("password123", "가".repeat(31)), "name");
-		assertFieldHasViolation(new TaskRequest.NaturalLanguage("가".repeat(501)), "message");
-		assertFieldHasViolation(new TaskRequest.Update(
+		필드_검증_오류_확인(new AuthRequest.Register("사용자", "a".repeat(20) + "@example.com", "password123"), "email");
+		필드_검증_오류_확인(new AuthRequest.Login("a".repeat(20) + "@example.com", "password123"), "email");
+		필드_검증_오류_확인(new UserRequest.Update("password123", "가".repeat(31)), "name");
+		필드_검증_오류_확인(new TaskRequest.NaturalLanguage("가".repeat(501)), "message");
+		필드_검증_오류_확인(new TaskRequest.Update(
 			"가".repeat(101), TaskCategory.ASSIGNMENT, 60, null, DayOfWeek.MONDAY,
 			null, null, null, null, TaskPriority.NORMAL, "설명"
 		), "title");
-		assertFieldHasViolation(taskUpdate("제목", "가".repeat(501)), "description");
-		assertFieldHasViolation(new TimetableSlotRequest.Create(
+		필드_검증_오류_확인(Task_수정_요청_생성("제목", "가".repeat(501)), "description");
+		필드_검증_오류_확인(new TimetableSlotRequest.Create(
 			"가".repeat(101), DayOfWeek.MONDAY, "강의실", LocalTime.of(9, 0), LocalTime.of(10, 0)
 		), "subjectName");
-		assertFieldHasViolation(new TimetableSlotRequest.Create(
+		필드_검증_오류_확인(new TimetableSlotRequest.Create(
 			"과목", DayOfWeek.MONDAY, "가".repeat(101), LocalTime.of(9, 0), LocalTime.of(10, 0)
 		), "location");
-		assertFieldHasViolation(new TimetableSlotRequest.Update(
+		필드_검증_오류_확인(new TimetableSlotRequest.Update(
 			"가".repeat(101), DayOfWeek.MONDAY, "강의실", LocalTime.of(9, 0), LocalTime.of(10, 0)
 		), "subjectName");
-		assertFieldHasViolation(new TimetableSlotRequest.Update(
+		필드_검증_오류_확인(new TimetableSlotRequest.Update(
 			"과목", DayOfWeek.MONDAY, "가".repeat(101), LocalTime.of(9, 0), LocalTime.of(10, 0)
 		), "location");
-		assertFieldHasViolation(new LlmParseRequest("가".repeat(501)), "message");
+		필드_검증_오류_확인(new LlmParseRequest("가".repeat(501)), "message");
 	}
 
 	@Test
 	void 영속_문자열_컬럼_최대_길이는_허용한다() {
-		assertNoViolations(new AuthRequest.Register("사용자", "a".repeat(18) + "@example.com", "password123"));
-		assertNoViolations(new AuthRequest.Login("a".repeat(18) + "@example.com", "password123"));
-		assertNoViolations(new UserRequest.Update("password123", "가".repeat(30)));
-		assertNoViolations(new TaskRequest.NaturalLanguage("가".repeat(500)));
-		assertNoViolations(taskUpdate("가".repeat(100), "가".repeat(500)));
-		assertNoViolations(new TimetableSlotRequest.Create(
+		검증_오류_없음_확인(new AuthRequest.Register("사용자", "a".repeat(18) + "@example.com", "password123"));
+		검증_오류_없음_확인(new AuthRequest.Login("a".repeat(18) + "@example.com", "password123"));
+		검증_오류_없음_확인(new UserRequest.Update("password123", "가".repeat(30)));
+		검증_오류_없음_확인(new TaskRequest.NaturalLanguage("가".repeat(500)));
+		검증_오류_없음_확인(Task_수정_요청_생성("가".repeat(100), "가".repeat(500)));
+		검증_오류_없음_확인(new TimetableSlotRequest.Create(
 			"가".repeat(100), DayOfWeek.MONDAY, "가".repeat(100), LocalTime.of(9, 0), LocalTime.of(10, 0)
 		));
-		assertNoViolations(new TimetableSlotRequest.Update(
+		검증_오류_없음_확인(new TimetableSlotRequest.Update(
 			"가".repeat(100), DayOfWeek.MONDAY, "가".repeat(100), LocalTime.of(9, 0), LocalTime.of(10, 0)
 		));
-		assertNoViolations(new LlmParseRequest("가".repeat(500)));
+		검증_오류_없음_확인(new LlmParseRequest("가".repeat(500)));
 	}
 
 	@Test
@@ -108,8 +108,8 @@ class RequestValidationTest {
 
 	@Test
 	void 잘못된_JSON_유형과_본문_누락을_공통_ErrorResponse로_반환한다() throws Exception {
-		assertInvalidJsonResponse("{\"title\":");
-		assertInvalidJsonResponse("""
+		잘못된_JSON_오류_응답_검증("{\"title\":");
+		잘못된_JSON_오류_응답_검증("""
 			{
 			  "title": "과제",
 			  "category": "UNKNOWN",
@@ -118,7 +118,7 @@ class RequestValidationTest {
 			  "priority": "NORMAL"
 			}
 			""");
-		assertInvalidJsonResponse("""
+		잘못된_JSON_오류_응답_검증("""
 			{
 			  "title": "과제",
 			  "category": "ASSIGNMENT",
@@ -136,22 +136,22 @@ class RequestValidationTest {
 			.andExpect(jsonPath("$.fieldErrors").isEmpty());
 	}
 
-	private void assertFieldHasViolation(Object request, String fieldName) {
+	private void 필드_검증_오류_확인(Object request, String fieldName) {
 		assertTrue(validator.validate(request).stream().anyMatch(violation -> violation.getPropertyPath().toString().equals(fieldName)));
 	}
 
-	private void assertNoViolations(Object request) {
+	private void 검증_오류_없음_확인(Object request) {
 		assertTrue(validator.validate(request).isEmpty());
 	}
 
-	private TaskRequest.Update taskUpdate(String title, String description) {
+	private TaskRequest.Update Task_수정_요청_생성(String title, String description) {
 		return new TaskRequest.Update(
 			title, TaskCategory.ASSIGNMENT, 60, null, DayOfWeek.MONDAY,
 			null, null, null, null, TaskPriority.NORMAL, description
 		);
 	}
 
-	private void assertInvalidJsonResponse(String body) throws Exception {
+	private void 잘못된_JSON_오류_응답_검증(String body) throws Exception {
 		mockMvc.perform(post("/validation/task")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body))
@@ -166,7 +166,7 @@ class RequestValidationTest {
 	static class ValidationController {
 
 		@PostMapping("/validation/task")
-		void validateTask(@jakarta.validation.Valid @RequestBody TaskRequest.Update request) {
+		void Task_입력_검증(@jakarta.validation.Valid @RequestBody TaskRequest.Update request) {
 		}
 	}
 }

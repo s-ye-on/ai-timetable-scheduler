@@ -73,8 +73,8 @@ class GoogleCalendarSyncIntegrationTest {
 	private Task task;
 
 	@BeforeEach
-	void setUp() {
-		eventStore.reset();
+	void 테스트_준비() {
+		eventStore.초기화();
 		when(clock.getZone()).thenReturn(SEOUL);
 		when(clock.instant()).thenReturn(DATE.atTime(9, 0).atZone(SEOUL).toInstant());
 		user = users.save(new User("테스터", UUID.randomUUID().toString().substring(0, 8) + "@example.com", "test-only-hash"));
@@ -85,41 +85,41 @@ class GoogleCalendarSyncIntegrationTest {
 	}
 
 	@Test
-	void lostCreateResponseIsRecoveredByLookingUpTheStableGoogleEventId() {
-		Recommendation candidate = candidate();
-		eventStore.loseNextInsertResponse();
+	void 생성_응답이_유실되면_고정된_Google_이벤트_ID를_조회해_복구한다() {
+		Recommendation candidate = 후보_생성();
+		eventStore.다음_등록_응답_유실_설정();
 
 		service.select(user.getId(), candidate.getId());
 
 		Recommendation stored = recommendations.findById(candidate.getId()).orElseThrow();
 		assertThat(stored.getStatus()).isEqualTo(RecommendationStatus.SYNCED);
 		assertThat(stored.getGoogleEventId()).isNotBlank();
-		assertThat(eventStore.insertCount()).isEqualTo(1);
-		assertThat(eventStore.contains(stored.getGoogleEventId())).isTrue();
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
+		assertThat(eventStore.이벤트_존재_여부(stored.getGoogleEventId())).isTrue();
 	}
 
 	@Test
-	void syncFailedRetryFindsTheExistingEventWithoutCreatingAnotherOne() {
-		Recommendation candidate = candidate();
-		eventStore.loseNextInsertResponse();
-		eventStore.failLookupOnCall(2);
+	void 동기화_실패를_재시도하면_새로_생성하지_않고_기존_이벤트를_찾는다() {
+		Recommendation candidate = 후보_생성();
+		eventStore.다음_등록_응답_유실_설정();
+		eventStore.지정_조회_실패_설정(2);
 
 		service.select(user.getId(), candidate.getId());
 
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus())
 			.isEqualTo(RecommendationStatus.SYNC_FAILED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 
 		service.select(user.getId(), candidate.getId());
 
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus())
 			.isEqualTo(RecommendationStatus.SYNCED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 	}
 
 	@Test
-	void databaseCommitFailureAfterGoogleInsertCanBeRetriedWithoutDuplicateEventCreation() {
-		Recommendation candidate = candidate();
+	void Google_등록_후_DB_커밋에_실패해도_중복_이벤트_없이_재시도한다() {
+		Recommendation candidate = 후보_생성();
 		String constraint = "t08_sync_" + candidate.getId();
 		// 격리 H2에서 실제 UPDATE를 거부한다. 예약 SELECTED 저장은 허용한다.
 		jdbc.execute("ALTER TABLE recommendation ADD CONSTRAINT " + constraint
@@ -133,27 +133,27 @@ class GoogleCalendarSyncIntegrationTest {
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus())
 			.isEqualTo(RecommendationStatus.SELECTED);
 		String reservedId = recommendations.findById(candidate.getId()).orElseThrow().getGoogleEventId();
-		assertThat(eventStore.contains(reservedId)).isTrue();
+		assertThat(eventStore.이벤트_존재_여부(reservedId)).isTrue();
 		assertThat(tasks.findById(task.getId()).orElseThrow().getStatus())
 			.isEqualTo(me.timetablescheduler.domain.task.type.TaskStatus.SCHEDULED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getGoogleEventId()).isEqualTo(reservedId);
 
 		service.select(user.getId(), candidate.getId());
 
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus())
 			.isEqualTo(RecommendationStatus.SYNCED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 	}
 
 	@Test
-	void simultaneousSelectionAndResponseLossStillCreatesExactlyOneGoogleEvent() throws Exception {
-		Recommendation candidate = candidate();
-		eventStore.loseNextInsertResponse();
+	void 동시_선택과_응답_유실이_발생해도_Google_이벤트는_하나만_생성한다() throws Exception {
+		Recommendation candidate = 후보_생성();
+		eventStore.다음_등록_응답_유실_설정();
 		CountDownLatch start = new CountDownLatch(1);
 		try (var executor = Executors.newFixedThreadPool(2)) {
-			var first = executor.submit(() -> selectAfter(start, candidate.getId()));
-			var second = executor.submit(() -> selectAfter(start, candidate.getId()));
+			var first = executor.submit(() -> 완료_대기_후_선택(start, candidate.getId()));
+			var second = executor.submit(() -> 완료_대기_후_선택(start, candidate.getId()));
 			start.countDown();
 			assertThat(first.get(10, TimeUnit.SECONDS)).isNull();
 			assertThat(second.get(10, TimeUnit.SECONDS)).isNull();
@@ -161,10 +161,10 @@ class GoogleCalendarSyncIntegrationTest {
 
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getStatus())
 			.isEqualTo(RecommendationStatus.SYNCED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 	}
 
-	private Throwable selectAfter(CountDownLatch start, Long recommendationId) {
+	private Throwable 완료_대기_후_선택(CountDownLatch start, Long recommendationId) {
 		try {
 			start.await();
 			service.select(user.getId(), recommendationId);
@@ -175,26 +175,26 @@ class GoogleCalendarSyncIntegrationTest {
 	}
 
 	@Test
-	void insertConflictIsRecoveredOnlyByVerifyingTheExistingEvent() {
-		var candidate = candidate();
+	void 등록_충돌은_기존_이벤트를_검증한_경우에만_복구한다() {
+		var candidate = 후보_생성();
 		eventStore.conflictNextInsert.set(true);
 		assertThat(service.select(user.getId(), candidate.getId()).status()).isEqualTo(RecommendationStatus.SYNCED);
-		assertThat(eventStore.insertCount()).isEqualTo(1);
+		assertThat(eventStore.등록_횟수()).isEqualTo(1);
 		assertThat(eventStore.events).hasSize(1);
 		assertThat(eventStore.lookups.get()).isEqualTo(2);
 	}
 
 	@Test
-	void unknownLookupResultDoesNotInsertAnEvent() {
-		var candidate = candidate();
-		eventStore.failLookupOnCall(1);
+	void 조회_결과가_불확실하면_이벤트를_등록하지_않는다() {
+		var candidate = 후보_생성();
+		eventStore.지정_조회_실패_설정(1);
 		assertThat(service.select(user.getId(), candidate.getId()).status()).isEqualTo(RecommendationStatus.SYNC_FAILED);
 		assertThat(eventStore.events).isEmpty();
-		assertThat(eventStore.insertCount()).isZero();
+		assertThat(eventStore.등록_횟수()).isZero();
 		assertThat(recommendations.findById(candidate.getId()).orElseThrow().getGoogleEventId()).isNotBlank();
 	}
 
-	private Recommendation candidate() {
+	private Recommendation 후보_생성() {
 		return recommendations.save(Recommendation.create(user, task, START, START.plusHours(1), 1, 80, "기존 후보"));
 	}
 
@@ -232,7 +232,7 @@ class GoogleCalendarSyncIntegrationTest {
 			};
 		}
 
-		void reset() {
+		void 초기화() {
 			events.clear();
 			inserts.set(0);
 			lookups.set(0);
@@ -241,19 +241,19 @@ class GoogleCalendarSyncIntegrationTest {
 			failedLookupCall = -1;
 		}
 
-		void loseNextInsertResponse() {
+		void 다음_등록_응답_유실_설정() {
 			loseNextInsert.set(true);
 		}
 
-		void failLookupOnCall(int call) {
+		void 지정_조회_실패_설정(int call) {
 			failedLookupCall = call;
 		}
 
-		int insertCount() {
+		int 등록_횟수() {
 			return inserts.get();
 		}
 
-		boolean contains(String eventId) {
+		boolean 이벤트_존재_여부(String eventId) {
 			return events.containsKey(eventId);
 		}
 	}
@@ -272,20 +272,20 @@ class GoogleCalendarSyncIntegrationTest {
 		@Override
 		public LowLevelHttpResponse execute() throws IOException {
 			if (url.contains("/freeBusy")) {
-				return response(200, "{\"calendars\":{\"primary\":{\"busy\":[]}}}");
+				return 응답_생성(200, "{\"calendars\":{\"primary\":{\"busy\":[]}}}");
 			}
 			if ("POST".equals(method) && url.endsWith("/events")) {
-				String body = requestBody();
-				String eventId = idFrom(body);
+				String body = 요청_본문();
+				String eventId = 이벤트_ID_추출(body);
 				eventStore.inserts.incrementAndGet();
 				if (eventStore.events.putIfAbsent(eventId, body) != null
 					|| eventStore.conflictNextInsert.getAndSet(false)) {
-					return response(409, "{\"error\":{\"message\":\"duplicate\"}}");
+					return 응답_생성(409, "{\"error\":{\"message\":\"duplicate\"}}");
 				}
 				if (eventStore.loseNextInsert.compareAndSet(true, false)) {
 					throw new java.net.SocketTimeoutException("test-only lost create response");
 				}
-				return response(200, body);
+				return 응답_생성(200, body);
 			}
 			if ("GET".equals(method) && url.contains("/events/")) {
 				int call = eventStore.lookups.incrementAndGet();
@@ -294,16 +294,16 @@ class GoogleCalendarSyncIntegrationTest {
 				}
 				String eventId = url.substring(url.lastIndexOf('/') + 1);
 				String body = eventStore.events.get(eventId);
-				return body == null ? response(404, "{\"error\":{\"message\":\"not found\"}}") : response(200, body);
+				return body == null ? 응답_생성(404, "{\"error\":{\"message\":\"not found\"}}") : 응답_생성(200, body);
 			}
-			return response(500, "{\"error\":{\"message\":\"unexpected request\"}}");
+			return 응답_생성(500, "{\"error\":{\"message\":\"unexpected request\"}}");
 		}
 
-		private String requestBody() throws IOException {
+		private String 요청_본문() throws IOException {
 			return getContentAsString();
 		}
 
-		private String idFrom(String body) {
+		private String 이벤트_ID_추출(String body) {
 			Matcher matcher = EventStore.ID_FIELD.matcher(body);
 			if (!matcher.find()) {
 				throw new AssertionError("Google 이벤트 생성 요청에 ID가 없습니다.");
@@ -311,7 +311,7 @@ class GoogleCalendarSyncIntegrationTest {
 			return matcher.group(1);
 		}
 
-		private LowLevelHttpResponse response(int status, String body) {
+		private LowLevelHttpResponse 응답_생성(int status, String body) {
 			return new MockLowLevelHttpResponse().setStatusCode(status)
 				.setContentType("application/json").setContent(body);
 		}

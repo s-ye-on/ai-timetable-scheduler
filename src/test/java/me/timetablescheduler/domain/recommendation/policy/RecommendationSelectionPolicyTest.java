@@ -33,8 +33,8 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void 미래_요청_조건과_가용시간을_만족하는_후보는_선호시간대와_달라도_선택할수있다() {
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), 0);
 
 		boolean selectable = recommendationPolicy.isSelectable(
@@ -47,10 +47,10 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void 과거_후보와_잘못된_지속시간_요청기간_밖_마감일_이후_후보는_선택할수없다() {
-		User user = user();
+		User user = 사용자_생성();
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), 0);
-		Task requestedDateTask = task(user, DATE, null);
-		Task deadlineTask = task(user, DATE.plusDays(1), DATE);
+		Task requestedDateTask = Task_생성(user, DATE, null);
+		Task deadlineTask = Task_생성(user, DATE.plusDays(1), DATE);
 
 		assertFalse(recommendationPolicy.isSelectable(
 			requestedDateTask, preference, List.of(), List.of(), List.of(),
@@ -80,13 +80,13 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void 최소여유시간에_걸친_전날반복수업과_확정일정은_선택을_막는다() {
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.MIDNIGHT, LocalTime.of(2, 0), 30);
 		TimetableSlot previousDayClass = TimetableSlot.create(
 			user, "야간 수업", DayOfWeek.SUNDAY, "강의실", LocalTime.of(23, 0), LocalTime.of(23, 59)
 		);
-		Task scheduledTask = task(user, DATE.minusDays(1), null);
+		Task scheduledTask = Task_생성(user, DATE.minusDays(1), null);
 		scheduledTask.schedule(DATE.minusDays(1).atTime(23, 45), DATE.atTime(0, 45));
 
 		assertFalse(recommendationPolicy.isSelectable(
@@ -101,8 +101,8 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void Calendar_충돌과_조회결과_누락은_선택을_막는다() {
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), 0);
 
 		assertFalse(recommendationPolicy.isSelectable(
@@ -118,8 +118,8 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void 최소여유시간과_정확히_맞닿는_후보는_기존충돌정책대로_허용한다() {
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), 30);
 		BusyBlock busyBlock = new BusyBlock(DATE.atTime(9, 0), DATE.atTime(10, 0));
 
@@ -132,8 +132,8 @@ class RecommendationSelectionPolicyTest {
 	@Test
 	void 매우큰_최소여유시간도_반복수업_충돌을검사하고_수업이없으면_선택할수있다() {
 		int largeGapMinutes = 2_147_483_645;
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), largeGapMinutes);
 		TimetableSlot mondayClass = TimetableSlot.create(
 			user, "반복 수업", DayOfWeek.MONDAY, "강의실", LocalTime.of(10, 0), LocalTime.of(11, 0)
@@ -151,8 +151,8 @@ class RecommendationSelectionPolicyTest {
 
 	@Test
 	void 확장시작시각에_끝난_수업도_다음주_반복수업이_범위에_있으면_선택을_막는다() {
-		User user = user();
-		Task task = task(user, DATE, null);
+		User user = 사용자_생성();
+		Task task = Task_생성(user, DATE, null);
 		Preference preference = preference(user, LocalTime.of(9, 0), LocalTime.of(18, 0), 10_080);
 		TimetableSlot mondayClass = TimetableSlot.create(
 			user, "주간 수업", DayOfWeek.MONDAY, "강의실", LocalTime.of(9, 0), LocalTime.of(10, 0)
@@ -164,7 +164,7 @@ class RecommendationSelectionPolicyTest {
 		));
 	}
 
-	private Task task(User user, LocalDate preferredDate, LocalDate deadline) {
+	private Task Task_생성(User user, LocalDate preferredDate, LocalDate deadline) {
 		return Task.create(
 			user, "추천 확정", TaskCategory.ASSIGNMENT, 60,
 			preferredDate, null, null, null, null, deadline,
@@ -179,7 +179,7 @@ class RecommendationSelectionPolicyTest {
 		);
 	}
 
-	private User user() {
+	private User 사용자_생성() {
 		return new User("Tester", "tester@example.com", "encodedPassword");
 	}
 }

@@ -47,7 +47,7 @@ class RecommendationControllerIntegrationTest {
 	@Test
 	void Google_Calendar_미연동_사용자가_추천을_선택하면_비즈니스_예외_응답을_반환한다() throws Exception {
 		String email = "select-no-cal@example.com";
-		String accessToken = registerAndGetAccessToken(email);
+		String accessToken = 회원가입_후_액세스_토큰_조회(email);
 		User user = userRepository.findByEmail(email).orElseThrow();
 		Task task = taskRepository.save(Task.create(
 			user,
@@ -83,7 +83,7 @@ class RecommendationControllerIntegrationTest {
 			.andExpect(jsonPath("$.fieldErrors").isArray());
 	}
 
-	private String registerAndGetAccessToken(String email) throws Exception {
+	private String 회원가입_후_액세스_토큰_조회(String email) throws Exception {
 		MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -96,10 +96,10 @@ class RecommendationControllerIntegrationTest {
 			.andExpect(status().isCreated())
 			.andReturn();
 
-		return jsonStringField(registerResult.getResponse().getContentAsString(), "accessToken");
+		return JSON_문자열_필드_조회(registerResult.getResponse().getContentAsString(), "accessToken");
 	}
 
-	private String jsonStringField(String content, String fieldName) {
+	private String JSON_문자열_필드_조회(String content, String fieldName) {
 		Matcher matcher = Pattern.compile(JSON_STRING_FIELD.pattern().formatted(fieldName)).matcher(content);
 		if (!matcher.find()) {
 			throw new IllegalStateException("Missing field: " + fieldName);

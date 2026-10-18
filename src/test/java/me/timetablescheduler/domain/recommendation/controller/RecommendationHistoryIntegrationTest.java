@@ -45,21 +45,21 @@ class RecommendationHistoryIntegrationTest {
 	private String accessToken;
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void 테스트_준비() throws Exception {
 		String email = UUID.randomUUID().toString().substring(0, 8) + "@example.com";
-		accessToken = register(email);
+		accessToken = 회원가입(email);
 		user = users.findByEmail(email).orElseThrow();
 		task = tasks.save(Task.create(user, "기존 일정", TaskCategory.STUDY, 60, DATE, null,
 			null, null, null, null, TaskPriority.NORMAL, "이전 분석 내용"));
 	}
 
 	@Test
-	void defaultQueryPreservesProposedOnlyContract() throws Exception {
-		var old = candidate(1);
+	void 기본_조회는_제안_상태의_후보만_반환한다() throws Exception {
+		var old = 후보_생성(1);
 		old.expire();
 		recommendations.saveAndFlush(old);
-		var proposed = candidate(1);
-		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).header(HttpHeaders.AUTHORIZATION, bearer()))
+		var proposed = 후보_생성(1);
+		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
 			.andExpect(jsonPath("$[0].id").value(proposed.getId()))
 			.andExpect(jsonPath("$[0].status").value("PROPOSED"))
@@ -68,13 +68,13 @@ class RecommendationHistoryIntegrationTest {
 	}
 
 	@Test
-	void optionalHistoryRestoresFailedAndRejectedCandidatesWithoutReselectingThem() throws Exception {
-		var rejected = candidate(2);
+	void 이력_조회는_실패하거나_거절된_후보를_재선택하지_않고_복원한다() throws Exception {
+		var rejected = 후보_생성(2);
 		rejected.reject();
 		recommendations.saveAndFlush(rejected);
-		var failed = reserve(true);
+		var failed = 예약_생성(true);
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
-				.header(HttpHeaders.AUTHORIZATION, bearer()))
+				.header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[0].id").value(failed.getId()))
 			.andExpect(jsonPath("$[0].status").value("SYNC_FAILED"))
@@ -87,53 +87,53 @@ class RecommendationHistoryIntegrationTest {
 	}
 
 	@Test
-	void selectedReservationIsRetryableButSyncedHistoryIsNot() throws Exception {
-		var selected = reserve(false);
+	void 선택된_예약은_재시도할_수_있고_동기화된_이력은_재시도할_수_없다() throws Exception {
+		var selected = 예약_생성(false);
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
-				.header(HttpHeaders.AUTHORIZATION, bearer()))
+				.header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("SELECTED"))
 			.andExpect(jsonPath("$[0].syncRetryable").value(true));
 		selected.sync("abcde");
 		recommendations.saveAndFlush(selected);
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
-				.header(HttpHeaders.AUTHORIZATION, bearer()))
+				.header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("SYNCED"))
 			.andExpect(jsonPath("$[0].syncRetryable").value(false));
 		verifyNoInteractions(google);
 	}
 
 	@Test
-	void legacyFailureWithoutIdAndInconsistentTaskCannotOfferAutomaticRetry() throws Exception {
-		var legacy = candidate(1);
+	void 식별자가_없는_기존_실패와_불일치한_Task는_자동_재시도를_제공하지_않는다() throws Exception {
+		var legacy = 후보_생성(1);
 		legacy.select();
 		legacy.failSync();
 		recommendations.saveAndFlush(legacy);
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
-				.header(HttpHeaders.AUTHORIZATION, bearer()))
+				.header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("SYNC_FAILED"))
 			.andExpect(jsonPath("$[0].syncRetryable").value(false));
-		var failed = reserve(true);
+		var failed = 예약_생성(true);
 		task.unschedule();
 		tasks.saveAndFlush(task);
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
-				.header(HttpHeaders.AUTHORIZATION, bearer()))
+				.header(HttpHeaders.AUTHORIZATION, 인증_헤더_생성()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(failed.getId()))
 			.andExpect(jsonPath("$[0].syncRetryable").value(false));
 		verifyNoInteractions(google);
 	}
 
 	@Test
-	void historyLookupCannotReadAnotherUsersTask() throws Exception {
-		reserve(true);
-		String other = register(UUID.randomUUID().toString().substring(0, 8) + "@example.com");
+	void 이력_조회로_다른_사용자의_Task를_읽을_수_없다() throws Exception {
+		예약_생성(true);
+		String other = 회원가입(UUID.randomUUID().toString().substring(0, 8) + "@example.com");
 		mvc.perform(get("/tasks/{id}/recommendations", task.getId()).param("includeHistory", "true")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + other))
 			.andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND_TASK"));
 		verifyNoInteractions(google);
 	}
 
-	private Recommendation reserve(boolean failed) {
-		var candidate = candidate(1);
+	private Recommendation 예약_생성(boolean failed) {
+		var candidate = 후보_생성(1);
 		candidate.reserveCalendarSync("abcde");
 		task.schedule(START, START.plusHours(1));
 		tasks.saveAndFlush(task);
@@ -141,13 +141,13 @@ class RecommendationHistoryIntegrationTest {
 		return recommendations.saveAndFlush(candidate);
 	}
 
-	private Recommendation candidate(int rank) {
+	private Recommendation 후보_생성(int rank) {
 		return recommendations.save(Recommendation.create(user, task, START, START.plusHours(1), rank, 80, "기존 추천"));
 	}
 
-	private String bearer() { return "Bearer " + accessToken; }
+	private String 인증_헤더_생성() { return "Bearer " + accessToken; }
 
-	private String register(String email) throws Exception {
+	private String 회원가입(String email) throws Exception {
 		var result = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content("{\"name\":\"테스터\",\"email\":\"" + email + "\",\"password\":\"password123\"}"))
 			.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();

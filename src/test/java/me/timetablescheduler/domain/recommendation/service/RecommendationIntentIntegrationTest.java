@@ -75,7 +75,7 @@ class RecommendationIntentIntegrationTest {
 	private User user;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		when(clock.instant()).thenReturn(Instant.parse("2026-10-19T00:00:00Z"));
 		when(clock.getZone()).thenReturn(SEOUL);
 		user = users.save(new User("테스터", "t09-" + UUID.randomUUID().toString().substring(0, 8)
@@ -87,7 +87,7 @@ class RecommendationIntentIntegrationTest {
 	}
 
 	@Test
-	void naturalLanguageExactOffGridTimeIsPersistedAndRecommendedWithoutAutoScheduling() {
+	void 자연어의_정규_간격_밖_정확_시각을_저장하고_자동_확정_없이_추천한다() {
 		when(llmParsingService.parseTask(any())).thenReturn(new ParsedTaskResponse(
 			"알고리즘 공부", TaskCategory.STUDY, 120, null, DayOfWeek.THURSDAY, null,
 			PreferredTimeRange.EVENING, null, TaskPriority.NORMAL,
@@ -116,7 +116,7 @@ class RecommendationIntentIntegrationTest {
 	}
 
 	@Test
-	void changingIntentExpiresExistingCandidatesWhileKeepingRangeAndNewFlags() {
+	void 의도를_변경하면_허용_기간과_필수_여부를_유지하며_기존_후보를_만료한다() {
 		when(llmParsingService.parseTask(any())).thenReturn(new ParsedTaskResponse(
 			"과제", TaskCategory.ASSIGNMENT, 60, null, DayOfWeek.TUESDAY,
 			new DateRange(LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 25)),
@@ -144,7 +144,7 @@ class RecommendationIntentIntegrationTest {
 			.allSatisfy(recommendation -> assertThat(recommendation.status().name()).isEqualTo("EXPIRED"));
 	}
 	@Test
-	void exactOffGridCandidateCanBeSelectedThroughApiAndRetainsTypeAndSingleEvent() throws Exception {
+	void 정규_간격_밖_정확_시각_후보를_API로_선택하면_유형을_유지하고_이벤트를_한_번만_생성한다() throws Exception {
 		Task task=tasks.save(Task.create(user,"정확시각",TaskCategory.STUDY,120,THURSDAY,null,null,null,
 			PreferredTimeRange.EVENING,null,TaskPriority.NORMAL,"19시10분",true,true,LocalTime.of(19,10)));
 		var candidate=recommendationService.recommend(user.getId(),task.getId()).recommendations().getFirst();
@@ -173,7 +173,7 @@ class RecommendationIntentIntegrationTest {
 	}
 
 	@Test
-	void alternativesQueryIncludesEveryDayAndNeighborGapAndConnectedConflictBlocksOldCandidate() throws Exception {
+	void 대안_조회는_전체_날짜와_인접_여유_시간을_포함하고_연결_후_충돌은_기존_후보를_차단한다() throws Exception {
 		Task task=tasks.save(Task.create(user,"대안",TaskCategory.STUDY,120,THURSDAY,null,null,null,
 			PreferredTimeRange.EVENING,null,TaskPriority.NORMAL,"목요일저녁",false,false,LocalTime.of(19,10)));
 		var generated=recommendationService.recommend(user.getId(),task.getId());

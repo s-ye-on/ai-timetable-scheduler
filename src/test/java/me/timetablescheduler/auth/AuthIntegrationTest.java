@@ -28,7 +28,7 @@ class AuthIntegrationTest {
 	private MockMvc mockMvc;
 
 	@Test
-	void registerIssuesJwtAndAllowsProtectedAccess() throws Exception {
+	void 회원가입하면_JWT를_발급하고_보호된_API에_접근할_수_있다() throws Exception {
 		MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -43,7 +43,7 @@ class AuthIntegrationTest {
 			.andExpect(jsonPath("$.refreshToken").isString())
 			.andReturn();
 
-		String accessToken = jsonField(registerResult.getResponse().getContentAsString(), "accessToken");
+		String accessToken = JSON_필드_조회(registerResult.getResponse().getContentAsString(), "accessToken");
 
 		mockMvc.perform(get("/api/auth/me")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
@@ -53,7 +53,7 @@ class AuthIntegrationTest {
 	}
 
 	@Test
-	void loginAndRefreshRotateTokens() throws Exception {
+	void 로그인하고_토큰을_갱신하면_토큰이_교체된다() throws Exception {
 		mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -78,7 +78,7 @@ class AuthIntegrationTest {
 			.andExpect(jsonPath("$.refreshToken").isString())
 			.andReturn();
 
-		String refreshToken = jsonField(loginResult.getResponse().getContentAsString(), "refreshToken");
+		String refreshToken = JSON_필드_조회(loginResult.getResponse().getContentAsString(), "refreshToken");
 
 		mockMvc.perform(post("/api/auth/refresh")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class AuthIntegrationTest {
 	}
 
 	@Test
-	void refreshIgnoresAccessTokenAuthorizationHeader() throws Exception {
+	void 토큰_갱신은_액세스_토큰_인증_헤더를_무시한다() throws Exception {
 		mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -116,7 +116,7 @@ class AuthIntegrationTest {
 			.andExpect(status().isOk())
 			.andReturn();
 
-		String refreshToken = jsonField(loginResult.getResponse().getContentAsString(), "refreshToken");
+		String refreshToken = JSON_필드_조회(loginResult.getResponse().getContentAsString(), "refreshToken");
 
 		mockMvc.perform(post("/api/auth/refresh")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer malformed-access-token")
@@ -132,7 +132,7 @@ class AuthIntegrationTest {
 	}
 
 	@Test
-	void logoutInvalidatesRefreshToken() throws Exception {
+	void 로그아웃하면_리프레시_토큰이_무효화된다() throws Exception {
 		MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -145,8 +145,8 @@ class AuthIntegrationTest {
 			.andExpect(status().isCreated())
 			.andReturn();
 
-		String accessToken = jsonField(registerResult.getResponse().getContentAsString(), "accessToken");
-		String refreshToken = jsonField(registerResult.getResponse().getContentAsString(), "refreshToken");
+		String accessToken = JSON_필드_조회(registerResult.getResponse().getContentAsString(), "accessToken");
+		String refreshToken = JSON_필드_조회(registerResult.getResponse().getContentAsString(), "refreshToken");
 
 		mockMvc.perform(post("/api/auth/logout")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
@@ -162,7 +162,7 @@ class AuthIntegrationTest {
 			.andExpect(status().isUnauthorized());
 	}
 
-	private String jsonField(String content, String fieldName) {
+	private String JSON_필드_조회(String content, String fieldName) {
 		Matcher matcher = Pattern.compile(JSON_STRING_FIELD.pattern().formatted(fieldName)).matcher(content);
 		if (!matcher.find()) {
 			throw new IllegalStateException("Missing field: " + fieldName);

@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GoogleOAuthClientTest {
 
 	@Test
-	void authorizationUrlPreservesOpaqueStateAndExistingGoogleOptionsWithoutNetwork() {
+	void 인증_URL은_네트워크_호출_없이_불투명한_state와_기존_Google_옵션을_유지한다() {
 		var properties = new GoogleCalendarProperties("test-client", "test-only-client-secret",
 			"http://localhost/callback", "https://www.googleapis.com/auth/calendar", "test-app", "Asia/Seoul");
 		String state = "opaque-test-request-state";
