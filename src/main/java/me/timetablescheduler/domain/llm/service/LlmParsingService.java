@@ -3,6 +3,9 @@ package me.timetablescheduler.domain.llm.service;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import me.timetablescheduler.domain.llm.dto.DateRange;
 import me.timetablescheduler.domain.llm.dto.LlmParseRequest;
@@ -29,6 +32,8 @@ public class LlmParsingService {
 	private static final int TASK_DESCRIPTION_MAX_LENGTH = 500;
 
 	private final OpenAiClient openAiClient;
+	private final Clock clock;
+	private final LlmTemporalNormalizer temporalNormalizer = new LlmTemporalNormalizer();
 
 	public ParsedTaskResponse parseTask(LlmParseRequest request) {
 		// 가벼운 방어 코드
@@ -36,14 +41,23 @@ public class LlmParsingService {
 			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_REQUEST);
 		}
 
-		ParsedTaskResponse parsed = openAiClient.parseTask(request.message());
+		LocalDateTime requestedAt = LocalDateTime.ofInstant(clock.instant(), ZoneId.of("Asia/Seoul"));
+		ParsedTaskResponse parsed = openAiClient.parseTask(request.message(), requestedAt.toLocalDate());
 
 		// NPE 방지
 		if (parsed == null) {
 			throw new LlmException(ExceptionCode.INVALID_LLM_PARSE_RESULT);
 		}
 
-		ParsedTaskResponse normalized = normalize(parsed, request.message());
+		// 원본 DTO는 불변으로 유지하고, 명시 시각 유실·모순을 정규화로 숨기지 않는다.
+		validateTitle(parsed);
+		temporalNormalizer.validateSupportedRequest(request.message());
+		validateClarification(parsed);
+		validateDateCondition(parsed);
+		validateDateRange(parsed.preferredDateRange());
+		validateSourceIntent(request.message(), parsed);
+		ParsedTaskResponse temporal = temporalNormalizer.normalize(parsed, request.message(), requestedAt);
+		ParsedTaskResponse normalized = normalize(temporal, request.message());
 		validate(normalized);
 		validateSourceIntent(request.message(), normalized);
 
@@ -67,9 +81,7 @@ public class LlmParsingService {
 	}
 
 	private void validateRequiredFields(ParsedTaskResponse response) {
-		if (response.title() == null || response.title().isBlank()) {
-			throw new LlmException(ExceptionCode.MISSING_LLM_TITLE);
-		}
+		validateTitle(response);
 
 		if (response.title().length() > TASK_TITLE_MAX_LENGTH
 			|| response.description() == null
@@ -79,6 +91,12 @@ public class LlmParsingService {
 
 		if (response.category() == null) {
 			throw new LlmException(ExceptionCode.MISSING_LLM_CATEGORY);
+		}
+	}
+
+	private void validateTitle(ParsedTaskResponse response) {
+		if (response.title() == null || response.title().isBlank()) {
+			throw new LlmException(ExceptionCode.MISSING_LLM_TITLE);
 		}
 	}
 

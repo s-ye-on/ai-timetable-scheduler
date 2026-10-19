@@ -103,6 +103,37 @@ class OpenAiClientTest {
 		return mapper.writeValueAsString(Map.of("output", List.of(Map.of("content", List.of(Map.of("text", text))))));
 	}
 
+	@Test
+	void 자정에_날짜가_바뀌어도_요청_시각을_한번_읽고_프롬프트와_정규화에_공유한다() {
+		java.util.concurrent.atomic.AtomicInteger reads = new java.util.concurrent.atomic.AtomicInteger();
+		java.time.Clock advancing = new java.time.Clock() {
+			public java.time.ZoneId getZone() { return java.time.ZoneOffset.UTC; }
+			public java.time.Clock withZone(java.time.ZoneId zone) { return this; }
+			public java.time.Instant instant() {
+				return java.time.Instant.parse("2026-10-18T14:59:59Z").plusSeconds(reads.getAndIncrement() * 2L);
+			}
+		};
+		server.expect(requestTo("https://openai.test/v1/responses"))
+			.andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath("$.instructions")
+				.value(org.hamcrest.Matchers.containsString("Asia/Seoul 기준 2026-10-18")))
+			.andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath("$.instructions")
+				.value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("23:59"))))
+			.andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath("$.text.format.strict").value(true))
+			.andRespond(withSuccess(응답_본문_감싸기("""
+				{"title":"공부","category":"STUDY","durationMinutes":60,
+				 "preferredDate":null,"preferredDayOfWeek":"MONDAY","preferredDateRange":null,
+				 "preferredTimeRange":"LUNCH","deadline":null,"priority":null,"description":null,
+				 "dateRequired":false,"timeRequired":false,"preferredStartTime":null,"clarificationReason":null}
+				"""), MediaType.APPLICATION_JSON));
+		var service = new me.timetablescheduler.domain.llm.service.LlmParsingService(client, advancing);
+		var result = service.parseTask(new me.timetablescheduler.domain.llm.dto.LlmParseRequest("다음 주 월요일 점심에 공부 1시간"));
+		assertThat(reads.get()).isEqualTo(1);
+		assertThat(result.preferredDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 19));
+		assertThat(result.preferredDateRange()).isNull();
+		assertThat(result.preferredDayOfWeek()).isNull();
+		server.verify();
+	}
+
 	private void 오류_검증(String expected, Runnable action) {
 		assertThatThrownBy(action::run).isInstanceOf(LlmException.class)
 			.satisfies(error -> {

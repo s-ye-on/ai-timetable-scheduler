@@ -35,7 +35,8 @@ public enum ExceptionCode {
 	// 사용자가 보낸 자연어 요청 자체가 비어 있는 경우 사용
 	INVALID_LLM_PARSE_REQUEST(HttpStatus.BAD_REQUEST, "일정으로 해석할 자연어 입력이 필요합니다"),
 
-	MISSING_LLM_TITLE(HttpStatus.BAD_REQUEST, "일정 제목을 해석하지 못했습니다. 어떤 일을 할지 조금 더 명확히 입력해주세요."),
+	MISSING_LLM_TITLE(HttpStatus.BAD_REQUEST, "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요."),
+	UNSUPPORTED_LLM_RECURRENCE(HttpStatus.BAD_REQUEST, "반복 일정은 현재 지원하지 않습니다. 한 번의 일정으로 요청해주세요."),
 	MISSING_LLM_CATEGORY(HttpStatus.BAD_REQUEST, "일정 종류를 해석하지 못했습니다. 공부, 과제, 약속, 개인 업무 중 어떤 결정인지 입력해주세요."),
 	MISSING_LLM_DURATION(HttpStatus.BAD_REQUEST, "일정 소요 시간을 해석하지 못했습니다. 예: 30분, 1시간, 2시간처럼 입력해주세요."),
 

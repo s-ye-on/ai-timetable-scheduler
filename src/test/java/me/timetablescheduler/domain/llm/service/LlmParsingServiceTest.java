@@ -457,7 +457,8 @@ class LlmParsingServiceTest {
 	}
 
 	private LlmParsingService 응답을_반환하는_서비스_생성(ParsedTaskResponse response) {
-		return new LlmParsingService(new FakeOpenAiClient(response));
+		return new LlmParsingService(new FakeOpenAiClient(response), java.time.Clock.fixed(
+			java.time.Instant.parse("2026-10-19T01:00:00Z"), java.time.ZoneId.of("Asia/Seoul")));
 	}
 
 	private ParsedTaskResponse 시각_분석_응답_생성(
@@ -512,7 +513,7 @@ class LlmParsingServiceTest {
 		}
 
 		@Override
-		public ParsedTaskResponse parseTask(String message) {
+		public ParsedTaskResponse parseTask(String message, java.time.LocalDate requestDate) {
 			return response;
 		}
 	}

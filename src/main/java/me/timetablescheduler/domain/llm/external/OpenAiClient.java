@@ -59,10 +59,14 @@ public class OpenAiClient {
 	}
 
 	public ParsedTaskResponse parseTask(String message) {
+		return parseTask(message, LocalDate.now(ZoneId.of(SEOUL_ZONE_ID)));
+	}
+
+	public ParsedTaskResponse parseTask(String message, LocalDate requestDate) {
 		try {
 			String responseBody = restClient.post()
 				.uri(RESPONSES_PATH)
-				.body(createRequestBody(message))
+				.body(createRequestBody(message, requestDate))
 				.retrieve()
 				.body(String.class);
 
@@ -82,19 +86,17 @@ public class OpenAiClient {
 		}
 	}
 
-	private Map<String, Object> createRequestBody(String message) {
+	private Map<String, Object> createRequestBody(String message, LocalDate requestDate) {
 		return Map.of(
 			"model", properties.model(),
-			"instructions", createInstructions(),
+			"instructions", createInstructions(requestDate),
 			"input", message,
 			"store", false,
 			"text", Map.of("format", createResponseFormat())
 		);
 	}
 
-	private String createInstructions() {
-		LocalDate today = LocalDate.now(ZoneId.of(SEOUL_ZONE_ID));
-
+	private String createInstructions(LocalDate requestDate) {
 		return """
 			당신은 한국어 자연어 일정 요청을 구조화된 JSON으로 변환하는 파서입니다.
 			오늘 날짜는 Asia/Seoul 기준 %s 입니다.
@@ -102,6 +104,16 @@ public class OpenAiClient {
 
 			규칙:
 			- 추천 시간 자체를 결정하지 마세요. 사용자가 말한 조건만 추출하세요.
+			- 주는 월요일부터 일요일입니다. 상대 날짜의 최종 계산은 Java가 같은 기준 날짜로 수행합니다.
+			- 단독 요일과 "이번 주 목요일", "다음 주 월요일"은 preferredDayOfWeek로 추출하고 preferredDate는 null로 두세요. 반복 의미가 아닙니다.
+			- "이번 주 안에"처럼 허용 기간을 명시하면 해당 주 월요일~일요일을 preferredDateRange로 추출하고 요일 선호는 별도로 보존하세요.
+			- "다음 주 월요일"이라는 특정 날짜 표현만으로 preferredDateRange를 추가하지 마세요.
+			- "오늘 밤 한 시"는 01:00으로 추출하세요. 요청 시각 이후의 날짜 선택은 Java가 담당합니다. 밤을 EVENING으로 강제하지 마세요.
+			- "매주", "매일" 등의 반복 일정은 현재 미지원이므로 clarificationReason으로 안내하세요.
+			- 날짜·시각만 있고 활동이 없으면 title과 category는 null이며 활동명 확인이 필요합니다. 공부나 약속 같은 활동을 지어내지 마세요.
+			- "반드시", "에만 가능"처럼 명시한 필수 조건은 보존하세요. 필수 표현이 없으면 임의로 true로 만들지 마세요.
+			- "목요일 7시"처럼 오전·오후가 없는 1~12시는 확인이 필요합니다. "19시 10분"은 19:10을 그대로 보존하세요.
+			- 정확 시각의 시간대 자동 추론은 Java가 수행합니다. 명시된 시간대가 없으면 preferredTimeRange는 null로 두어도 됩니다.
 			- 알 수 없는 값은 null로 설정하세요.
 			- 응답은 반드시 제공된 JSON Schema에 맞춰야 합니다.
 
@@ -122,7 +134,7 @@ public class OpenAiClient {
 			- deadline: 마감일이 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- priority: LOW, NORMAL, HIGH 중 하나입니다. 불명확하면 null입니다.
 			- description: 사용자의 원문 메시지를 그대로 넣으세요.
-			""".formatted(today);
+			""".formatted(requestDate);
 	}
 
 	private Map<String, Object> createResponseFormat() {
