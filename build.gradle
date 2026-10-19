@@ -50,5 +50,30 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'llm-live' }
+}
+
+tasks.register('llmEval', Test) {
+    group = 'verification'
+    description = '명시적으로 승인한 실제 OpenAI 자연어 평가만 실행한다'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'llm-live' }
+    filter { includeTestsMatching 'me.timetablescheduler.domain.llm.evaluation.LlmLiveEvaluationTest' }
+    systemProperty 'llm.eval.task', 'live'
+    systemProperty 'llm.eval.enabled', providers.gradleProperty('runLlmEval').getOrElse('false')
+    systemProperty 'llm.eval.repeats', providers.gradleProperty('evalRepeats').getOrElse('1')
+    systemProperty 'llm.eval.output', layout.buildDirectory.dir('llm-evaluation').get().asFile.absolutePath
+    outputs.upToDateWhen { false }
+    outputs.doNotCacheIf('실제 API 평가 결과를 빌드 캐시로 재사용하지 않는다') { true }
+    doFirst {
+        if (providers.gradleProperty('runLlmEval').getOrElse('false') != 'true'
+            || System.getenv('LLM_EVAL_ALLOW_API') != 'true'
+            || !System.getenv('OPENAI_API_KEY')?.trim()) {
+            throw new GradleException('실제 평가는 -PrunLlmEval=true, LLM_EVAL_ALLOW_API=true, OPENAI_API_KEY가 모두 필요합니다.')
+        }
+        if (!(providers.gradleProperty('evalRepeats').getOrElse('1') in ['1', '3'])) {
+            throw new GradleException('evalRepeats는 1 또는 3만 허용합니다.')
+        }
+    }
 }
