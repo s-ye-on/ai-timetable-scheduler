@@ -52,10 +52,10 @@ public class LlmParsingService {
 		// 원본 DTO는 불변으로 유지하고, 명시 시각 유실·모순을 정규화로 숨기지 않는다.
 		validateTitle(parsed);
 		temporalNormalizer.validateSupportedRequest(request.message());
+		validateSourceIntent(request.message(), parsed);
 		validateClarification(parsed);
 		validateDateCondition(parsed);
 		validateDateRange(parsed.preferredDateRange());
-		validateSourceIntent(request.message(), parsed);
 		ParsedTaskResponse temporal = temporalNormalizer.normalize(parsed, request.message(), requestedAt);
 		ParsedTaskResponse normalized = normalize(temporal, request.message());
 		validate(normalized);
@@ -160,10 +160,22 @@ public class LlmParsingService {
 
 	/** 원문을 다시 구조화하지 않고, 명백한 미지원 조건과 명시 시각의 유실·모순만 거절한다. */
 	private void validateSourceIntent(String source, ParsedTaskResponse parsed) {
-		// 명시적 요일 선택·상대 시간 간격만 거절한다. 활동명의 /·뒤는 대상이 아니다.
+		// 숫자 의미를 다시 해석하지 않고 상대 조건의 추출 누락·가짜 필드만 검사한다.
+		boolean hasRelativeSource = Pattern.compile("(?<![가-힣\\d])(?:\\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|반)\\s*(?:시간(?:\\s*반)?|분)\\s*(?:뒤|후)(?=\\s|에|부터|만|$)")
+			.matcher(source).find();
+		boolean hasRelativeFields = parsed.relativeStartMode() != null || parsed.startOffsetMinutes() != null;
+		// LLM이 추출한 간격의 한글 숫자는 Java에서 읽지 않는다. 단위·상대 표현만 확인한다.
+		boolean hasRelativeUnit = Pattern.compile("(?:시간(?:\\s*반)?|분)\\s*(?:뒤|후)(?=\\s|에|부터|만|$)")
+			.matcher(source).find();
+		if ((hasRelativeSource && !hasRelativeFields) || (hasRelativeFields && !hasRelativeUnit)
+			|| (hasRelativeFields && (parsed.relativeStartMode() == null || parsed.startOffsetMinutes() == null))) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
+		if (parsed.relativeStartMode() == me.timetablescheduler.domain.llm.dto.RelativeStartMode.NOT_BEFORE) {
+			throw new LlmException(ExceptionCode.UNSUPPORTED_LLM_RELATIVE_START_RANGE);
+		}
+		// 명시적 요일 선택만 거절한다. 활동명의 /는 대상이 아니다.
 		if (Pattern.compile("(?<![가-힣])[월화수목금토일](?:요일)?(?:\\s*/\\s*[월화수목금토일](?:요일)?)+\\s*중\\s*(?:하루|하나|한\\s*날)")
-				.matcher(source).find()
-			|| Pattern.compile("(?<![가-힣\\d])(?:\\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|반)\\s*(?:시간(?:\\s*반)?|분)\\s*(?:뒤|후)(?=\\s|에|부터|만|$)")
 				.matcher(source).find()) {
 			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
 		}
@@ -185,7 +197,7 @@ public class LlmParsingService {
 			String suffix = source.substring(hours.end()).stripLeading();
 			// 기존 시각 인식 범위를 재사용하여 붙여 쓴 시간대도 놓치지 않는다.
 			if (Pattern.compile("^(?:\\d{1,2}|[영공일이삼사오육칠팔구십]+)\\s*초(?=\\s|에|부터|만|$)").matcher(suffix).find()) {
-				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+				throw new LlmException(ExceptionCode.UNSUPPORTED_LLM_START_SECONDS);
 			}
 			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
 				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
@@ -203,7 +215,7 @@ public class LlmParsingService {
 		while (clockTimes.find()) {
 			String suffix = source.substring(clockTimes.end()).stripLeading();
 			if (Pattern.compile("^:\\d{2}(?!\\d)").matcher(suffix).find()) {
-				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+				throw new LlmException(ExceptionCode.UNSUPPORTED_LLM_START_SECONDS);
 			}
 			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
 				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
@@ -273,7 +285,9 @@ public class LlmParsingService {
 			parsed.dateRequired(),
 			parsed.timeRequired(),
 			parsed.preferredStartTime(),
-			parsed.clarificationReason()
+			parsed.clarificationReason(),
+			parsed.relativeStartMode(),
+			parsed.startOffsetMinutes()
 		);
 	}
 }

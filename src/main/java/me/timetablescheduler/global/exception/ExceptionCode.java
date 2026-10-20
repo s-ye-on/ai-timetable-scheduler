@@ -31,6 +31,8 @@ public enum ExceptionCode {
 	INVALID_LLM_DATE_CONDITION(HttpStatus.BAD_REQUEST, "특정 날짜와 특정 요일은 함께 지정할 수 없습니다."),
 	INVALID_LLM_DURATION(HttpStatus.BAD_REQUEST, "일정 소요 시간은 30분, 60분, 90분처럼 30분 단위로 입력해주세요."),
 	INVALID_LLM_DATE_RANGE(HttpStatus.BAD_REQUEST, "날짜 범위가 올바르지 않습니다. 시작일은 종료일과 같거나 더 빨라야 합니다."),
+	UNSUPPORTED_LLM_START_SECONDS(HttpStatus.BAD_REQUEST, "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요."),
+	UNSUPPORTED_LLM_RELATIVE_START_RANGE(HttpStatus.BAD_REQUEST, "최소 시작 시각 조건은 지원하지 않아요. 원하는 시작 시각을 지정해 주세요."),
 	LLM_CLARIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "요청의 날짜 또는 시간을 확정할 수 없거나 현재 지원하지 않는 조건입니다. 날짜, 오전·오후, 필수 여부를 조금 더 명확히 입력해주세요."),
 	// 사용자가 보낸 자연어 요청 자체가 비어 있는 경우 사용
 	INVALID_LLM_PARSE_REQUEST(HttpStatus.BAD_REQUEST, "일정으로 해석할 자연어 입력이 필요합니다"),

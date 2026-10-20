@@ -1,0 +1,3911 @@
+{
+  "datasetVersion": "2.0.0",
+  "datasetId": "timetable-scheduler-korean-intent-v2",
+  "createdDate": "2026-10-21",
+  "purpose": "G29 초 단위 시작 시각 거절·G32 유지·G38 고정 상대 시작 정책 평가. v1 실측과 구분한다.",
+  "provenance": {
+    "source": "Golden v1을 복사하고 사용자 확정 정책에서 독립적으로 v2 정답을 정의함",
+    "previousDataset": "golden-dataset-v1.json",
+    "actualModelOutputUsed": false
+  },
+  "contract": {
+    "dto": "me.timetablescheduler.domain.llm.dto.ParsedTaskResponse",
+    "requiredFields": [
+      "title",
+      "category",
+      "durationMinutes",
+      "preferredDate",
+      "preferredDayOfWeek",
+      "preferredDateRange",
+      "preferredTimeRange",
+      "deadline",
+      "priority",
+      "description",
+      "dateRequired",
+      "timeRequired",
+      "preferredStartTime",
+      "clarificationReason",
+      "relativeStartMode",
+      "startOffsetMinutes"
+    ],
+    "additionalProperties": false,
+    "allFieldsNullable": true,
+    "dateFormat": "yyyy-MM-dd",
+    "startTimeFormat": "HH:mm",
+    "dateRangeKeys": [
+      "startDate",
+      "endDate"
+    ],
+    "categoryValues": [
+      "STUDY",
+      "ASSIGNMENT",
+      "APPOINTMENT",
+      "PERSONAL"
+    ],
+    "timeRangeValues": [
+      "MORNING",
+      "LUNCH",
+      "AFTERNOON",
+      "EVENING",
+      "ANYTIME"
+    ],
+    "priorityValues": [
+      "LOW",
+      "NORMAL",
+      "HIGH"
+    ],
+    "zeroSecondsEquivalent": true,
+    "relativeStartModeValues": [
+      "EXACT",
+      "NOT_BEFORE"
+    ]
+  },
+  "matchingRules": {
+    "defaultFieldComparison": "EXACT",
+    "precedence": "개별 fieldRules가 canonical DTO 값보다 우선한다. JSON 스키마·타입 검증은 항상 적용한다.",
+    "semanticReview": "acceptedExamples는 허용 예시이며 폐쇄적인 목록이 아니다. 목록 밖 동의 표현은 사람이 의미를 검토하며 요청 조건이 바뀌면 허용하지 않는다.",
+    "clarificationReason": "비어 있지 않고 requiredConcepts를 설명해야 한다. 문구 완전 일치는 요구하지 않는다.",
+    "title": "활동·주제를 보존하는 동의 표현을 허용한다. G02/G03/G05의 null은 활동 누락이므로 엄격하게 비교한다.",
+    "description": "모든 사례에서 입력 원문과 완전 일치한다. Java의 원문 보완을 raw 성공으로 세지 않는다.",
+    "derivedFields": "CONTRACT_ONLY는 허용값·타입을 검사하되 raw 의미 정확도에서 제외한다. Java 결과에서는 구체적인 값을 엄격하게 비교한다.",
+    "rejectedCases": "확인 요청은 정규화 전에 중단된다. normalized=null은 기대한 반환 DTO가 없음을 의미한다.",
+    "normalization": "정상 Java 기대값을 실제 모델 출력이나 Java 실행값으로 고쳐 쓰지 않는다. 아래 독립적으로 정의한 값과 비교한다.",
+    "errorMetrics": "LLM 의미 정확도, Java 안전 차단, 기대 오류 코드, Task 생성 가능 여부를 분리한다.",
+    "taskCreation": "httpStatus는 인증·사용자가 유효한 POST /tasks/natural-language의 기대값이다. 이번 작업에서 API를 실행한 결과가 아니다.",
+    "preferredStartTime": "canonical은 HH:mm이다. 실제 DTO가 허용하는 HH:mm:00은 동일 시각으로 비교한다. 0이 아닌 초·소수 초를 버려 같은 시각으로 만들지 않는다. null과 임의의 시각은 동등하지 않다."
+  },
+  "referenceContexts": {
+    "A": {
+      "requestedAt": "2026-10-19T10:00:00+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "B": {
+      "requestedAt": "2026-10-19T23:59:59+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "C": {
+      "requestedAt": "2026-10-20T00:00:00+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "D": {
+      "requestedAt": "2026-10-31T23:59:59+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "E": {
+      "requestedAt": "2026-12-31T23:59:59+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "F": {
+      "requestedAt": "2026-10-25T10:00:00+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "R44": {
+      "requestedAt": "2026-10-19T10:00:45+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    "R45": {
+      "requestedAt": "2026-12-31T23:30:45+09:00",
+      "timeZone": "Asia/Seoul"
+    }
+  },
+  "summary": {
+    "caseCount": 46,
+    "typeCounts": {
+      "NORMAL": 19,
+      "AMBIGUOUS": 5,
+      "BOUNDARY": 12,
+      "UNSUPPORTED": 10
+    },
+    "outcomeCounts": {
+      "CREATE_TASK": 31,
+      "CLARIFICATION": 15
+    },
+    "resolvedPolicyIds": [
+      "G01",
+      "G02",
+      "G04",
+      "G05",
+      "G29",
+      "G32",
+      "G37",
+      "G38",
+      "G39"
+    ]
+  },
+  "scopeExclusions": [
+    "실제 OpenAI API 호출",
+    "기존 DB 변경",
+    "추천 점수제 변경",
+    "최소 시작 시각 지원",
+    "초 단위 시각 지원"
+  ],
+  "cases": [
+    {
+      "id": "G01",
+      "input": "목요일 저녁 7시에 알고리즘 공부 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "weekday",
+        "exact_start",
+        "duration",
+        "soft_constraints"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": null,
+          "preferredDayOfWeek": "THURSDAY",
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "목요일 저녁 7시에 알고리즘 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "목요일 저녁 7시에 알고리즘 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "rationale": "G01: 비반복 목요일·19:00·120분 추출. Java가 기준 시각 이후 10/22로 계산한다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G02",
+      "input": "반드시 목요일 저녁 7시에만 가능해",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "AMBIGUOUS",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "activity_missing",
+        "hard_date",
+        "hard_time",
+        "error_precedence"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": null,
+          "category": null,
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": "THURSDAY",
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "반드시 목요일 저녁 7시에만 가능해",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "19:00",
+          "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "EXACT",
+            "value": null
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "ACTIVITY_MISSING"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "MISSING_LLM_TITLE",
+        "httpStatus": 400,
+        "userMessage": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "G02: 날짜·시간 모두 필수이지만 활동은 없다. 제목을 생성하지 않고 전용 400으로 중단한다.",
+      "criticalFailures": [
+        "활동명을 임의 생성하여 Task를 저장함",
+        "필수 날짜를 누락하거나 선호로 완화함",
+        "필수 시간 조건을 누락하거나 완화함",
+        "명시된 시작 시각을 다른 시각으로 변경함",
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G03",
+      "input": "목요일 7시에만 가능해",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "AMBIGUOUS",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "am_pm_ambiguity",
+        "activity_missing"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": null,
+          "category": null,
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": "THURSDAY",
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "목요일 7시에만 가능해",
+          "dateRequired": null,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": "오전인지 오후인지 확인이 필요합니다. 일정 이름도 알려주세요.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "EXACT",
+            "value": null
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "AM_PM_AMBIGUOUS"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          },
+          "dateRequired": {
+            "mode": "ONE_OF",
+            "values": [
+              null,
+              false,
+              true
+            ],
+            "scoreBucket": "NOT_APPLICABLE",
+            "reason": "모호하거나 표현 불가한 요청은 먼저 확인한다. 단일 날짜의 강제성을 추가 정책으로 확정하지 않으며 성공 생성은 모두 금지한다."
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "MISSING_LLM_TITLE",
+        "httpStatus": 400,
+        "userMessage": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "G03 원문 유지: 7시의 오전·오후와 활동명이 불명확하다. LLM은 시각을 임의 확정하지 않는다. Java는 제목 누락을 먼저 검사한다.",
+      "criticalFailures": [
+        "활동명을 임의 생성하여 Task를 저장함",
+        "필수 시간 조건을 누락하거나 완화함",
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "LLM의 정답 확인 사유는 오전·오후 모호함이다. Java의 MISSING_LLM_TITLE은 활동 누락 우선순위이므로 두 지표를 합치지 않는다."
+      ]
+    },
+    {
+      "id": "G04",
+      "input": "목요일 19시 10분에 공부하고 싶어",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "minute_precision",
+        "weekday",
+        "java_time_band",
+        "default_duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": "THURSDAY",
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "목요일 19시 10분에 공부하고 싶어",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:10",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "preferredTimeRange": {
+            "mode": "ONE_OF",
+            "values": [
+              null,
+              "EVENING"
+            ],
+            "scoreBucket": "CONTRACT_ONLY",
+            "reason": "원문에 밴드가 없고 Java가 자동 추론한다. 추론값을 LLM 원본 의미 정확도에 가산하지 않는다."
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "목요일 19시 10분에 공부하고 싶어",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:10",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "G04: 원본은 정확 19:10·요일만 보존한다. 60분/NORMAL 기본값과 EVENING 추론, 10/22 날짜는 Java 단계다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": [
+        "원본 durationMinutes/priority는 null, Java 결과는 60/NORMAL. 19:10은 19:00/19:30으로 변경할 수 없다."
+      ]
+    },
+    {
+      "id": "G05",
+      "input": "이번 주 안에 화요일 점심이면 좋겠어",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "AMBIGUOUS",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "week_boundary",
+        "allowed_range",
+        "weekday_preference",
+        "activity_missing"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": null,
+          "category": null,
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": "TUESDAY",
+          "preferredDateRange": {
+            "startDate": "2026-10-19",
+            "endDate": "2026-10-25"
+          },
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": null,
+          "description": "이번 주 안에 화요일 점심이면 좋겠어",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "EXACT",
+            "value": null
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "ACTIVITY_MISSING"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "MISSING_LLM_TITLE",
+        "httpStatus": 400,
+        "userMessage": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "G05: 이번 주 월~일은 필수 허용 기간, 화요일·점심은 선호다. 활동명 누락 때문에 현재 서비스는 날짜 정규화 전에 중단한다.",
+      "criticalFailures": [
+        "활동명을 임의 생성하여 Task를 저장함",
+        "명시된 허용 기간을 누락하거나 넓힘",
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "원본 기간은 현 프롬프트가 요구하는 ISO 날짜 구간이다. 정규화 반환값은 없으며, 제목 보완 시의 기간 계산은 G05 정책/기존 Java 회귀로 별도 검증한다."
+      ]
+    },
+    {
+      "id": "G06",
+      "input": "내일 오후에 과제 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_date",
+        "time_band",
+        "duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-20",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": null,
+          "description": "내일 오후에 과제 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-20",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "내일 오후에 과제 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "rationale": "내일·오후·120분. 현 원본 계약은 상대 날짜도 ISO 날짜로 반환한다. Java가 같은 기준일로 재계산한다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G07",
+      "input": "과제할 시간 1시간 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "date_unspecified",
+        "duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "과제할 시간 1시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "과제할 시간 1시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "rationale": "활동·60분 외 날짜·시각을 임의로 추가하지 않는다. 날짜 미지정 추천은 Java 정책에서 14일 탐색한다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G08",
+      "input": "밤 한 시에 공부하고 싶어",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "night_hour",
+        "date_unspecified",
+        "default_duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "밤 한 시에 공부하고 싶어",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "01:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "밤 한 시에 공부하고 싶어",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "01:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "밤 한 시는 01:00이나 '오늘'은 없다. 날짜를 임의 지정하지 않는다. 소요 시간만 Java가 60분으로 보정한다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": [
+        "가용 시간이 09:00~22:00이면 정확 01:00 후보가 없을 수 있다. timeRequired=false이므로 낮 시간 대안은 허용되며 후보 존재를 파싱 성공과 혼동하지 않는다."
+      ]
+    },
+    {
+      "id": "G09",
+      "input": "2026년 10월 22일 저녁 7시에 공부 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "explicit_date",
+        "exact_start",
+        "soft_constraints"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 저녁 7시에 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 저녁 7시에 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "명시 날짜·저녁·19:00·120분을 유지한다. 필수 표현이 없어 선호 조건이다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G10",
+      "input": "2026년 10월 22일에만 가능하고 저녁 7시에만 공부 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "hard_date",
+        "hard_time",
+        "exact_start"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일에만 가능하고 저녁 7시에만 공부 2시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일에만 가능하고 저녁 7시에만 공부 2시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "19:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "'일에만'과 '시에만'은 별개의 필수 조건이다. 날짜·시각을 어느 쪽도 완화하지 않는다.",
+      "criticalFailures": [
+        "필수 날짜를 누락하거나 선호로 완화함",
+        "필수 시간 조건을 누락하거나 완화함",
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G11",
+      "input": "오늘 오전에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_date",
+        "time_band"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-19",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": null,
+          "description": "오늘 오전에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-19",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "오늘 오전에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "오늘의 날짜와 오전 밴드. 현재 10:00이므로 지나간 후보 제외는 추천 단계의 책임이다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G12",
+      "input": "모레 오후에 공부 한 시간 반",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_date",
+        "korean_duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 90,
+          "preferredDate": "2026-10-21",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": null,
+          "description": "모레 오후에 공부 한 시간 반",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 90,
+          "preferredDate": "2026-10-21",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "모레 오후에 공부 한 시간 반",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "모레는 10/21, 한 시간 반은 90분이다. duration을 반올림하지 않는다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G13",
+      "input": "2026년 10월 20일부터 23일 사이에만 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "allowed_range",
+        "inclusive_endpoints"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": {
+            "startDate": "2026-10-20",
+            "endDate": "2026-10-23"
+          },
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 20일부터 23일 사이에만 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": {
+            "startDate": "2026-10-20",
+            "endDate": "2026-10-23"
+          },
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 20일부터 23일 사이에만 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "20~23일 양 끝을 포함하는 필수 허용 기간이다. 단일 날짜가 없으므로 dateRequired=false를 유지한다.",
+      "criticalFailures": [
+        "명시된 허용 기간을 누락하거나 넓힘"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G14",
+      "input": "2026년 10월 22일 점심에 공부 1시간이면 좋겠어. 10월 20일부터 25일 사이만 가능해",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "preferred_date_with_allowed_range"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": {
+            "startDate": "2026-10-20",
+            "endDate": "2026-10-25"
+          },
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 점심에 공부 1시간이면 좋겠어. 10월 20일부터 25일 사이만 가능해",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": {
+            "startDate": "2026-10-20",
+            "endDate": "2026-10-25"
+          },
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 점심에 공부 1시간이면 좋겠어. 10월 20일부터 25일 사이만 가능해",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "선호 날짜 10/22와 필수 허용 기간 10/20~25는 공존한다. 이 데이터는 파싱을 평가하며 탐색 결과를 고정하지 않는다.",
+      "criticalFailures": [
+        "명시된 허용 기간을 누락하거나 넓힘"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G15",
+      "input": "2026년 10월 23일까지 끝내야 하는 과제 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "deadline",
+        "no_invented_start_date"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 120,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": "2026-10-23",
+          "priority": null,
+          "description": "2026년 10월 23일까지 끝내야 하는 과제 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "과제",
+          "category": "ASSIGNMENT",
+          "durationMinutes": 120,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": "2026-10-23",
+          "priority": "NORMAL",
+          "description": "2026년 10월 23일까지 끝내야 하는 과제 2시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "과제",
+              "과제 수행",
+              "과제하기"
+            ],
+            "requiredMeaning": "과제 수행"
+          }
+        }
+      },
+      "rationale": "'23일까지 끝내야'는 마감이다. 선호 시작 날짜·필수 시작 날짜로 바꾸지 않는다.",
+      "criticalFailures": [
+        "마감일을 누락하거나 이동함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G16",
+      "input": "중요도가 높은 공부 1시간 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "NORMAL",
+      "evaluationAspects": [
+        "priority"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "HIGH",
+          "description": "중요도가 높은 공부 1시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "HIGH",
+          "description": "중요도가 높은 공부 1시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "사용자가 명시한 HIGH만 추출한다. 기본 중요도를 모델이 추정하지 않는다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G17",
+      "input": "중요도가 낮은 공부 30분 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "NORMAL",
+      "evaluationAspects": [
+        "priority",
+        "duration"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 30,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "LOW",
+          "description": "중요도가 낮은 공부 30분 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 30,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "LOW",
+          "description": "중요도가 낮은 공부 30분 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "LOW와 30분을 보존한다. 소요 시간 최소 단위와 의미 정확도를 확인한다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G18",
+      "input": "2026년 10월 22일 오전 9시 10분에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "minute_precision",
+        "morning"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 오전 9시 10분에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "09:10",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 오전 9시 10분에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "09:10",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "09:10은 30분 격자 밖이어도 정확하게 보존한다. 오전이 명시되어 MORNING은 원본 조건이다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G19",
+      "input": "2026년 10월 22일 점심 12:00에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "time_band_boundary"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 점심 12:00에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "12:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 점심 12:00에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "12:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "점심 시작 경계 12:00을 보존한다. 소요 시간 60분과 밴드가 함께 유지되어야 한다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G20",
+      "input": "2026년 10월 22일 저녁 18:00에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "time_band_boundary"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 저녁 18:00에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "18:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 저녁 18:00에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "18:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "저녁 시작 경계 18:00을 보존한다. EVENING은 원문에 명시된 조건이다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G21",
+      "input": "내일 오후에 공부 1시간",
+      "reference": {
+        "id": "B",
+        "requestedAt": "2026-10-19T23:59:59+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "midnight_before",
+        "relative_date"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-20",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": null,
+          "description": "내일 오후에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-20",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "내일 오후에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "기준이 10/19 23:59:59이므로 내일은 10/20이다. 실행 날짜를 사용하지 않는다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G22",
+      "input": "내일 오후에 공부 1시간",
+      "reference": {
+        "id": "C",
+        "requestedAt": "2026-10-20T00:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "midnight_after",
+        "relative_date"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-21",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": null,
+          "description": "내일 오후에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-21",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "내일 오후에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "기준이 10/20 00:00:00이므로 내일은 10/21이다. G21과 입력은 같고 기준 시각만 다르다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G23",
+      "input": "내일 저녁에 공부 1시간",
+      "reference": {
+        "id": "D",
+        "requestedAt": "2026-10-31T23:59:59+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "month_boundary"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-11-01",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "내일 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-11-01",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "내일 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "10/31의 내일은 11/01이다. 월 경계를 넘는 상대 날짜다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G24",
+      "input": "내일 저녁에 공부 1시간",
+      "reference": {
+        "id": "E",
+        "requestedAt": "2026-12-31T23:59:59+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "year_boundary"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2027-01-01",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "내일 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2027-01-01",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "내일 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "12/31의 내일은 2027/01/01이다. 연도 경계를 넘는 상대 날짜다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G25",
+      "input": "어제 저녁에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "past_date",
+        "parse_vs_recommendation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-18",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "어제 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-18",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "어제 저녁에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "어제는 10/18이다. 원문을 미래 날짜로 고치지 않는다. Task 생성과 과거 추천 후보 차단은 별개다.",
+      "criticalFailures": [],
+      "notes": [
+        "원본·Task의 과거 선호 날짜는 보존한다. 추천 엔진이 과거 후보를 제외하며, 선호 요청의 미래 대안이 존재할 수 있다. 이번 데이터는 추천 후보를 실행하지 않는다."
+      ]
+    },
+    {
+      "id": "G26",
+      "input": "알고리즘 공부 30분 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "NORMAL",
+      "evaluationAspects": [
+        "minimum_duration",
+        "title"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 30,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "알고리즘 공부 30분 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 30,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "알고리즘 공부 30분 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "rationale": "알고리즘이라는 주제와 공부라는 활동, 30분을 유지한다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G27",
+      "input": "알고리즘 공부 한 시간 반 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "korean_duration",
+        "title"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 90,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "알고리즘 공부 한 시간 반 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "알고리즘 공부",
+          "category": "STUDY",
+          "durationMinutes": 90,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "알고리즘 공부 한 시간 반 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "알고리즘 공부",
+              "알고리즘 학습",
+              "알고리즘"
+            ],
+            "requiredMeaning": "알고리즘 관련 학습"
+          }
+        }
+      },
+      "rationale": "한 시간 반은 90분이다. 제목 동의 표현은 허용하지만 활동·주제 누락은 허용하지 않는다.",
+      "criticalFailures": [],
+      "notes": []
+    },
+    {
+      "id": "G28",
+      "input": "공부할 시간 20분 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_duration",
+        "no_rounding"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "공부할 시간 20분 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "20분 소요 시간은 현재 30분 단위 조건으로 표현할 수 없습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_DURATION_STEP"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          },
+          "durationMinutes": {
+            "mode": "ONE_OF",
+            "values": [
+              null,
+              20
+            ],
+            "scoreBucket": "SEMANTIC",
+            "reason": "20분 사실을 보존하거나 지원 불가로 null 처리하되, 확인 사유는 반드시 20분/30분 단위 문제를 설명해야 한다. 반올림은 오답이다."
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "20분을 30분/60분으로 바꾸지 않는다. 확인 요청이 정답이며 INVALID_LLM_DURATION 차단만으로 LLM 정답 처리하지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "durationMinutes=20, clarificationReason=null을 Java가 INVALID_LLM_DURATION으로 막는 것은 안전 차단이지 기대한 LLM 확인 요청 성공이 아니다."
+      ]
+    },
+    {
+      "id": "G29",
+      "input": "2026년 10월 22일 저녁 7시 10분 30초에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_seconds",
+        "no_truncation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 저녁 7시 10분 30초에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_SECONDS"
+            ],
+            "canonicalTextIsExactMatchRequired": true
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "UNSUPPORTED_LLM_START_SECONDS",
+        "httpStatus": 400,
+        "userMessage": "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "일반·필수 요청 모두 초 단위 시작 시각은 전용 400으로 거절한다. 절삭하지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "preferredStartTime=19:10으로 절삭하거나 19:10:30을 정상 지원하는 것으로 판정하지 않는다."
+      ]
+    },
+    {
+      "id": "G30",
+      "input": "월요일 또는 화요일에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "unsupported_or"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "월요일 또는 화요일에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "월요일 또는 화요일 중 선택하는 조건은 현재 지원하지 않습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_DAY_DISJUNCTION"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "복수 요일 OR은 단일 날짜·요일 모델로 표현할 수 없다. 하나를 임의로 고르지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G31",
+      "input": "월요일이나 화요일에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "unsupported_or",
+        "synonym"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "월요일이나 화요일에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "월요일이나 화요일 중 선택하는 조건은 현재 지원하지 않습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_DAY_DISJUNCTION"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "'이나'도 OR 의미다. 원문의 접속 표현이 달라도 한 요일로 축소하지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "LLM의 올바른 확인 사유를 전제로 한 기대값이다. 잘못된 LLM 응답까지 현재 Java가 모두 막는다는 보장이 아니다."
+      ]
+    },
+    {
+      "id": "G32",
+      "input": "월/화 중 하루에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "unsupported_or",
+        "abbreviation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "월/화 중 하루에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "월요일과 화요일 중 하루라는 조건은 현재 지원하지 않습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_DAY_DISJUNCTION"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "축약 '월/화 중 하루'도 OR이다. Java 정규식 인식 여부와 LLM 의미 해석을 구분한다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "LLM의 올바른 확인 사유를 전제로 한 기대값이다. 잘못된 LLM 응답까지 현재 Java가 모두 막는다는 보장이 아니다."
+      ]
+    },
+    {
+      "id": "G33",
+      "input": "화요일을 제외하고 이번 주에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_exclusion"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "화요일을 제외하고 이번 주에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "화요일 제외 조건은 현재 지원하지 않습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_DAY_EXCLUSION"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "화요일 제외를 무시하면 제약이 바뀐다. 현재 제외 모델이 없으므로 확인한다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G34",
+      "input": "오후 7시 이후에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_time_bound"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "오후 7시 이후에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "19시 이후라는 시작 시각 하한 조건은 현재 지원하지 않습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_TIME_LOWER_BOUND"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "19시 이후는 정확 19시 시작이 아니다. 하한을 정확 시각이나 넓은 밴드로 바꾸지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G35",
+      "input": "2026년 10월 22일에만 공부 1시간. 마감은 2026년 10월 21일이야",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "AMBIGUOUS",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "contradiction",
+        "deadline",
+        "hard_date"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": "2026-10-21",
+          "priority": null,
+          "description": "2026년 10월 22일에만 공부 1시간. 마감은 2026년 10월 21일이야",
+          "dateRequired": true,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "필수 날짜인 10월 22일이 마감일인 10월 21일보다 늦습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "CONTRADICTORY_REQUIRED_DATE_DEADLINE"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "10/22 필수 날짜가 10/21 마감을 넘는다. 임의로 날짜나 마감을 이동하지 않는다.",
+      "criticalFailures": [
+        "필수 날짜를 누락하거나 선호로 완화함",
+        "마감일을 누락하거나 이동함",
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G36",
+      "input": "2026년 10월 22일 오후에만 공부 2시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "hard_time_band",
+        "no_exact_start"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 오후에만 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 120,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "AFTERNOON",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "2026년 10월 22일 오후에만 공부 2시간",
+          "dateRequired": false,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "정확 시각 없이 AFTERNOON 전체 수행 구간이 필수다. timeRequired=true, preferredStartTime=null.",
+      "criticalFailures": [
+        "필수 시간 조건을 누락하거나 완화함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G37",
+      "input": "오늘 밤 한 시에 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "night_rollover",
+        "clock",
+        "parse_vs_recommendation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "오늘 밤 한 시에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "01:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "preferredDate": {
+            "mode": "ONE_OF",
+            "values": [
+              null,
+              "2026-10-19",
+              "2026-10-20"
+            ],
+            "scoreBucket": "CONTRACT_ONLY",
+            "reason": "모델에는 기준 날짜만 주어진다. 01:00 이후의 최종 날짜는 Java Clock으로 판정하며 LLM 날짜 정확도로 채점하지 않는다."
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-20",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "오늘 밤 한 시에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": "01:00",
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "G37: 요청 이후 가장 가까운 01:00은 10/20이다. 현재 시·분은 모델에 주어지지 않으므로 최종 날짜는 Java 소유다.",
+      "criticalFailures": [
+        "명시된 시작 시각을 다른 시각으로 변경함"
+      ],
+      "notes": [
+        "가용 시간이 09:00~22:00이면 정확 01:00 후보가 없을 수 있다. timeRequired=false이므로 낮 시간 대안은 허용되며 후보 존재를 파싱 성공과 혼동하지 않는다."
+      ]
+    },
+    {
+      "id": "G38",
+      "input": "한 시간 뒤에 공부 1시간 잡아줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_start_mode",
+        "relative_start_offset",
+        "fixed_date_and_time",
+        "minute_ceiling"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤에 공부 1시간 잡아줘",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-19",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "한 시간 뒤에 공부 1시간 잡아줘",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "11:00",
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "LLM은 간격·의도를 추출하고 Java는 고정된 요청 Clock에 더해 분 올림한다. 날짜와 시각 모두 필수이다.",
+      "criticalFailures": [
+        "상대 간격 유실",
+        "최소 시작 조건으로 혼동",
+        "고정 날짜·시각을 임의 완화함"
+      ],
+      "notes": [
+        "실제 모델 출력이 아닌 확정 정책의 기대값이다. 기준 시각은 reference를 사용한다."
+      ]
+    },
+    {
+      "id": "G39",
+      "input": "다음 주 월요일 점심에 공부 1시간",
+      "reference": {
+        "id": "F",
+        "requestedAt": "2026-10-25T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "next_week",
+        "sunday_boundary",
+        "no_invented_range"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": "MONDAY",
+          "preferredDateRange": null,
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": null,
+          "description": "다음 주 월요일 점심에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-26",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "LUNCH",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "다음 주 월요일 점심에 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "G39: 기준은 일요일 10/25이다. 다음 주 월요일은 10/26이며 임의 허용 기간 없이 D~D+13일을 유지한다.",
+      "criticalFailures": [],
+      "notes": [
+        "기존 설계의 F(일요일) 기준을 유지한다. A(월요일) 기준 예시와 모두 10/26이지만, 미래 평가에서는 기준 ID를 바꾸지 않는다."
+      ]
+    },
+    {
+      "id": "G40",
+      "input": "2026년 10월 22일 13:00부터 15:00 사이에만 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_time_interval",
+        "no_constraint_relaxation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-22",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "2026년 10월 22일 13:00부터 15:00 사이에만 공부 1시간",
+          "dateRequired": null,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": "13시부터 15시 사이의 필수 시간 구간은 현재 모델로 표현할 수 없습니다.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_TIME_INTERVAL"
+            ],
+            "canonicalTextIsExactMatchRequired": false
+          },
+          "dateRequired": {
+            "mode": "ONE_OF",
+            "values": [
+              null,
+              false,
+              true
+            ],
+            "scoreBucket": "NOT_APPLICABLE",
+            "reason": "모호하거나 표현 불가한 요청은 먼저 확인한다. 단일 날짜의 강제성을 추가 정책으로 확정하지 않으며 성공 생성은 모두 금지한다."
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "LLM_CLARIFICATION_REQUIRED",
+        "httpStatus": 400,
+        "userMessage": null,
+        "fieldRules": {}
+      },
+      "rationale": "13~15시라는 임의 필수 구간은 현재 밴드·단일 시작 시각으로 표현할 수 없다. 13:00이나 AFTERNOON으로 축소하지 않는다.",
+      "criticalFailures": [
+        "필수 시간 조건을 누락하거나 완화함",
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": []
+    },
+    {
+      "id": "G41",
+      "input": "한 시간 뒤부터 공부할래",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "NORMAL",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_start_mode",
+        "relative_start_offset",
+        "fixed_date_and_time",
+        "minute_ceiling"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤부터 공부할래",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-19",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "한 시간 뒤부터 공부할래",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "11:00",
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "LLM은 간격·의도를 추출하고 Java는 고정된 요청 Clock에 더해 분 올림한다. 날짜와 시각 모두 필수이다.",
+      "criticalFailures": [
+        "상대 간격 유실",
+        "최소 시작 조건으로 혼동",
+        "고정 날짜·시각을 임의 완화함"
+      ],
+      "notes": [
+        "실제 모델 출력이 아닌 확정 정책의 기대값이다. 기준 시각은 reference를 사용한다."
+      ]
+    },
+    {
+      "id": "G42",
+      "input": "한 시간 뒤부터 가능한 공부 시간 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "unsupported_relative_time"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤부터 가능한 공부 시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "최소 시작 시각 조건은 지원하지 않아요. 원하는 시작 시각을 지정해 주세요.",
+          "relativeStartMode": "NOT_BEFORE",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_RELATIVE_TIME_OFFSET"
+            ],
+            "canonicalTextIsExactMatchRequired": true
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "UNSUPPORTED_LLM_RELATIVE_START_RANGE",
+        "httpStatus": 400,
+        "userMessage": "최소 시작 시각 조건은 지원하지 않아요. 원하는 시작 시각을 지정해 주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "가용 시간 하한 요청은 현재 미지원이다. 고정 시작으로 바꾸지 않는다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "활동명이 있으므로 미지원 오류를 반환한다."
+      ]
+    },
+    {
+      "id": "G43",
+      "input": "한 시간 뒤부터 가능한 시간 추천해 줘",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "AMBIGUOUS",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "unsupported_relative_time"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": null,
+          "category": null,
+          "durationMinutes": null,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤부터 가능한 시간 추천해 줘",
+          "dateRequired": false,
+          "timeRequired": false,
+          "preferredStartTime": null,
+          "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+          "relativeStartMode": "NOT_BEFORE",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_RELATIVE_TIME_OFFSET"
+            ],
+            "canonicalTextIsExactMatchRequired": true
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "MISSING_LLM_TITLE",
+        "httpStatus": 400,
+        "userMessage": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "활동명 누락 검사가 미지원 검사보다 우선한다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "현재 제목 누락 우선순위를 보존한다."
+      ]
+    },
+    {
+      "id": "G44",
+      "input": "한 시간 뒤에 공부 1시간",
+      "reference": {
+        "id": "R44",
+        "requestedAt": "2026-10-19T10:00:45+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_start_mode",
+        "relative_start_offset",
+        "fixed_date_and_time",
+        "minute_ceiling"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤에 공부 1시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2026-10-19",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "MORNING",
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "한 시간 뒤에 공부 1시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "11:01",
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "LLM은 간격·의도를 추출하고 Java는 고정된 요청 Clock에 더해 분 올림한다. 날짜와 시각 모두 필수이다.",
+      "criticalFailures": [
+        "상대 간격 유실",
+        "최소 시작 조건으로 혼동",
+        "고정 날짜·시각을 임의 완화함"
+      ],
+      "notes": [
+        "실제 모델 출력이 아닌 확정 정책의 기대값이다. 기준 시각은 reference를 사용한다."
+      ]
+    },
+    {
+      "id": "G45",
+      "input": "한 시간 뒤에 공부 1시간",
+      "reference": {
+        "id": "R45",
+        "requestedAt": "2026-12-31T23:30:45+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "BOUNDARY",
+      "importance": "HIGH",
+      "evaluationAspects": [
+        "relative_start_mode",
+        "relative_start_offset",
+        "fixed_date_and_time",
+        "minute_ceiling"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": null,
+          "description": "한 시간 뒤에 공부 1시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": "2027-01-01",
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": null,
+          "deadline": null,
+          "priority": "NORMAL",
+          "description": "한 시간 뒤에 공부 1시간",
+          "dateRequired": true,
+          "timeRequired": true,
+          "preferredStartTime": "00:31",
+          "clarificationReason": null,
+          "relativeStartMode": "EXACT",
+          "startOffsetMinutes": 60
+        },
+        "taskCreatable": true,
+        "outcome": "CREATE_TASK",
+        "normalizationReached": true,
+        "errorCode": null,
+        "httpStatus": 201,
+        "userMessage": null,
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          }
+        }
+      },
+      "rationale": "LLM은 간격·의도를 추출하고 Java는 고정된 요청 Clock에 더해 분 올림한다. 날짜와 시각 모두 필수이다.",
+      "criticalFailures": [
+        "상대 간격 유실",
+        "최소 시작 조건으로 혼동",
+        "고정 날짜·시각을 임의 완화함"
+      ],
+      "notes": [
+        "실제 모델 출력이 아닌 확정 정책의 기대값이다. 기준 시각은 reference를 사용한다."
+      ]
+    },
+    {
+      "id": "G46",
+      "input": "반드시 저녁7시10분30초에만 공부 1시간",
+      "reference": {
+        "id": "A",
+        "requestedAt": "2026-10-19T10:00:00+09:00",
+        "timeZone": "Asia/Seoul"
+      },
+      "type": "UNSUPPORTED",
+      "importance": "CRITICAL",
+      "evaluationAspects": [
+        "unsupported_seconds",
+        "no_truncation"
+      ],
+      "llmExpected": {
+        "parsedTaskResponse": {
+          "title": "공부",
+          "category": "STUDY",
+          "durationMinutes": 60,
+          "preferredDate": null,
+          "preferredDayOfWeek": null,
+          "preferredDateRange": null,
+          "preferredTimeRange": "EVENING",
+          "deadline": null,
+          "priority": null,
+          "description": "반드시 저녁7시10분30초에만 공부 1시간",
+          "dateRequired": false,
+          "timeRequired": true,
+          "preferredStartTime": null,
+          "clarificationReason": "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요.",
+          "relativeStartMode": null,
+          "startOffsetMinutes": null
+        },
+        "fieldRules": {
+          "title": {
+            "mode": "SEMANTIC",
+            "acceptedExamples": [
+              "공부",
+              "학습"
+            ],
+            "requiredMeaning": "학습 활동"
+          },
+          "clarificationReason": {
+            "mode": "NON_BLANK_SEMANTIC",
+            "requiredConcepts": [
+              "UNSUPPORTED_SECONDS"
+            ],
+            "canonicalTextIsExactMatchRequired": true
+          }
+        }
+      },
+      "javaExpected": {
+        "normalized": null,
+        "taskCreatable": false,
+        "outcome": "CLARIFICATION",
+        "normalizationReached": false,
+        "errorCode": "UNSUPPORTED_LLM_START_SECONDS",
+        "httpStatus": 400,
+        "userMessage": "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요.",
+        "fieldRules": {}
+      },
+      "rationale": "필수 시각도 초 단위이면 같은 전용 안내로 거절한다.",
+      "criticalFailures": [
+        "확인 필요 조건을 버리고 정상 Task로 확정함"
+      ],
+      "notes": [
+        "preferredStartTime=19:10으로 절삭하거나 19:10:30을 정상 지원하는 것으로 판정하지 않는다."
+      ]
+    }
+  ]
+}

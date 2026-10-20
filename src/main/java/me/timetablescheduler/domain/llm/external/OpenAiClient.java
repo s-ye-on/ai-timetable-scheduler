@@ -113,7 +113,13 @@ public class OpenAiClient {
 			- "2일부터 5일 사이에만"처럼 기간만 있으면 preferredDate/preferredDayOfWeek는 null, dateRequired=false입니다. 이 경우에도 허용 기간은 필수입니다.
 			- "4일이면 좋겠고 2일부터 5일 안에"는 선호 날짜와 필수 기간을 함께 추출합니다. 실제 "4일 하루 안에"라는 제한은 하루짜리 기간으로 보존하세요.
 			- "11월 4일 오후에만"의 '만'은 오후에만 적용됩니다. dateRequired=false, timeRequired=true이며, "11월 4일에만 오후에"는 반대로 true/false입니다.
-			- 초 단위 시작 시각, "월/화 중 하루" 같은 복수 요일 선택, "한 시간 뒤" 같은 상대 시간 간격은 현재 미지원입니다. 초를 절삭하거나 요일을 연속 기간으로 바꾸거나 상대 조건을 누락하지 말고 clarificationReason으로 확인을 요청하세요.
+			- 초 단위 시작 시각은 일반·필수 요청 모두 미지원입니다. 초를 절삭하거나 자동 변환하지 말고 clarificationReason="초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요."로 안내하세요.
+			- "월/화 중 하루" 같은 복수 요일 선택은 미지원입니다. 연속 기간으로 바꾸지 말고 확인을 요청하세요.
+			- "한 시간 뒤에 공부할래", "한 시간 뒤부터 공부할래"처럼 활동을 시작하려는 요청은 relativeStartMode=EXACT, startOffsetMinutes=60입니다. '부터'라는 단어만으로 최소 시작 조건이라고 판단하지 마세요.
+			- "한 시간 뒤부터 가능한 공부 시간 추천해 줘", "한 시간 뒤부터는 시간이 가능해"처럼 가용 시간의 하한을 뜻하면 relativeStartMode=NOT_BEFORE입니다. 현재 미지원이므로 clarificationReason으로 안내하고 EXACT로 바꾸지 마세요.
+			- 상대 간격과 활동 소요 시간은 별개입니다. "한 시간 뒤에 공부 2시간"은 startOffsetMinutes=60, durationMinutes=120입니다. "한 시간 반 뒤에"의 간격은 90분입니다.
+			- 상대 날짜·시각 계산은 Java가 요청 기준 Clock으로 수행합니다. 상대 요청에 preferredStartTime을 만들어 넣지 마세요. 별도 날짜·요일·허용 기간·마감 조건은 보존하고, 활동명이 없으면 기존처럼 title=null로 확인하세요.
+			- EXACT 상대 요청은 계산된 날짜와 시각을 모두 필수로 고정합니다. 모호한 시작 의도나 상대 간격은 추측하지 말고 clarificationReason으로 확인하세요.
 			- 활동명 속 "30초 영상 편집", "월/화 수업자료 복습", "뒤풀이 준비"는 위 미지원 일정 조건과 구분하세요.
 			- "오늘 밤 한 시"는 01:00으로 추출하세요. 요청 시각 이후의 날짜 선택은 Java가 담당합니다. 밤을 EVENING으로 강제하지 마세요.
 			- "매주", "매일" 등의 반복 일정은 현재 미지원이므로 clarificationReason으로 안내하세요.
@@ -121,7 +127,7 @@ public class OpenAiClient {
 			- "공부하고 싶어", "과제할 시간"에도 활동이 있습니다. 과목명·과제명이 없다는 이유로 title을 null로 만들지 마세요.
 			- 활동 자체가 없는 날짜·시각 요청에서만 title과 category를 null로 두고 활동명을 확인하세요. 없는 활동을 지어내지는 마세요.
 			- 날짜·시간을 지정하지 않은 활동 요청도 정상입니다. 날짜 필드와 시간 필드는 null, dateRequired와 timeRequired는 false이며 그 누락만으로 clarificationReason을 만들지 마세요.
-			- "반드시", "에만 가능"처럼 명시한 필수 조건은 보존하세요. 필수 표현이 없으면 임의로 true로 만들지 마세요.
+			- "반드시", "에만 가능"처럼 명시한 필수 조건은 보존하세요. 일반 날짜·시간 요청은 필수 표현이 없으면 임의로 true로 만들지 마세요. 단, relativeStartMode=EXACT는 이 서비스의 고정 시작 정책이므로 두 필수 플래그 모두 true입니다.
 			- 정확한 시작 시각의 존재와 시간의 필수 여부는 독립적입니다. 시각을 말했다는 이유만으로 timeRequired=true로 만들지 마세요.
 			- "저녁 7시에 공부하고 싶어"는 preferredStartTime="19:00", timeRequired=false입니다. "저녁 7시에만 공부할 수 있어"는 같은 시각에 timeRequired=true입니다.
 			- 시간대도 "오후에 공부"는 선호(false), "오후에만 공부 가능"은 필수(true)입니다. 시간대만 말했으면 정확한 시작 시각을 추가하지 마세요.
@@ -142,17 +148,19 @@ public class OpenAiClient {
 			- preferredDate와 preferredDayOfWeek는 함께 설정하지 마세요. preferredDateRange는 날짜 또는 요일 선호와 함께 설정할 수 있습니다.
 			- 날짜 조건이 없으면 세 필드는 모두 null입니다.
 			- preferredTimeRange: MORNING, LUNCH, AFTERNOON, EVENING, ANYTIME 중 하나입니다. 시간 조건이 없으면 null입니다.
-			- dateRequired: 특정 날짜 또는 요일이 반드시 지켜져야 하면 true, 선호이면 false입니다. 날짜 또는 요일이 없으면 false입니다. 판단할 수 없으면 null입니다.
-			- timeRequired: 시간 조건을 반드시 지켜야 한다고 명시한 경우에만 true입니다. 일반 요청·선호·시간 미지정은 false이며, 정확 시각이 있어도 기본은 false입니다. 필수인지 실제로 판단할 수 없을 때만 null입니다.
+			- dateRequired: 특정 날짜 또는 요일이 반드시 지켜져야 하면 true, 선호이면 false입니다. 일반 요청에서 날짜 또는 요일이 없으면 false입니다. 단, relativeStartMode=EXACT는 Java가 계산할 날짜도 고정하므로 true입니다. 판단할 수 없으면 null입니다.
+			- timeRequired: 일반 요청은 시간 조건을 반드시 지켜야 한다고 명시한 경우에만 true입니다. 선호·시간 미지정은 false이며 절대 시각이 있어도 기본은 false입니다. 단, relativeStartMode=EXACT이면 true입니다. 필수인지 실제로 판단할 수 없을 때만 null입니다.
 			- timeRequired=true일 때 강제할 대상은 preferredStartTime이 있으면 그 시각, 없으면 preferredTimeRange입니다. 이 대상 선택 규칙을 true 설정의 근거로 사용하지 마세요.
 			- preferredStartTime: 사용자가 명시한 시작 시각이 있으면 HH:mm 형식으로 설정하고, 아니면 null입니다. "7시"처럼 오전/오후를 판단할 수 없으면 null입니다.
+			- relativeStartMode: 상대 시작 요청은 EXACT 또는 NOT_BEFORE입니다. 상대 요청이 없으면 null입니다. NOT_BEFORE는 미지원 안내 대상입니다.
+			- startOffsetMinutes: 상대 시작까지의 간격을 양의 정수 분으로 추출하세요. 상대 요청이 없으면 null입니다. 두 상대 필드는 함께 설정하며, 상대 간격을 시작 시각이나 소요 시간으로 바꾸지 마세요.
 			- clarificationReason: 모호하거나 현재 지원하지 않는 조건 때문에 확인이 필요하면 그 이유를 한국어로 설정하고, 아니면 null입니다.
 			- deadline: 마감일이 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- priority: LOW, NORMAL, HIGH 중 하나입니다. 불명확하면 null입니다.
 			- description: 사용자의 원문 메시지를 그대로 넣으세요.
 
 			대조 예시: 같은 활동에서도 날짜 필수·시간 필수는 독립적입니다.
-			아래 input/output은 설명용입니다. 실제 응답은 해당 output과 같은 14필드 객체 하나만 반환하고, 예시의 날짜나 활동을 현재 요청에 복사하지 마세요.
+			아래 input/output은 설명용입니다. 실제 응답은 해당 output과 같은 16필드 객체 하나만 반환하고, 예시의 날짜나 활동을 현재 요청에 복사하지 마세요.
 			<contrast_examples>
 			[
 			  {
@@ -162,7 +170,7 @@ public class OpenAiClient {
 			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
 			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
 			      "description": "수요일 저녁 8시에 운동 1시간 하고 싶어",
-			      "dateRequired": false, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -172,7 +180,7 @@ public class OpenAiClient {
 			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
 			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
 			      "description": "수요일 저녁 8시에만 운동 1시간 할 수 있어",
-			      "dateRequired": false, "timeRequired": true, "preferredStartTime": "20:00", "clarificationReason": null
+			      "dateRequired": false, "timeRequired": true, "preferredStartTime": "20:00", "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -182,7 +190,7 @@ public class OpenAiClient {
 			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
 			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
 			      "description": "수요일에만 저녁 8시에 운동 1시간 하고 싶어",
-			      "dateRequired": true, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null
+			      "dateRequired": true, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -192,7 +200,7 @@ public class OpenAiClient {
 			      "preferredDate": null, "preferredDayOfWeek": null, "preferredDateRange": null,
 			      "preferredTimeRange": null, "deadline": null, "priority": null,
 			      "description": "공부 한 시간 할래",
-			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -202,7 +210,7 @@ public class OpenAiClient {
 			      "preferredDate": null, "preferredDayOfWeek": null, "preferredDateRange": null,
 			      "preferredTimeRange": null, "deadline": null, "priority": null,
 			      "description": "과제 한 시간 할래",
-			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -213,12 +221,12 @@ public class OpenAiClient {
 			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
 			      "description": "반드시 수요일 저녁 8시에만 가능해",
 			      "dateRequired": true, "timeRequired": true, "preferredStartTime": "20:00",
-			      "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요."
+			      "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.", "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  }
 			]
 			</contrast_examples>
-			기간·필수 범위 대조 예시도 같은 14필드 계약을 따릅니다. 예시 자체의 날짜를 현재 요청에 복사하지 마세요.
+			기간·필수 범위 대조 예시도 같은 16필드 계약을 따릅니다. 예시 자체의 날짜를 현재 요청에 복사하지 마세요.
 			<constraint_examples>
 			[
 			  {
@@ -237,7 +245,7 @@ public class OpenAiClient {
 			      "dateRequired": false,
 			      "timeRequired": false,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -259,7 +267,7 @@ public class OpenAiClient {
 			      "dateRequired": false,
 			      "timeRequired": false,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -278,7 +286,7 @@ public class OpenAiClient {
 			      "dateRequired": false,
 			      "timeRequired": true,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -297,7 +305,7 @@ public class OpenAiClient {
 			      "dateRequired": true,
 			      "timeRequired": false,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -319,7 +327,7 @@ public class OpenAiClient {
 			      "dateRequired": false,
 			      "timeRequired": false,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  },
 			  {
@@ -341,11 +349,99 @@ public class OpenAiClient {
 			      "dateRequired": false,
 			      "timeRequired": false,
 			      "preferredStartTime": null,
-			      "clarificationReason": null
+			      "clarificationReason": null, "relativeStartMode": null, "startOffsetMinutes": null
 			    }
 			  }
 			]
 			</constraint_examples>
+			<relative_start_examples>
+			[
+			  {
+			    "input": "한 시간 뒤에 공부 2시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 120,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "한 시간 뒤에 공부 2시간",
+			      "dateRequired": true,
+			      "timeRequired": true,
+			      "preferredStartTime": null,
+			      "clarificationReason": null,
+			      "relativeStartMode": "EXACT",
+			      "startOffsetMinutes": 60
+			    }
+			  },
+			  {
+			    "input": "한 시간 뒤부터 공부할래",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": null,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "한 시간 뒤부터 공부할래",
+			      "dateRequired": true,
+			      "timeRequired": true,
+			      "preferredStartTime": null,
+			      "clarificationReason": null,
+			      "relativeStartMode": "EXACT",
+			      "startOffsetMinutes": 60
+			    }
+			  },
+			  {
+			    "input": "한 시간 뒤부터 가능한 공부 시간 추천해 줘",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": null,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "한 시간 뒤부터 가능한 공부 시간 추천해 줘",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": "최소 시작 시각 조건은 지원하지 않아요. 원하는 시작 시각을 지정해 주세요.",
+			      "relativeStartMode": "NOT_BEFORE",
+			      "startOffsetMinutes": 60
+			    }
+			  },
+			  {
+			    "input": "한 시간 뒤부터 가능한 시간 추천해 줘",
+			    "output": {
+			      "title": null,
+			      "category": null,
+			      "durationMinutes": null,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "한 시간 뒤부터 가능한 시간 추천해 줘",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.",
+			      "relativeStartMode": "NOT_BEFORE",
+			      "startOffsetMinutes": 60
+			    }
+			  }
+			]
+			</relative_start_examples>
 			""".formatted(requestDate, requestDate.plusDays(2));
 	}
 
@@ -379,6 +475,8 @@ public class OpenAiClient {
 		properties.put("timeRequired", nullableBoolean());
 		properties.put("preferredStartTime", nullableString());
 		properties.put("clarificationReason", nullableString());
+		properties.put("relativeStartMode", nullableEnum("EXACT", "NOT_BEFORE"));
+		properties.put("startOffsetMinutes", nullableInteger());
 		properties.put("deadline", nullableString());
 		properties.put("priority", nullableEnum("LOW", "NORMAL", "HIGH"));
 		properties.put("description", nullableString());
@@ -398,6 +496,8 @@ public class OpenAiClient {
 				"timeRequired",
 				"preferredStartTime",
 				"clarificationReason",
+				"relativeStartMode",
+				"startOffsetMinutes",
 				"deadline",
 				"priority",
 				"description"

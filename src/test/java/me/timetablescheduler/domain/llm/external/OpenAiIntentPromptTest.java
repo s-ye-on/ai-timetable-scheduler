@@ -143,6 +143,51 @@ class OpenAiIntentPromptTest {
             null, null, input, dateRequired, timeRequired, null, null);
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', nullValues = "NULL", value = {
+        "한 시간 뒤에 공부 2시간|EXACT|120|NULL",
+        "한 시간 뒤부터 공부할래|EXACT|NULL|NULL",
+        "한 시간 뒤부터 가능한 공부 시간 추천해 줘|NOT_BEFORE|NULL|UNSUPPORTED_LLM_RELATIVE_START_RANGE",
+        "한 시간 뒤부터 가능한 시간 추천해 줘|NOT_BEFORE|NULL|MISSING_LLM_TITLE"
+    })
+    void 상대_시작_예시는_실제_16필드_요청과_Java_정책에_연결된다(String input,
+        me.timetablescheduler.domain.llm.dto.RelativeStartMode mode, Integer duration, String errorCode) {
+        String clarification = "MISSING_LLM_TITLE".equals(errorCode) ? MISSING_TITLE
+            : errorCode != null ? "최소 시작 시각 조건은 지원하지 않아요. 원하는 시작 시각을 지정해 주세요." : null;
+        var expected = new ParsedTaskResponse("MISSING_LLM_TITLE".equals(errorCode) ? null : "공부",
+            "MISSING_LLM_TITLE".equals(errorCode) ? null : TaskCategory.STUDY, duration, null, null, null,
+            null, null, null, input, mode.name().equals("EXACT"), mode.name().equals("EXACT"), null,
+            clarification, mode, 60);
+        server.expect(requestTo("https://openai.test/v1/responses"))
+            .andExpect(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                String instructions = body.path("instructions").asString();
+                int start = instructions.indexOf("<relative_start_examples>") + "<relative_start_examples>".length();
+                int end = instructions.indexOf("</relative_start_examples>");
+                assertThat(end).isGreaterThan(start);
+                JsonNode output = 예시_선택(mapper.readTree(instructions.substring(start, end)), input);
+                assertThat(mapper.treeToValue(output, ParsedTaskResponse.class)).isEqualTo(expected);
+                assertThat(output.size()).isEqualTo(16);
+                assertThat(body.at("/text/format/schema/required").toString()).contains("relativeStartMode", "startOffsetMinutes");
+                assertThat(body.at("/text/format/schema/properties/relativeStartMode/anyOf/0/enum").toString()).contains("EXACT", "NOT_BEFORE");
+                assertThat(body.at("/text/format/schema/properties").has("secondsRequired")).isFalse();
+                assertThat(body.at("/text/format/strict").asBoolean()).isTrue();
+            })
+            .andRespond(withSuccess(응답_감싸기(mapper.writeValueAsString(expected)), MediaType.APPLICATION_JSON));
+        if (errorCode != null) {
+            assertThatThrownBy(() -> service.parseTask(new LlmParseRequest(input)))
+                .isInstanceOfSatisfying(LlmException.class, error -> assertThat(error.getExceptionCode().name()).isEqualTo(errorCode));
+        } else {
+            var result = service.parseTask(new LlmParseRequest(input));
+            assertThat(result.preferredDate()).isEqualTo(LocalDate.of(2026, 10, 19));
+            assertThat(result.preferredStartTime()).isEqualTo(LocalTime.of(11, 0));
+            assertThat(result.durationMinutes()).isEqualTo(duration == null ? 60 : duration);
+            assertThat(result.dateRequired()).isTrue();
+            assertThat(result.timeRequired()).isTrue();
+        }
+        server.verify();
+    }
+
     private void 처리_검증(Fixture fixture) {
         if (fixture.error() != null) {
             assertThatThrownBy(() -> service.parseTask(new LlmParseRequest(fixture.input())))

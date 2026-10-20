@@ -923,6 +923,19 @@ test("추천 유형·적합도·서버 이유를 그대로 표시하고 원조�
 	assert.ok(markup.indexOf("추천 1순위") < markup.indexOf("추천 2순위"));
 });
 
+test("고정_시작_안내는_계산_이력_없이_서버에서_복원한_날짜와_시각으로_표시한다", () => {
+	const harness = createHarness();
+	const fixed = { ...task(45), preferredDate: "2026-11-01", preferredDayOfWeek: null, preferredTimeRange: null, preferredStartTime: "00:31:00", dateRequired: true, timeRequired: true };
+	for (const restored of [false, true]) {
+		harness.call(`state.currentTask = ${JSON.stringify(fixed)}; state.restoredTask = ${restored}; renderParsedResult();`);
+		assert.match(harness.element("parsedResult").innerHTML, /날짜와 시작 시각이 고정된 일정/);
+		assert.match(harness.element("parsedResult").innerHTML, /충돌하면 다른 시간으로 변경하지 않습니다/);
+		assert.match(harness.element("parsedResult").innerHTML, /00:31/);
+	}
+	harness.call(`state.currentTask = ${JSON.stringify(task(46))}; renderParsedResult();`);
+	assert.doesNotMatch(harness.element("parsedResult").innerHTML, /날짜와 시작 시각이 고정된 일정/);
+});
+
 test("분석·복원 화면은 정확한 목표 시각과 필수 조건을 요약하고 기존 null 의미를 보존한다", () => {
 	const harness = createHarness();
 	const explicit = {

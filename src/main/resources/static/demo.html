@@ -1557,6 +1557,8 @@
 
 		const task = state.currentTask;
 		$("parsedResult").innerHTML = `
+			${task.preferredDate && task.dateRequired === true && task.timeRequired === true && task.preferredStartTime
+				? `<div class="notice">날짜와 시작 시각이 고정된 일정입니다. 충돌하면 다른 시간으로 변경하지 않습니다. 분 단위로 표시된 목표 시각을 확인해주세요.</div>` : ""}
 			<dl class="kv">
 				<dt>제목</dt><dd>${escapeHtml(task.title)}</dd>
 				<dt>분류</dt><dd>${formatCategory(task.category)}</dd>

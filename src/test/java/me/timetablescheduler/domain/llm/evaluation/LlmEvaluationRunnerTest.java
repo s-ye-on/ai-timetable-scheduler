@@ -42,7 +42,7 @@ class LlmEvaluationRunnerTest {
         Path output=runner.run(data,repeats,directory,"STUB");
         server.verify();
         List<Object> cases=list(MAPPER.readValue(Files.readString(output.resolve("cases.json")),Object.class));
-        assertEquals(40*repeats,cases.size());
+        assertEquals(46*repeats,cases.size());
         for(Object item:cases) {
             Map<String,Object> c=map(item);
             assertEquals("PASS",c.get("schemaStatus"),text(c.get("id")));
@@ -55,7 +55,7 @@ class LlmEvaluationRunnerTest {
         Map<String,Object> summary=read(Files.readString(output.resolve("summary.json")));
         assertEquals(1.0,map(summary.get("rawStatus")).get("accuracy"));
         assertEquals(1.0,map(summary.get("javaStatus")).get("accuracy"));
-        assertEquals(40*repeats,Files.readAllLines(output.resolve("cases.jsonl")).size());
+        assertEquals(46*repeats,Files.readAllLines(output.resolve("cases.jsonl")).size());
         assertTrue(Files.exists(output.resolve("cases.csv")));
         assertTrue(Files.exists(output.resolve("fields.csv")));
         assertTrue(Files.readString(output.resolve("summary.csv")).contains("rawStatus.accuracy"));
@@ -260,6 +260,27 @@ class LlmEvaluationRunnerTest {
             assertThrows(IllegalStateException.class,()->LlmLiveEvaluationTest.configuration(KEY,environment));
         }
         server.verify();
+    }
+
+    @Test
+    void 상대_간격_변경은_실제_계산_결과와_중대_오류에_반영한다() throws Exception {
+        Map<String,Object> c=caseAt(38), changed=raw(c);
+        changed.put("startOffsetMinutes",90);
+        respond(changed);
+        Map<String,Object> result=runner.evaluate(c,1);
+        assertEquals("FAIL",result.get("rawStatus"));
+        assertEquals("FAIL",result.get("javaStatus"));
+        assertTrue(list(result.get("criticalErrors")).stream().anyMatch(e->text(e).startsWith("startOffsetMinutes:")));
+        assertEquals("11:30:00",text(map(map(result.get("actualJava")).get("normalized")).get("preferredStartTime")));
+        server.verify();
+    }
+
+    @Test
+    void 이전_데이터셋은_보존하고_새_정책_평가는_v2로_구분한다() throws Exception {
+        assertEquals(40,list(LlmEvaluationRunner.dataset("v1").get("cases")).size());
+        assertEquals("2.0.0",LlmEvaluationRunner.dataset().get("datasetVersion"));
+        assertEquals(46,list(LlmEvaluationRunner.dataset().get("cases")).size());
+        assertThrows(IOException.class,()->LlmEvaluationRunner.dataset("v3"));
     }
 
     private Map<String,Object> caseAt(int number) throws IOException {

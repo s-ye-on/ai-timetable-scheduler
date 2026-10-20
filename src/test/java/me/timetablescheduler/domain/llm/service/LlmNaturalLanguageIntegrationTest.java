@@ -147,8 +147,11 @@ class LlmNaturalLanguageIntegrationTest {
 
         mvc.perform(post("/tasks/natural-language").header("Authorization", 토큰())
                 .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(java.util.Map.of("message", source))))
-            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("LLM_CLARIFICATION_REQUIRED"))
-            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("현재 지원하지 않는 조건")));
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value(truncatedTime != null ? "UNSUPPORTED_LLM_START_SECONDS" : "LLM_CLARIFICATION_REQUIRED"))
+            .andExpect(jsonPath("$.message").value(truncatedTime != null
+                ? "초 단위 시작 시간은 지원하지 않아요. 분 단위로 입력해 주세요."
+                : me.timetablescheduler.global.exception.ExceptionCode.LLM_CLARIFICATION_REQUIRED.getMessage()));
         assertThat(tasks.findAllByUserIdOrderByCreatedAtDesc(user.getId())).isEmpty();
         assertThat(recommendationRepository.findAll()).noneMatch(candidate -> candidate.getUser().getId().equals(user.getId()));
         verifyNoInteractions(calendar);
@@ -163,6 +166,7 @@ class LlmNaturalLanguageIntegrationTest {
         "뒤풀이 준비 1시간|NULL",
         "한 시간 뒤풀이 자료 정리|NULL",
         "한 시간 강의 복습|NULL",
+        "보고서 뒷부분 뒤에 결론 추가 1시간|NULL",
         "목요일 19시 10분에 30초 영상 편집 1시간|19:10",
         "목요일 저녁7시10분에 30초 영상 편집 1시간|19:10",
         "목요일19시10분에 공부 1시간|19:10",
@@ -186,6 +190,105 @@ class LlmNaturalLanguageIntegrationTest {
         assertThat(saved.getTimeRequired()).isFalse();
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
         verifyNoInteractions(calendar);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"한 시간 뒤에 공부할래", "한 시간 뒤부터 공부할래"})
+    void 상대_시각은_저장_재조회_재추천에서_이동하지_않고_지난_후에는_추천하지_않는다(String source) throws Exception {
+        when(clock.instant()).thenReturn(Instant.parse("2026-10-19T01:00:45Z"));
+        var task = 상대_Task_생성(source);
+        var target = LocalDate.of(2026, 10, 19).atTime(11, 1);
+        assertThat(task.getPreferredDate()).isEqualTo(target.toLocalDate());
+        assertThat(task.getPreferredStartTime()).isEqualTo(target.toLocalTime());
+        assertThat(task.getDateRequired()).isTrue();
+        assertThat(task.getTimeRequired()).isTrue();
+        when(clock.instant()).thenReturn(Instant.parse("2026-10-19T01:20:00Z"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/tasks/" + task.getId())
+                .header("Authorization", 토큰()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.preferredDate").value("2026-10-19"))
+            .andExpect(jsonPath("$.preferredStartTime").value("11:01:00"))
+            .andExpect(jsonPath("$.dateRequired").value(true)).andExpect(jsonPath("$.timeRequired").value(true))
+            .andExpect(jsonPath("$.relativeStartMode").doesNotExist());
+        for (int repeat = 0; repeat < 2; repeat++) {
+            var generated = recommendations.recommend(user.getId(), task.getId()).recommendations();
+            assertThat(generated).hasSize(1);
+            assertThat(generated.getFirst().recommendedStartAt()).isEqualTo(target);
+            assertThat(generated.getFirst().recommendedEndAt()).isEqualTo(target.plusHours(1));
+        }
+        when(clock.instant()).thenReturn(target.atZone(ZoneId.of("Asia/Seoul")).toInstant());
+        assertThat(recommendations.recommend(user.getId(), task.getId()).recommendations()).isEmpty();
+        assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
+        verify(calendar, never()).createEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void 상대_시각이_가용_시간_밖이면_낮_시간_대안으로_완화하지_않는다() throws Exception {
+        when(clock.instant()).thenReturn(Instant.parse("2026-10-19T14:30:00Z"));
+        var task = 상대_Task_생성("한 시간 뒤부터 공부할래");
+        assertThat(task.getPreferredDate()).isEqualTo(LocalDate.of(2026, 10, 20));
+        assertThat(task.getPreferredStartTime()).isEqualTo(LocalTime.of(0, 30));
+        assertThat(recommendations.recommend(user.getId(), task.getId()).recommendations()).isEmpty();
+        verify(calendar, never()).createEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void 고정된_상대_시각이_충돌하면_다른_시각의_대안을_만들지_않는다() throws Exception {
+        var task = 상대_Task_생성("한 시간 뒤에 공부할래");
+        var target = LocalDate.of(2026, 10, 19).atTime(11, 0);
+        when(calendar.getCalendarBusyBlocksOrEmpty(any(), any(), any())).thenReturn(List.of(
+            new me.timetablescheduler.domain.recommendation.policy.BusyBlock(target, target.plusHours(1))));
+        assertThat(recommendations.recommend(user.getId(), task.getId()).recommendations()).isEmpty();
+        verify(calendar, never()).createEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void 상대_후보_생성_후_새_충돌이나_시각_경과가_생기면_T07이_등록을_차단한다(boolean past) throws Exception {
+        var task = 상대_Task_생성("한 시간 뒤에 공부할래");
+        var candidate = recommendations.recommend(user.getId(), task.getId()).recommendations().getFirst();
+        when(calendar.isConnected(user.getId())).thenReturn(true);
+        var target = candidate.recommendedStartAt();
+        when(calendar.getCalendarBusyBlocks(any(), any(), any())).thenReturn(past ? List.of() : List.of(
+            new me.timetablescheduler.domain.recommendation.policy.BusyBlock(target, target.plusHours(1))));
+        if (past) when(clock.instant()).thenReturn(target.atZone(ZoneId.of("Asia/Seoul")).toInstant());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> recommendations.select(user.getId(), candidate.id()))
+            .isInstanceOfSatisfying(me.timetablescheduler.global.exception.RecommendationException.class,
+                error -> assertThat(error.getExceptionCode().name()).isEqualTo("RECOMMENDATION_NO_LONGER_AVAILABLE"));
+        assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
+        verify(calendar, never()).createEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void 상대_일정의_T08_복구는_지난_목표시각과_이벤트_ID를_바꾸거나_중복_생성하지_않는다() throws Exception {
+        var task = 상대_Task_생성("한 시간 뒤에 공부할래");
+        var candidate = recommendations.recommend(user.getId(), task.getId()).recommendations().getFirst();
+        when(calendar.isConnected(user.getId())).thenReturn(true);
+        when(calendar.getCalendarBusyBlocks(any(), any(), any())).thenReturn(List.of());
+        when(calendar.hasMatchingEvent(any(), any(), any(), any(), any(), any())).thenReturn(false, false, true);
+        when(calendar.createEvent(any(), any(), any(), any(), any(), any())).thenThrow(
+            new me.timetablescheduler.global.exception.CalendarException(
+                me.timetablescheduler.global.exception.ExceptionCode.GOOGLE_CALENDAR_EVENT_CREATE_FAILED));
+        var failed = recommendations.select(user.getId(), candidate.id());
+        assertThat(failed.status().name()).isEqualTo("SYNC_FAILED");
+        String eventId = recommendationRepository.findById(candidate.id()).orElseThrow().getGoogleEventId();
+        when(clock.instant()).thenReturn(candidate.recommendedEndAt().plusHours(1).atZone(ZoneId.of("Asia/Seoul")).toInstant());
+        var recovered = recommendations.select(user.getId(), candidate.id());
+        assertThat(recovered.status().name()).isEqualTo("SYNCED");
+        var saved = recommendationRepository.findById(candidate.id()).orElseThrow();
+        assertThat(saved.getGoogleEventId()).isEqualTo(eventId);
+        assertThat(saved.getRecommendedStartAt()).isEqualTo(candidate.recommendedStartAt());
+        assertThat(tasks.findById(task.getId()).orElseThrow().getScheduledStartAt()).isEqualTo(candidate.recommendedStartAt());
+        verify(calendar, org.mockito.Mockito.times(1)).createEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    private me.timetablescheduler.domain.task.Task 상대_Task_생성(String source) throws Exception {
+        when(client.parseTask(eq(source), any(LocalDate.class))).thenReturn(new ParsedTaskResponse(
+            "공부", TaskCategory.STUDY, null, null, null, null, null, null, null, source,
+            true, true, null, null, me.timetablescheduler.domain.llm.dto.RelativeStartMode.EXACT, 60));
+        var response = mvc.perform(post("/tasks/natural-language").header("Authorization", 토큰())
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(java.util.Map.of("message", source))))
+            .andExpect(status().isCreated()).andReturn();
+        return tasks.findById(mapper.readTree(response.getResponse().getContentAsString()).path("id").asLong()).orElseThrow();
     }
 
     private String 토큰() { return "Bearer " + jwt.generateAccessToken(user.getEmail()); }

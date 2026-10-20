@@ -35,6 +35,9 @@ final class LlmTemporalNormalizer {
     }
 
     ParsedTaskResponse normalize(ParsedTaskResponse raw, String source, LocalDateTime requestedAt) {
+        if (raw.relativeStartMode() != null || raw.startOffsetMinutes() != null) {
+            return normalizeRelativeStart(raw, source, requestedAt);
+        }
         LocalDate date = raw.preferredDate();
         DayOfWeek day = raw.preferredDayOfWeek();
         DateRange range = raw.preferredDateRange();
@@ -105,6 +108,41 @@ final class LlmTemporalNormalizer {
         return new ParsedTaskResponse(raw.title(), raw.category(), raw.durationMinutes(), date, day, range,
             band, raw.deadline(), raw.priority(), raw.description(), raw.dateRequired(), raw.timeRequired(),
             raw.preferredStartTime(), raw.clarificationReason());
+    }
+
+    private ParsedTaskResponse normalizeRelativeStart(ParsedTaskResponse raw, String source, LocalDateTime requestedAt) {
+        if (raw.relativeStartMode() != me.timetablescheduler.domain.llm.dto.RelativeStartMode.EXACT
+            || raw.startOffsetMinutes() == null || raw.startOffsetMinutes() <= 0
+            || raw.preferredStartTime() != null || raw.dateRequired() == null || raw.timeRequired() == null) {
+            throw clarification();
+        }
+        LocalDateTime target;
+        try {
+            target = requestedAt.plusMinutes(raw.startOffsetMinutes());
+            if (target.getSecond() != 0 || target.getNano() != 0) {
+                target = target.withSecond(0).withNano(0).plusMinutes(1);
+            }
+        } catch (java.time.DateTimeException | ArithmeticException invalidOffset) {
+            throw clarification();
+        }
+        // 상대 간격을 제거한 복사본으로 기존 날짜·주간·마감 정규화를 재사용한다.
+        ParsedTaskResponse constraints = normalize(new ParsedTaskResponse(raw.title(), raw.category(), raw.durationMinutes(),
+            raw.preferredDate(), raw.preferredDayOfWeek(), raw.preferredDateRange(), raw.preferredTimeRange(),
+            raw.deadline(), raw.priority(), raw.description(), raw.dateRequired(), raw.timeRequired(), null,
+            raw.clarificationReason()), source, requestedAt);
+        if ((constraints.preferredDate() != null && !constraints.preferredDate().equals(target.toLocalDate()))
+            || (constraints.preferredDayOfWeek() != null && constraints.preferredDayOfWeek() != target.getDayOfWeek())) {
+            throw clarification();
+        }
+        ParsedTaskResponse fixed = new ParsedTaskResponse(raw.title(), raw.category(), raw.durationMinutes(),
+            target.toLocalDate(), null, constraints.preferredDateRange(), constraints.preferredTimeRange(),
+            raw.deadline(), raw.priority(), raw.description(), true, true, target.toLocalTime(),
+            raw.clarificationReason(), raw.relativeStartMode(), raw.startOffsetMinutes());
+        validateBounds(fixed, fixed.preferredDate(), fixed.preferredDateRange());
+        return new ParsedTaskResponse(fixed.title(), fixed.category(), fixed.durationMinutes(), fixed.preferredDate(),
+            null, fixed.preferredDateRange(), normalizeTimeRange(fixed, source), fixed.deadline(), fixed.priority(),
+            fixed.description(), true, true, fixed.preferredStartTime(), fixed.clarificationReason(),
+            fixed.relativeStartMode(), fixed.startOffsetMinutes());
     }
 
     private DayOfWeek requestedWeekday(String source) {

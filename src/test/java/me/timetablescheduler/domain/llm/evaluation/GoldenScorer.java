@@ -52,7 +52,8 @@ final class GoldenScorer {
             boolean bound = (g.field.equals("preferredDateRange") || g.field.equals("deadline")) && g.expected != null;
             boolean date = (g.field.equals("preferredDate") || g.field.equals("preferredDayOfWeek")) && g.expected != null && Boolean.TRUE.equals(expected.get("dateRequired"));
             boolean missing = g.field.equals("title") && g.expected == null;
-            if (hard || exact || bound || date || missing || g.field.equals("clarificationReason") || testCase.get("id").equals("G28") && g.field.equals("durationMinutes")) issues.add(g.field+":"+g.reason);
+            boolean relative = g.field.equals("relativeStartMode") || g.field.equals("startOffsetMinutes");
+            if (hard || exact || bound || date || missing || relative || g.field.equals("clarificationReason") || testCase.get("id").equals("G28") && g.field.equals("durationMinutes")) issues.add(g.field+":"+g.reason);
         }
         if (!Boolean.TRUE.equals(map(testCase.get("javaExpected")).get("taskCreatable")) && taskCreatable) issues.add("UNSAFE_TASK_ACCEPTED");
         return issues;
