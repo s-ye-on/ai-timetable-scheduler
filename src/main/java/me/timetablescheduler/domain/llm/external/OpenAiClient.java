@@ -110,15 +110,23 @@ public class OpenAiClient {
 			- "다음 주 월요일"이라는 특정 날짜 표현만으로 preferredDateRange를 추가하지 마세요.
 			- "오늘 밤 한 시"는 01:00으로 추출하세요. 요청 시각 이후의 날짜 선택은 Java가 담당합니다. 밤을 EVENING으로 강제하지 마세요.
 			- "매주", "매일" 등의 반복 일정은 현재 미지원이므로 clarificationReason으로 안내하세요.
-			- 날짜·시각만 있고 활동이 없으면 title과 category는 null이며 활동명 확인이 필요합니다. 공부나 약속 같은 활동을 지어내지 마세요.
+			- 활동명은 날짜·시간의 구체성과 별개로 추출하세요. "공부", "과제"처럼 포괄적인 활동도 유효한 제목입니다.
+			- "공부하고 싶어", "과제할 시간"에도 활동이 있습니다. 과목명·과제명이 없다는 이유로 title을 null로 만들지 마세요.
+			- 활동 자체가 없는 날짜·시각 요청에서만 title과 category를 null로 두고 활동명을 확인하세요. 없는 활동을 지어내지는 마세요.
+			- 날짜·시간을 지정하지 않은 활동 요청도 정상입니다. 날짜 필드와 시간 필드는 null, dateRequired와 timeRequired는 false이며 그 누락만으로 clarificationReason을 만들지 마세요.
 			- "반드시", "에만 가능"처럼 명시한 필수 조건은 보존하세요. 필수 표현이 없으면 임의로 true로 만들지 마세요.
+			- 정확한 시작 시각의 존재와 시간의 필수 여부는 독립적입니다. 시각을 말했다는 이유만으로 timeRequired=true로 만들지 마세요.
+			- "저녁 7시에 공부하고 싶어"는 preferredStartTime="19:00", timeRequired=false입니다. "저녁 7시에만 공부할 수 있어"는 같은 시각에 timeRequired=true입니다.
+			- 시간대도 "오후에 공부"는 선호(false), "오후에만 공부 가능"은 필수(true)입니다. 시간대만 말했으면 정확한 시작 시각을 추가하지 마세요.
+			- 날짜와 시간의 필수 여부는 각각 판단하세요. "수요일에만"은 날짜만, "8시에만"은 시간만 필수이며 다른 조건을 함께 true로 바꾸지 마세요.
 			- "목요일 7시"처럼 오전·오후가 없는 1~12시는 확인이 필요합니다. "19시 10분"은 19:10을 그대로 보존하세요.
+			- 오전·오후 확인과 필수 여부 판단도 별개입니다. "7시에 공부하고 싶어"는 timeRequired=false, "7시에만 공부할 수 있어"는 true이지만 둘 다 오전·오후를 확인하고 preferredStartTime은 null로 두세요.
 			- 정확 시각의 시간대 자동 추론은 Java가 수행합니다. 명시된 시간대가 없으면 preferredTimeRange는 null로 두어도 됩니다.
 			- 알 수 없는 값은 null로 설정하세요.
 			- 응답은 반드시 제공된 JSON Schema에 맞춰야 합니다.
 
 			필드 규칙:
-			- title: 일정의 짧은 한국어 제목입니다. 알 수 없으면 null입니다.
+			- title: 원문에 있는 활동을 짧은 한국어 제목으로 보존하세요. 공부·과제만 있어도 각각 "공부"·"과제"입니다. 활동 자체를 알 수 없을 때만 null입니다.
 			- category: STUDY, ASSIGNMENT, APPOINTMENT, PERSONAL 중 하나입니다. 불명확하면 null입니다.
 			- durationMinutes: 30분 단위의 양수입니다. 사용자가 말하지 않았으면 null입니다.
 			- preferredDate: 특정 날짜가 하나 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
@@ -128,12 +136,81 @@ public class OpenAiClient {
 			- 날짜 조건이 없으면 세 필드는 모두 null입니다.
 			- preferredTimeRange: MORNING, LUNCH, AFTERNOON, EVENING, ANYTIME 중 하나입니다. 시간 조건이 없으면 null입니다.
 			- dateRequired: 특정 날짜 또는 요일이 반드시 지켜져야 하면 true, 선호이면 false입니다. 날짜 또는 요일이 없으면 false입니다. 판단할 수 없으면 null입니다.
-			- timeRequired: preferredStartTime이 있으면 그 시각, 없으면 preferredTimeRange가 반드시 지켜져야 하면 true, 선호이면 false입니다. 시간 조건이 없으면 false입니다. 판단할 수 없으면 null입니다.
+			- timeRequired: 시간 조건을 반드시 지켜야 한다고 명시한 경우에만 true입니다. 일반 요청·선호·시간 미지정은 false이며, 정확 시각이 있어도 기본은 false입니다. 필수인지 실제로 판단할 수 없을 때만 null입니다.
+			- timeRequired=true일 때 강제할 대상은 preferredStartTime이 있으면 그 시각, 없으면 preferredTimeRange입니다. 이 대상 선택 규칙을 true 설정의 근거로 사용하지 마세요.
 			- preferredStartTime: 사용자가 명시한 시작 시각이 있으면 HH:mm 형식으로 설정하고, 아니면 null입니다. "7시"처럼 오전/오후를 판단할 수 없으면 null입니다.
 			- clarificationReason: 모호하거나 현재 지원하지 않는 조건 때문에 확인이 필요하면 그 이유를 한국어로 설정하고, 아니면 null입니다.
 			- deadline: 마감일이 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- priority: LOW, NORMAL, HIGH 중 하나입니다. 불명확하면 null입니다.
 			- description: 사용자의 원문 메시지를 그대로 넣으세요.
+
+			대조 예시: 같은 활동에서도 날짜 필수·시간 필수는 독립적입니다.
+			아래 input/output은 설명용입니다. 실제 응답은 해당 output과 같은 14필드 객체 하나만 반환하고, 예시의 날짜나 활동을 현재 요청에 복사하지 마세요.
+			<contrast_examples>
+			[
+			  {
+			    "input": "수요일 저녁 8시에 운동 1시간 하고 싶어",
+			    "output": {
+			      "title": "운동", "category": "PERSONAL", "durationMinutes": 60,
+			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
+			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
+			      "description": "수요일 저녁 8시에 운동 1시간 하고 싶어",
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "수요일 저녁 8시에만 운동 1시간 할 수 있어",
+			    "output": {
+			      "title": "운동", "category": "PERSONAL", "durationMinutes": 60,
+			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
+			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
+			      "description": "수요일 저녁 8시에만 운동 1시간 할 수 있어",
+			      "dateRequired": false, "timeRequired": true, "preferredStartTime": "20:00", "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "수요일에만 저녁 8시에 운동 1시간 하고 싶어",
+			    "output": {
+			      "title": "운동", "category": "PERSONAL", "durationMinutes": 60,
+			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
+			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
+			      "description": "수요일에만 저녁 8시에 운동 1시간 하고 싶어",
+			      "dateRequired": true, "timeRequired": false, "preferredStartTime": "20:00", "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "공부 한 시간 할래",
+			    "output": {
+			      "title": "공부", "category": "STUDY", "durationMinutes": 60,
+			      "preferredDate": null, "preferredDayOfWeek": null, "preferredDateRange": null,
+			      "preferredTimeRange": null, "deadline": null, "priority": null,
+			      "description": "공부 한 시간 할래",
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "과제 한 시간 할래",
+			    "output": {
+			      "title": "과제", "category": "ASSIGNMENT", "durationMinutes": 60,
+			      "preferredDate": null, "preferredDayOfWeek": null, "preferredDateRange": null,
+			      "preferredTimeRange": null, "deadline": null, "priority": null,
+			      "description": "과제 한 시간 할래",
+			      "dateRequired": false, "timeRequired": false, "preferredStartTime": null, "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "반드시 수요일 저녁 8시에만 가능해",
+			    "output": {
+			      "title": null, "category": null, "durationMinutes": null,
+			      "preferredDate": null, "preferredDayOfWeek": "WEDNESDAY", "preferredDateRange": null,
+			      "preferredTimeRange": "EVENING", "deadline": null, "priority": null,
+			      "description": "반드시 수요일 저녁 8시에만 가능해",
+			      "dateRequired": true, "timeRequired": true, "preferredStartTime": "20:00",
+			      "clarificationReason": "어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요."
+			    }
+			  }
+			]
+			</contrast_examples>
 			""".formatted(requestDate);
 	}
 
