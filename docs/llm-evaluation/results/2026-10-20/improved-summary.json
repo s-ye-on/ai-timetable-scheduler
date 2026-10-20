@@ -1,0 +1,571 @@
+{
+  "attempts" : 40,
+  "rawStatus" : {
+    "PASS" : 20,
+    "FAIL" : 20,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 0.5,
+    "automaticCoverage" : 1.0
+  },
+  "rawSemanticStatus" : {
+    "PASS" : 20,
+    "FAIL" : 20,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 0.5,
+    "automaticCoverage" : 1.0
+  },
+  "javaStatus" : {
+    "PASS" : 33,
+    "FAIL" : 7,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 0.825,
+    "automaticCoverage" : 1.0
+  },
+  "schemaStatus" : {
+    "PASS" : 40,
+    "FAIL" : 0,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 1.0,
+    "automaticCoverage" : 1.0
+  },
+  "dtoStatus" : {
+    "PASS" : 40,
+    "FAIL" : 0,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 1.0,
+    "automaticCoverage" : 1.0
+  },
+  "byType" : {
+    "NORMAL" : {
+      "raw" : {
+        "PASS" : 12,
+        "FAIL" : 5,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 17,
+        "accuracy" : 0.7058823529411765,
+        "automaticCoverage" : 1.0
+      },
+      "rawSemantic" : {
+        "PASS" : 12,
+        "FAIL" : 5,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 17,
+        "accuracy" : 0.7058823529411765,
+        "automaticCoverage" : 1.0
+      },
+      "java" : {
+        "PASS" : 14,
+        "FAIL" : 3,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 17,
+        "accuracy" : 0.8235294117647058,
+        "automaticCoverage" : 1.0
+      }
+    },
+    "BOUNDARY" : {
+      "raw" : {
+        "PASS" : 7,
+        "FAIL" : 3,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 10,
+        "accuracy" : 0.7,
+        "automaticCoverage" : 1.0
+      },
+      "rawSemantic" : {
+        "PASS" : 7,
+        "FAIL" : 3,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 10,
+        "accuracy" : 0.7,
+        "automaticCoverage" : 1.0
+      },
+      "java" : {
+        "PASS" : 10,
+        "FAIL" : 0,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 10,
+        "accuracy" : 1.0,
+        "automaticCoverage" : 1.0
+      }
+    },
+    "AMBIGUOUS" : {
+      "raw" : {
+        "PASS" : 1,
+        "FAIL" : 3,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 4,
+        "accuracy" : 0.25,
+        "automaticCoverage" : 1.0
+      },
+      "rawSemantic" : {
+        "PASS" : 1,
+        "FAIL" : 3,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 4,
+        "accuracy" : 0.25,
+        "automaticCoverage" : 1.0
+      },
+      "java" : {
+        "PASS" : 4,
+        "FAIL" : 0,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 4,
+        "accuracy" : 1.0,
+        "automaticCoverage" : 1.0
+      }
+    },
+    "UNSUPPORTED" : {
+      "raw" : {
+        "PASS" : 0,
+        "FAIL" : 9,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 9,
+        "accuracy" : 0.0,
+        "automaticCoverage" : 1.0
+      },
+      "rawSemantic" : {
+        "PASS" : 0,
+        "FAIL" : 9,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 9,
+        "accuracy" : 0.0,
+        "automaticCoverage" : 1.0
+      },
+      "java" : {
+        "PASS" : 5,
+        "FAIL" : 4,
+        "MANUAL" : 0,
+        "ERROR" : 0,
+        "NOT_EVALUATED" : 0,
+        "EXCLUDED" : 0,
+        "denominator" : 9,
+        "accuracy" : 0.5555555555555556,
+        "automaticCoverage" : 1.0
+      }
+    }
+  },
+  "byField" : {
+    "java.category" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.clarificationReason" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.dateRequired" : {
+      "PASS" : 25,
+      "FAIL" : 1,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9259259259259259,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.deadline" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.description" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.durationMinutes" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.preferredDate" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.preferredDateRange" : {
+      "PASS" : 25,
+      "FAIL" : 1,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9259259259259259,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.preferredDayOfWeek" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.preferredStartTime" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.preferredTimeRange" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.priority" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.timeRequired" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "java.title" : {
+      "PASS" : 26,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 1,
+      "EXCLUDED" : 0,
+      "denominator" : 27,
+      "accuracy" : 0.9629629629629629,
+      "automaticCoverage" : 0.9629629629629629
+    },
+    "raw.category" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.clarificationReason" : {
+      "PASS" : 28,
+      "FAIL" : 11,
+      "MANUAL" : 1,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 0.7,
+      "automaticCoverage" : 0.975
+    },
+    "raw.dateRequired" : {
+      "PASS" : 36,
+      "FAIL" : 2,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 2,
+      "denominator" : 38,
+      "accuracy" : 0.9473684210526315,
+      "automaticCoverage" : 1.0
+    },
+    "raw.deadline" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.description" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.durationMinutes" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredDate" : {
+      "PASS" : 37,
+      "FAIL" : 2,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 1,
+      "denominator" : 39,
+      "accuracy" : 0.9487179487179487,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredDateRange" : {
+      "PASS" : 33,
+      "FAIL" : 7,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 0.825,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredDayOfWeek" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredStartTime" : {
+      "PASS" : 37,
+      "FAIL" : 3,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 0.925,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredTimeRange" : {
+      "PASS" : 34,
+      "FAIL" : 5,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 1,
+      "denominator" : 39,
+      "accuracy" : 0.8717948717948718,
+      "automaticCoverage" : 1.0
+    },
+    "raw.priority" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.timeRequired" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.title" : {
+      "PASS" : 40,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 40,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    }
+  },
+  "byContractField" : {
+    "raw.dateRequired" : {
+      "PASS" : 2,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 2,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredDate" : {
+      "PASS" : 1,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 1,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    },
+    "raw.preferredTimeRange" : {
+      "PASS" : 1,
+      "FAIL" : 0,
+      "MANUAL" : 0,
+      "ERROR" : 0,
+      "NOT_EVALUATED" : 0,
+      "EXCLUDED" : 0,
+      "denominator" : 1,
+      "accuracy" : 1.0,
+      "automaticCoverage" : 1.0
+    }
+  },
+  "taskCreation" : {
+    "PASS" : 36,
+    "FAIL" : 4,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 0.9,
+    "automaticCoverage" : 1.0
+  },
+  "clarification" : {
+    "PASS" : 35,
+    "FAIL" : 5,
+    "MANUAL" : 0,
+    "ERROR" : 0,
+    "NOT_EVALUATED" : 0,
+    "EXCLUDED" : 0,
+    "denominator" : 40,
+    "accuracy" : 0.875,
+    "automaticCoverage" : 1.0
+  },
+  "criticalErrorAttempts" : 12,
+  "manualReviewAttempts" : 1,
+  "rawErrorBlockedAttempts" : 10,
+  "rateDefinition" : "accuracy=PASS/(all attempts excluding only EXCLUDED). MANUAL, ERROR and NOT_EVALUATED never count as correct. coverage=(PASS+FAIL)/denominator."
+}
