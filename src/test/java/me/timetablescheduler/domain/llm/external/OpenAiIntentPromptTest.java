@@ -82,6 +82,67 @@ class OpenAiIntentPromptTest {
         server.verify();
     }
 
+    @ParameterizedTest
+    @MethodSource("기간_및_필수조건_사례")
+    void 실제_프롬프트의_기간과_필수조건_예시는_독립_기대값과_일치하고_Java가_보존한다(ParsedTaskResponse expected) {
+        String input = expected.description();
+        server.expect(requestTo("https://openai.test/v1/responses"))
+            .andExpect(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                String instructions = body.path("instructions").asString();
+                assertThat(instructions).contains("Asia/Seoul 기준 2026-10-19");
+                JsonNode examples = 기간_예시_읽기(instructions);
+                JsonNode output = 예시_선택(examples, input);
+                Set<String> required = new HashSet<>();
+                body.at("/text/format/schema/required").forEach(n -> required.add(n.asString()));
+                assertThat(new HashSet<>(output.propertyNames())).isEqualTo(required);
+                assertThat(mapper.treeToValue(output, ParsedTaskResponse.class)).isEqualTo(expected);
+            })
+            .andRespond(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                JsonNode output = 예시_선택(기간_예시_읽기(body.path("instructions").asString()), input);
+                return withSuccess(응답_감싸기(output.toString()), MediaType.APPLICATION_JSON).createResponse(request);
+            });
+        ParsedTaskResponse actual = service.parseTask(new LlmParseRequest(input));
+        assertThat(actual.preferredDate()).isEqualTo(expected.preferredDate());
+        assertThat(actual.preferredDateRange()).isEqualTo(expected.preferredDateRange());
+        assertThat(actual.dateRequired()).isEqualTo(expected.dateRequired());
+        assertThat(actual.timeRequired()).isEqualTo(expected.timeRequired());
+        assertThat(actual.preferredTimeRange()).isEqualTo(expected.preferredTimeRange());
+        assertThat(actual.durationMinutes()).isEqualTo(expected.durationMinutes());
+        assertThat(actual.title()).isEqualTo("공부");
+        assertThat(actual.clarificationReason()).isNull();
+        server.verify();
+    }
+
+    private JsonNode 기간_예시_읽기(String instructions) {
+        int start = instructions.indexOf("<constraint_examples>");
+        int end = instructions.indexOf("</constraint_examples>");
+        assertThat(start).as("선호 날짜·허용 기간·필수 조건의 대조 예시가 실제 프롬프트에 있어야 한다").isNotNegative();
+        assertThat(end).isGreaterThan(start);
+        return mapper.readTree(instructions.substring(start + "<constraint_examples>".length(), end));
+    }
+
+    static Stream<ParsedTaskResponse> 기간_및_필수조건_사례() {
+        return Stream.of(
+            기간_사례("모레 오후에 공부 한 시간 반", 90, LocalDate.of(2026, 10, 21), null, PreferredTimeRange.AFTERNOON, false, false),
+            기간_사례("2026년 11월 2일부터 5일 사이에만 공부 1시간", 60, null,
+                new me.timetablescheduler.domain.llm.dto.DateRange(LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 5)), null, false, false),
+            기간_사례("2026년 11월 4일 오후에만 공부 2시간", 120, LocalDate.of(2026, 11, 4), null, PreferredTimeRange.AFTERNOON, false, true),
+            기간_사례("2026년 11월 4일에만 오후에 공부 2시간", 120, LocalDate.of(2026, 11, 4), null, PreferredTimeRange.AFTERNOON, true, false),
+            기간_사례("2026년 11월 4일 하루 안에 공부 1시간", 60, null,
+                new me.timetablescheduler.domain.llm.dto.DateRange(LocalDate.of(2026, 11, 4), LocalDate.of(2026, 11, 4)), null, false, false),
+            기간_사례("2026년 11월 4일이면 좋겠고 2일부터 5일 안에 공부 1시간", 60, LocalDate.of(2026, 11, 4),
+                new me.timetablescheduler.domain.llm.dto.DateRange(LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 5)), null, false, false)
+        );
+    }
+
+    private static ParsedTaskResponse 기간_사례(String input, int duration, LocalDate date,
+        me.timetablescheduler.domain.llm.dto.DateRange range, PreferredTimeRange band, boolean dateRequired, boolean timeRequired) {
+        return new ParsedTaskResponse("공부", TaskCategory.STUDY, duration, date, null, range, band,
+            null, null, input, dateRequired, timeRequired, null, null);
+    }
+
     private void 처리_검증(Fixture fixture) {
         if (fixture.error() != null) {
             assertThatThrownBy(() -> service.parseTask(new LlmParseRequest(fixture.input())))

@@ -108,6 +108,13 @@ public class OpenAiClient {
 			- 단독 요일과 "이번 주 목요일", "다음 주 월요일"은 preferredDayOfWeek로 추출하고 preferredDate는 null로 두세요. 반복 의미가 아닙니다.
 			- "이번 주 안에"처럼 허용 기간을 명시하면 해당 주 월요일~일요일을 preferredDateRange로 추출하고 요일 선호는 별도로 보존하세요.
 			- "다음 주 월요일"이라는 특정 날짜 표현만으로 preferredDateRange를 추가하지 마세요.
+			- "모레 오후에"는 선호 날짜와 시간대입니다. "그날 안에만" 같은 별도 기간 제한이 없다면 하루짜리 preferredDateRange로 바꾸지 마세요.
+			- preferredDateRange는 그 자체로 반드시 지킬 허용 기간입니다. 기간의 필수 여부를 dateRequired로 표현하지 마세요.
+			- "2일부터 5일 사이에만"처럼 기간만 있으면 preferredDate/preferredDayOfWeek는 null, dateRequired=false입니다. 이 경우에도 허용 기간은 필수입니다.
+			- "4일이면 좋겠고 2일부터 5일 안에"는 선호 날짜와 필수 기간을 함께 추출합니다. 실제 "4일 하루 안에"라는 제한은 하루짜리 기간으로 보존하세요.
+			- "11월 4일 오후에만"의 '만'은 오후에만 적용됩니다. dateRequired=false, timeRequired=true이며, "11월 4일에만 오후에"는 반대로 true/false입니다.
+			- 초 단위 시작 시각, "월/화 중 하루" 같은 복수 요일 선택, "한 시간 뒤" 같은 상대 시간 간격은 현재 미지원입니다. 초를 절삭하거나 요일을 연속 기간으로 바꾸거나 상대 조건을 누락하지 말고 clarificationReason으로 확인을 요청하세요.
+			- 활동명 속 "30초 영상 편집", "월/화 수업자료 복습", "뒤풀이 준비"는 위 미지원 일정 조건과 구분하세요.
 			- "오늘 밤 한 시"는 01:00으로 추출하세요. 요청 시각 이후의 날짜 선택은 Java가 담당합니다. 밤을 EVENING으로 강제하지 마세요.
 			- "매주", "매일" 등의 반복 일정은 현재 미지원이므로 clarificationReason으로 안내하세요.
 			- 활동명은 날짜·시간의 구체성과 별개로 추출하세요. "공부", "과제"처럼 포괄적인 활동도 유효한 제목입니다.
@@ -211,7 +218,135 @@ public class OpenAiClient {
 			  }
 			]
 			</contrast_examples>
-			""".formatted(requestDate);
+			기간·필수 범위 대조 예시도 같은 14필드 계약을 따릅니다. 예시 자체의 날짜를 현재 요청에 복사하지 마세요.
+			<constraint_examples>
+			[
+			  {
+			    "input": "모레 오후에 공부 한 시간 반",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 90,
+			      "preferredDate": "%s",
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": "AFTERNOON",
+			      "deadline": null,
+			      "priority": null,
+			      "description": "모레 오후에 공부 한 시간 반",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "2026년 11월 2일부터 5일 사이에만 공부 1시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 60,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": {
+			        "startDate": "2026-11-02",
+			        "endDate": "2026-11-05"
+			      },
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "2026년 11월 2일부터 5일 사이에만 공부 1시간",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "2026년 11월 4일 오후에만 공부 2시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 120,
+			      "preferredDate": "2026-11-04",
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": "AFTERNOON",
+			      "deadline": null,
+			      "priority": null,
+			      "description": "2026년 11월 4일 오후에만 공부 2시간",
+			      "dateRequired": false,
+			      "timeRequired": true,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "2026년 11월 4일에만 오후에 공부 2시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 120,
+			      "preferredDate": "2026-11-04",
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": null,
+			      "preferredTimeRange": "AFTERNOON",
+			      "deadline": null,
+			      "priority": null,
+			      "description": "2026년 11월 4일에만 오후에 공부 2시간",
+			      "dateRequired": true,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "2026년 11월 4일 하루 안에 공부 1시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 60,
+			      "preferredDate": null,
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": {
+			        "startDate": "2026-11-04",
+			        "endDate": "2026-11-04"
+			      },
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "2026년 11월 4일 하루 안에 공부 1시간",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  },
+			  {
+			    "input": "2026년 11월 4일이면 좋겠고 2일부터 5일 안에 공부 1시간",
+			    "output": {
+			      "title": "공부",
+			      "category": "STUDY",
+			      "durationMinutes": 60,
+			      "preferredDate": "2026-11-04",
+			      "preferredDayOfWeek": null,
+			      "preferredDateRange": {
+			        "startDate": "2026-11-02",
+			        "endDate": "2026-11-05"
+			      },
+			      "preferredTimeRange": null,
+			      "deadline": null,
+			      "priority": null,
+			      "description": "2026년 11월 4일이면 좋겠고 2일부터 5일 안에 공부 1시간",
+			      "dateRequired": false,
+			      "timeRequired": false,
+			      "preferredStartTime": null,
+			      "clarificationReason": null
+			    }
+			  }
+			]
+			</constraint_examples>
+			""".formatted(requestDate, requestDate.plusDays(2));
 	}
 
 	private Map<String, Object> createResponseFormat() {

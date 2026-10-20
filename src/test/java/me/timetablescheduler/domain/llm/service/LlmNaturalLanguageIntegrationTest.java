@@ -47,6 +47,7 @@ class LlmNaturalLanguageIntegrationTest {
     @Autowired private TaskRepository tasks;
     @Autowired private PreferenceRepository preferences;
     @Autowired private RecommendationService recommendations;
+    @Autowired private me.timetablescheduler.domain.recommendation.RecommendationRepository recommendationRepository;
     @MockitoBean private OpenAiClient client;
     @MockitoBean private CalendarService calendar;
     @MockitoBean private Clock clock;
@@ -114,6 +115,76 @@ class LlmNaturalLanguageIntegrationTest {
             .andExpect(jsonPath("$.message").value("어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요."));
         assertThat(tasks.findAllByUserIdOrderByCreatedAtDesc(user.getId())).isEmpty();
         verify(calendar, never()).createEvent(any(), any(), any(), any(), any(), any());
+        verifyNoInteractions(calendar);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', nullValues = "NULL", value = {
+        "2026년 10월 22일 저녁 7시 10분 30초에 공부 1시간|19:10",
+        "목요일 19:10:30에 공부 1시간|19:10",
+        "목요일 19시 10분 0초에 공부 1시간|19:10",
+        "목요일 저녁 7시 30초에 공부 1시간|19:00",
+        "목요일 저녁7시 10분 30초에 공부 1시간|19:10",
+        "목요일 오후7시10분30초에 공부 1시간|19:10",
+        "목요일19시10분30초에 공부 1시간|19:10",
+        "월/화 중 하루에 공부 1시간|NULL",
+        "월요일 / 화요일 중 하루에 공부 1시간|NULL",
+        "월/화/수 중 하루에 공부 1시간|NULL",
+        "한 시간 뒤에 공부 1시간 잡아줘|NULL",
+        "1시간 후에 공부 1시간 잡아줘|NULL",
+        "30분 뒤에 공부 1시간 잡아줘|NULL",
+        "한 시간 반 후에 공부 1시간 잡아줘|NULL"
+    })
+    void 미지원_조건이_LLM_응답에서_유실되어도_400으로_거절하고_데이터를_생성하지_않는다(
+        String source, LocalTime truncatedTime) throws Exception {
+        // 잘못된 LLM 응답의 description을 신뢰하지 않고 실제 요청 원문을 검사해야 한다.
+        var raw = new ParsedTaskResponse("공부", TaskCategory.STUDY, 60,
+            truncatedTime == null ? null : LocalDate.of(2026, 10, 22), null,
+            source.contains("/") ? new me.timetablescheduler.domain.llm.dto.DateRange(
+                LocalDate.of(2026, 10, 17), LocalDate.of(2026, 10, 20)) : null,
+            null, null, null, "공부 1시간", false, false, truncatedTime, null);
+        when(client.parseTask(eq(source), any(LocalDate.class))).thenReturn(raw);
+
+        mvc.perform(post("/tasks/natural-language").header("Authorization", 토큰())
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(java.util.Map.of("message", source))))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("LLM_CLARIFICATION_REQUIRED"))
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("현재 지원하지 않는 조건")));
+        assertThat(tasks.findAllByUserIdOrderByCreatedAtDesc(user.getId())).isEmpty();
+        assertThat(recommendationRepository.findAll()).noneMatch(candidate -> candidate.getUser().getId().equals(user.getId()));
+        verifyNoInteractions(calendar);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', nullValues = "NULL", value = {
+        "초등 수학 공부 1시간|NULL",
+        "30초 영상 편집 1시간|NULL",
+        "월/화 수업자료 복습 1시간|NULL",
+        "UI/UX 과제 1시간|NULL",
+        "뒤풀이 준비 1시간|NULL",
+        "한 시간 뒤풀이 자료 정리|NULL",
+        "한 시간 강의 복습|NULL",
+        "목요일 19시 10분에 30초 영상 편집 1시간|19:10",
+        "목요일 저녁7시10분에 30초 영상 편집 1시간|19:10",
+        "목요일19시10분에 공부 1시간|19:10",
+        "목요일 19:10에 공부 1시간|19:10"
+    })
+    void 초_슬래시_뒤가_활동명에_있어도_정상_요청은_실제_Task로_저장한다(
+        String source, LocalTime time) throws Exception {
+        var raw = new ParsedTaskResponse("공부", TaskCategory.STUDY, 60, null,
+            source.startsWith("목요일") ? DayOfWeek.THURSDAY : null, null,
+            null, null, null, source, false, false, time, null);
+        when(client.parseTask(eq(source), any(LocalDate.class))).thenReturn(raw);
+        var response = mvc.perform(post("/tasks/natural-language").header("Authorization", 토큰())
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(java.util.Map.of("message", source))))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("UNSCHEDULED"))
+            .andReturn();
+        long id = mapper.readTree(response.getResponse().getContentAsString()).path("id").asLong();
+        var saved = tasks.findById(id).orElseThrow();
+        assertThat(saved.getDescription()).isEqualTo(source);
+        assertThat(saved.getPreferredStartTime()).isEqualTo(time);
+        assertThat(saved.getDateRequired()).isFalse();
+        assertThat(saved.getTimeRequired()).isFalse();
+        assertThat(saved.getDurationMinutes()).isEqualTo(60);
         verifyNoInteractions(calendar);
     }
 

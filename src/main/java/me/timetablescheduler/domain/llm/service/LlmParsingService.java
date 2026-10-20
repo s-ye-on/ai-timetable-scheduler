@@ -158,8 +158,15 @@ public class LlmParsingService {
 		}
 	}
 
-	/** 원문을 다시 구조화하지 않고, 지원하는 명백한 시각 표기가 응답에서 유실됐는지만 확인한다. */
+	/** 원문을 다시 구조화하지 않고, 명백한 미지원 조건과 명시 시각의 유실·모순만 거절한다. */
 	private void validateSourceIntent(String source, ParsedTaskResponse parsed) {
+		// 명시적 요일 선택·상대 시간 간격만 거절한다. 활동명의 /·뒤는 대상이 아니다.
+		if (Pattern.compile("(?<![가-힣])[월화수목금토일](?:요일)?(?:\\s*/\\s*[월화수목금토일](?:요일)?)+\\s*중\\s*(?:하루|하나|한\\s*날)")
+				.matcher(source).find()
+			|| Pattern.compile("(?<![가-힣\\d])(?:\\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|반)\\s*(?:시간(?:\\s*반)?|분)\\s*(?:뒤|후)(?=\\s|에|부터|만|$)")
+				.matcher(source).find()) {
+			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+		}
 		if (Pattern.compile("(?:요일.{0,8}(?:제외|빼고|말고)|(?:요일|오전|오후|점심|저녁|밤)\\s*(?:또는|혹은)|(?:이번|다음)\\s*주\\s*(?:쯤|정도)|(?:되도록|가능하면)\\s*(?:이번|다음)\\s*주)")
 			.matcher(source).find()) {
 			throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
@@ -176,6 +183,10 @@ public class LlmParsingService {
 		LocalTime sourceTime = null;
 		while (hours.find()) {
 			String suffix = source.substring(hours.end()).stripLeading();
+			// 기존 시각 인식 범위를 재사용하여 붙여 쓴 시간대도 놓치지 않는다.
+			if (Pattern.compile("^(?:\\d{1,2}|[영공일이삼사오육칠팔구십]+)\\s*초(?=\\s|에|부터|만|$)").matcher(suffix).find()) {
+				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+			}
 			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
 				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
 			}
@@ -191,6 +202,9 @@ public class LlmParsingService {
 		Matcher clockTimes = Pattern.compile("(?<!\\d)(\\d{1,2}):(\\d{2})(?!\\d)").matcher(source);
 		while (clockTimes.find()) {
 			String suffix = source.substring(clockTimes.end()).stripLeading();
+			if (Pattern.compile("^:\\d{2}(?!\\d)").matcher(suffix).find()) {
+				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
+			}
 			if (suffix.startsWith("까지") || suffix.startsWith("이후") || suffix.startsWith("이전")) {
 				throw new LlmException(ExceptionCode.LLM_CLARIFICATION_REQUIRED);
 			}
