@@ -805,6 +805,7 @@
 				<h2>추천 후보</h2>
 				<span class="badge neutral" id="recommendationCount">0개</span>
 			</div>
+			<p id="recommendationMessage" class="subtle" role="status" aria-live="polite"></p>
 			<div id="recommendationList" class="recommendation-list"></div>
 		</section>
 
@@ -877,6 +878,7 @@
 		currentTask: null,
 		existingTasks: [],
 		recommendations: [],
+		recommendationMessage: "",
 		selection: null,
 		parsedInput: null,
 		restoredTask: false,
@@ -1193,6 +1195,7 @@
 			}
 			state.currentTask = task;
 			state.recommendations = Array.isArray(recommendations) ? recommendations : [];
+			state.recommendationMessage = "";
 			state.parsedInput = null;
 			state.restoredTask = true;
 			state.needsServerConfirmation = false;
@@ -1481,6 +1484,7 @@
 		state.needsServerConfirmation = false;
 		localStorage.removeItem("demoCurrentTaskId");
 		state.recommendations = [];
+		state.recommendationMessage = "";
 		state.selection = null;
 		state.isParsing = false;
 		state.isRecommending = false;
@@ -1529,6 +1533,7 @@
 			state.restoredTask = false;
 			state.needsServerConfirmation = false;
 			state.recommendations = [];
+			state.recommendationMessage = "";
 			state.selection = null;
 			localStorage.setItem("demoCurrentTaskId", String(task.id));
 			renderParsedResult();
@@ -1594,6 +1599,7 @@
 		const revision = authRevision;
 		state.isRecommending = true;
 		state.recommendations = [];
+		state.recommendationMessage = "";
 		state.selection = null;
 		renderRecommendations();
 		renderSelectionResult();
@@ -1606,6 +1612,7 @@
 				return;
 			}
 			state.recommendations = response.recommendations || [];
+			state.recommendationMessage = response.message || "";
 			state.needsServerConfirmation = false;
 			state.selection = null;
 			renderRecommendations();
@@ -1626,6 +1633,7 @@
 	}
 
 	function renderRecommendations() {
+		$("recommendationMessage").textContent = state.recommendationMessage;
 		$("recommendationCount").textContent = `${state.recommendations.length}개`;
 		const list = $("recommendationList");
 
@@ -1651,7 +1659,6 @@
 				<dl class="kv">
 					<dt>추천 시간</dt><dd>${formatDateTimeRange(recommendation.recommendedStartAt, recommendation.recommendedEndAt)}</dd>
 					<dt>추천 적합도</dt><dd>${formatSuitabilityScore(recommendation.score)}</dd>
-					<dt>내부 원점수</dt><dd>${formatRawScore(recommendation.score)}</dd>
 				</dl>
 				<div class="reason-heading">서버 계산 근거</div>
 				<ul class="reason-list">
@@ -1810,6 +1817,7 @@
 			}
 			state.currentTask = task;
 			state.recommendations = Array.isArray(recommendations) ? recommendations : [];
+			state.recommendationMessage = "";
 			state.restoredTask = true;
 			state.needsServerConfirmation = false;
 			renderParsedResult();
@@ -2051,10 +2059,6 @@
 		}
 		const normalized = Math.round((Number(score) / 140) * 1000) / 10;
 		return `${normalized}점`;
-	}
-
-	function formatRawScore(score) {
-		return Number.isFinite(Number(score)) ? `${score}점` : "-";
 	}
 
 	function formatDayOfWeek(dayOfWeek) {

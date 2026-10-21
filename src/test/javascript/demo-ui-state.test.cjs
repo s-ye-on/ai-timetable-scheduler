@@ -916,7 +916,7 @@ test("추천 유형·적합도·서버 이유를 그대로 표시하고 원조�
 	assert.match(markup, /정확히 일치하는 시간대가 존재해요!/);
 	assert.match(markup, /다른 대안도 있어요/);
 	assert.match(markup, /추천 적합도<\/dt><dd>85\.7점/);
-	assert.match(markup, /내부 원점수<\/dt><dd>120점/);
+	assert.doesNotMatch(markup, /내부 원점수|120점/);
 	assert.match(markup, /요청한 목요일 19:00 시작 조건을 충족했습니다/);
 	assert.match(markup, /&lt;img src=x onerror=alert\(1\)&gt;/);
 	assert.doesNotMatch(markup, /<img src=x onerror=alert\(1\)>/);
@@ -969,4 +969,63 @@ test("분석·복원 화면은 정확한 목표 시각과 필수 조건을 요�
 	assert.match(harness.element("parsedResult").innerHTML, /목표 시작 시각<\/dt><dd>지정하지 않음/);
 	assert.match(harness.element("parsedResult").innerHTML, /날짜 조건<\/dt><dd>기존 Task: 날짜 조건 제한/);
 	assert.match(harness.element("parsedResult").innerHTML, /시간 조건<\/dt><dd>기존 Task: 시간대 가점/);
+});
+
+
+test("서버가_확인한_원조건_제외_사유를_표시하고_입력_변경시_지운다", async () => {
+    const message = "요청하신 조건에 맞는 후보 대신 다른 대안을 추천했어요. Google Calendar 일정과 겹쳐요.";
+    const harness = createHarness({ fetchImpl: async () => jsonResponse(200, { message, recommendations: [recommendation(77)] }) });
+    harness.element("naturalMessage").value = "공부";
+    harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.parsedInput = "공부";`);
+    await harness.call("generateRecommendations()");
+    assert.equal(harness.element("recommendationMessage").textContent, message);
+    harness.call("invalidateAnalysis()");
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+});
+
+test("Calendar_조회_실패를_충돌_안내로_바꾸지_않는다", async () => {
+    const harness = createHarness({ fetchImpl: async () => jsonResponse(502, { code: "GOOGLE_CALENDAR_FREE_BUSY_FAILED", message: "Google Calendar 일정을 조회하지 못했습니다." }) });
+    harness.element("naturalMessage").value = "공부";
+    harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.parsedInput = "공부";`);
+    await harness.call("generateRecommendations()");
+    assert.match(harness.element("taskMessage").textContent, /조회하지 못했습니다/);
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+    assert.doesNotMatch(harness.element("recommendationList").innerHTML, /일정과 겹쳐/);
+});
+
+
+test("원조건_제외_사유는_텍스트로_표시하고_새_추천_시작과_실패시_지운다", async () => {
+    const pending = deferred();
+    const harness = createHarness({ fetchImpl: async () => pending.promise });
+    harness.element("naturalMessage").value = "공부";
+    harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.parsedInput = "공부"; state.recommendationMessage = "이전 충돌"; renderRecommendations();`);
+    const loading = harness.call("generateRecommendations()");
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+    pending.resolve(jsonResponse(502, { message: "Google Calendar 일정을 조회하지 못했습니다." }));
+    await loading;
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+    harness.call('state.recommendationMessage = "<img src=x onerror=alert(1)>"; renderRecommendations();');
+    assert.equal(harness.element("recommendationMessage").textContent, "<img src=x onerror=alert(1)>");
+    assert.equal(harness.element("recommendationMessage").innerHTML, "");
+});
+
+test("추천_응답이_늦게_도착해도_다른_입력의_충돌_사유로_표시하지_않는다", async () => {
+    const pending = deferred();
+    const harness = createHarness({ fetchImpl: async () => pending.promise });
+    harness.element("naturalMessage").value = "공부";
+    harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.parsedInput = "공부";`);
+    const loading = harness.call("generateRecommendations()");
+    harness.call("invalidateAnalysis()");
+    pending.resolve(jsonResponse(200, { message: "이전 Task의 Calendar 충돌", recommendations: [recommendation(77)] }));
+    await loading;
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+});
+
+test("저장_이력_재조회는_저장되지_않은_충돌_사유를_재구성하지_않는다", async () => {
+    const harness = createHarness({ fetchImpl: async (url) => url === "/tasks/42"
+        ? jsonResponse(200, task(42)) : jsonResponse(200, [recommendation(77)]) });
+    harness.call('state.recommendationMessage = "이전 Task의 Calendar 충돌"; renderRecommendations();');
+    await harness.call("restoreTask(42)");
+    assert.equal(harness.element("recommendationMessage").textContent, "");
+    assert.doesNotMatch(harness.element("recommendationList").innerHTML, /일정과 겹쳐요/);
 });

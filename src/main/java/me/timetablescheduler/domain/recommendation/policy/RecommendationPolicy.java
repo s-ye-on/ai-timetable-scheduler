@@ -11,6 +11,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
 
@@ -72,16 +74,7 @@ public class RecommendationPolicy {
 		for (LocalDate date : resolveCandidateDates(task, now.toLocalDate())) {
 			// 충돌 검사는 여유 시간이 닿는 인접 날짜까지, 밀도 점수는 기존 당일 입력을 사용한다.
 			List<BusyBlock> scoringBusy = buildBusyBlocks(date, timetableSlots, scheduledTasks, safeCalendar, task);
-			TreeSet<LocalTime> starts = new TreeSet<>();
-			for (LocalDateTime start = date.atTime(preference.getScheduleStartTime());
-				!start.plusMinutes(task.getDurationMinutes()).isAfter(date.atTime(preference.getScheduleEndTime()));
-				start = start.plusMinutes(CANDIDATE_SEARCH_INTERVAL_MINUTES)) {
-				starts.add(start.toLocalTime());
-			}
-			if (task.getPreferredStartTime() != null) {
-				starts.add(task.getPreferredStartTime());
-			}
-			for (LocalTime time : starts) {
+			for (LocalTime time : candidateStartTimes(task, preference, date)) {
 				LocalDateTime start = date.atTime(time);
 				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
 				if (!meetsRequestConditions(task, preference, start, end, now)) {
@@ -100,6 +93,77 @@ public class RecommendationPolicy {
 			}
 		}
 		return candidates;
+	}
+
+	private Set<LocalTime> candidateStartTimes(Task task, Preference preference, LocalDate date) {
+		TreeSet<LocalTime> starts = new TreeSet<>();
+		for (LocalDateTime start = date.atTime(preference.getScheduleStartTime());
+			!start.plusMinutes(task.getDurationMinutes()).isAfter(date.atTime(preference.getScheduleEndTime()));
+			start = start.plusMinutes(CANDIDATE_SEARCH_INTERVAL_MINUTES)) {
+			starts.add(start.toLocalTime());
+		}
+		if (task.getPreferredStartTime() != null) starts.add(task.getPreferredStartTime());
+		return starts;
+	}
+
+	/** 현재 추천 요청의 조회 결과만 사용한다. 기존 추천 이력의 사유를 재구성하지 않는다. */
+	public String explainOriginalConditionExclusion(Task task, Preference preference,
+		List<TimetableSlot> timetableSlots, List<Task> scheduledTasks,
+		List<BusyBlock> calendarBusyBlocks, LocalDateTime now) {
+		boolean hasRequest = task.getPreferredDate() != null || task.getPreferredDayOfWeek() != null
+			|| task.getPreferredStartTime() != null || (task.getPreferredTimeRange() != null
+				&& task.getPreferredTimeRange() != PreferredTimeRange.ANYTIME);
+		if (!hasRequest) return "";
+		// 조회 실패를 빈 일정이나 충돌로 설명하지 않는다.
+		if (calendarBusyBlocks == null) return "";
+		List<LocalDate> allowedDates = resolveCandidateDates(task, now.toLocalDate());
+		List<LocalDate> requestedDates = task.getPreferredDate() != null
+			? List.of(task.getPreferredDate()) : allowedDates.stream()
+				.filter(date -> matchesRequestedDate(task, date)).toList();
+		Set<String> reasons = new LinkedHashSet<>();
+		for (LocalDate date : requestedDates) {
+			for (LocalTime time : candidateStartTimes(task, preference, date)) {
+				LocalDateTime start = date.atTime(time);
+				LocalDateTime end = start.plusMinutes(task.getDurationMinutes());
+				if (classify(task, start, end) != RecommendationMatchType.EXACT) continue;
+				if (!start.isAfter(now)) {
+					reasons.add("요청하신 시작 시각이 이미 지났어요.");
+					continue;
+				}
+				if (!allowedDates.contains(date)) {
+					reasons.add("요청하신 날짜가 현재 탐색 범위·허용 기간·마감일 조건에 맞지 않아요.");
+					continue;
+				}
+				if (!isWithinAvailableTimeRange(preference, start, end)) {
+					reasons.add("요청하신 시작 시각과 소요 시간이 설정된 가용 시간에 맞지 않아요.");
+					continue;
+				}
+				Set<String> conflicts = new LinkedHashSet<>();
+				int gap = preference.getMinimumGapMinutes();
+				addConflictReason(conflicts, "학교 시간표", start, end, gap,
+					buildSelectionBusyBlocks(start, end, gap, timetableSlots, List.of(), List.of(), task));
+				addConflictReason(conflicts, "이미 확정된 Task", start, end, gap,
+					buildSelectionBusyBlocks(start, end, gap, List.of(), scheduledTasks, List.of(), task));
+				addConflictReason(conflicts, "Google Calendar 일정", start, end, gap,
+					buildSelectionBusyBlocks(start, end, gap, List.of(), List.of(), calendarBusyBlocks, task));
+				// 원조건 중 하나라도 유효하면 일부 후보의 충돌을 전체 미추천 사유로 오인하지 않는다.
+				if (conflicts.isEmpty()) return "";
+				reasons.addAll(conflicts);
+			}
+		}
+		if (reasons.isEmpty()) {
+			return "요청하신 조건에서 탐색 범위·허용 기간·소요 시간·가용 시간을 모두 만족하는 후보를 찾지 못했어요.";
+		}
+		return "추천 생성 시 원조건 후보에서 확인한 제외 사유: " + String.join(" ", reasons);
+	}
+
+	private void addConflictReason(Set<String> reasons, String source, LocalDateTime start,
+		LocalDateTime end, int gap, List<BusyBlock> blocks) {
+		if (conflictsWithBusyBlocks(start, end, blocks, 0)) {
+			reasons.add(source + (source.equals("Google Calendar 일정") ? "과" : "와") + " 겹쳐요.");
+		} else if (gap > 0 && conflictsWithBusyBlocks(start, end, blocks, gap)) {
+			reasons.add(source + " 전후의 최소 여유 시간이 부족해요.");
+		}
 	}
 
 	/**

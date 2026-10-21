@@ -119,4 +119,101 @@ class RecommendationRequestIntentTest {
             thursday.plusDays(14).atTime(19,0),thursday.plusDays(14).atTime(21,0),thursday.plusDays(1).atTime(8,0)));
     }
 
+
+    private Task 원조건_Task() {
+        return 요청_Task_생성(DATE.plusDays(3), null, null, null, PreferredTimeRange.EVENING,
+            false, false, LocalTime.of(19,0));
+    }
+    private String 제외_사유(Task task, Preference preference, List<TimetableSlot> slots,
+        List<Task> scheduled, List<BusyBlock> calendar, LocalDateTime now) {
+        return policy.explainOriginalConditionExclusion(task, preference, slots, scheduled, calendar, now);
+    }
+    @Test
+    void 학교_시간표와_직접_겹친_원조건은_수업_충돌만_안내한다() {
+        var slot = TimetableSlot.create(user, "수업", DayOfWeek.THURSDAY, "강의실", LocalTime.of(19,30), LocalTime.of(20,30));
+        String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(slot), List.of(), List.of(), NOW);
+        assertTrue(reason.contains("학교 시간표와 겹쳐요"));
+        assertFalse(reason.contains("Google Calendar"));
+        assertFalse(reason.contains("여유 시간"));
+    }
+    @Test
+    void 확정된_Task와_직접_겹친_원조건은_Task_충돌을_안내한다() {
+        var scheduled = 요청_Task_생성(null,null,null,null,null,false,false,null);
+        scheduled.schedule(DATE.plusDays(3).atTime(20,0), DATE.plusDays(3).atTime(22,0));
+        String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(), List.of(scheduled), List.of(), NOW);
+        assertTrue(reason.contains("이미 확정된 Task와 겹쳐요"));
+        assertFalse(reason.contains("학교 시간표"));
+    }
+    @Test
+    void 직접_겹치지_않고_여유_시간만_부족하면_구분해서_안내한다() {
+        var preference = Preference.create(user, PreferredTimeRange.ANYTIME, LocalTime.of(9,0), LocalTime.of(22,0),
+            30, ScheduleDensity.BALANCED, DeadlineTiming.ASAP);
+        var near = new BusyBlock(DATE.plusDays(3).atTime(18,0), DATE.plusDays(3).atTime(18,45));
+        String reason = 제외_사유(원조건_Task(), preference, List.of(), List.of(), List.of(near), NOW);
+        assertTrue(reason.contains("Google Calendar 일정 전후의 최소 여유 시간이 부족"));
+        assertFalse(reason.contains("겹쳐요"));
+        var boundary = new BusyBlock(near.startAt(), DATE.plusDays(3).atTime(18,30));
+        assertEquals("", 제외_사유(원조건_Task(), preference, List.of(), List.of(), List.of(boundary), NOW));
+    }
+    @Test
+    void 수업과_Task의_최소_여유_시간도_출처별로_구분한다() {
+        var preference = Preference.create(user, PreferredTimeRange.ANYTIME, LocalTime.of(9,0), LocalTime.of(22,0),
+            30, ScheduleDensity.BALANCED, DeadlineTiming.ASAP);
+        var slot = TimetableSlot.create(user, "수업", DayOfWeek.THURSDAY, "강의실", LocalTime.of(18,0), LocalTime.of(18,45));
+        assertTrue(제외_사유(원조건_Task(), preference, List.of(slot), List.of(), List.of(), NOW).contains("학교 시간표 전후의 최소 여유 시간"));
+        var scheduled = 요청_Task_생성(null,null,null,null,null,false,false,null);
+        scheduled.schedule(DATE.plusDays(3).atTime(16,45), DATE.plusDays(3).atTime(18,45));
+        assertTrue(제외_사유(원조건_Task(), preference, List.of(), List.of(scheduled), List.of(), NOW).contains("이미 확정된 Task 전후의 최소 여유 시간"));
+    }
+    @Test
+    void 여러_출처의_실제_충돌은_함께_안내한다() {
+        var slot = TimetableSlot.create(user, "수업", DayOfWeek.THURSDAY, "강의실", LocalTime.of(19,0), LocalTime.of(20,0));
+        var block = new BusyBlock(DATE.plusDays(3).atTime(20,0), DATE.plusDays(3).atTime(21,0));
+        String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(slot), List.of(), List.of(block), NOW);
+        assertTrue(reason.contains("학교 시간표와 겹쳐요"));
+        assertTrue(reason.contains("Google Calendar 일정과 겹쳐요"));
+    }
+    @Test
+    void 일부_원조건만_충돌하고_유효한_원조건이_있으면_전체_충돌처럼_안내하지_않는다() {
+        var task = 요청_Task_생성(DATE.plusDays(3), null, null,null,PreferredTimeRange.EVENING,false,false,null);
+        var block = new BusyBlock(DATE.plusDays(3).atTime(18,0), DATE.plusDays(3).atTime(18,30));
+        assertEquals("", 제외_사유(task, 하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW));
+    }
+    @Test
+    void 과거_요청은_충돌이_있어도_일정_충돌이라고_오안내하지_않는다() {
+        var block = new BusyBlock(DATE.plusDays(3).atTime(19,0), DATE.plusDays(3).atTime(20,0));
+        String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(),List.of(),List.of(),List.of(block), DATE.plusDays(3).atTime(19,0));
+        assertTrue(reason.contains("이미 지났어요"));
+        assertFalse(reason.contains("Google Calendar"));
+    }
+    @Test
+    void 가용_시간_밖의_원조건은_Calendar_충돌로_추측하지_않는다() {
+        var task = 요청_Task_생성(DATE.plusDays(3),null,null,null,null,false,false,LocalTime.of(23,0));
+        var block = new BusyBlock(DATE.plusDays(3).atTime(23,0), DATE.plusDays(4).atTime(1,0));
+        String reason = 제외_사유(task,하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW);
+        assertTrue(reason.contains("가용 시간"));
+        assertFalse(reason.contains("Google Calendar"));
+    }
+    @Test
+    void 인접_날짜의_수업에_닿는_여유_시간도_동일하게_안내한다() {
+        var task = 요청_Task_생성(DATE,null,null,null,null,false,false,LocalTime.of(0,30));
+        var preference = Preference.create(user,PreferredTimeRange.ANYTIME,LocalTime.of(0,0),LocalTime.of(4,0),60,ScheduleDensity.BALANCED,DeadlineTiming.ASAP);
+        var slot = TimetableSlot.create(user,"야간 수업",DayOfWeek.SUNDAY,"강의실",LocalTime.of(23,0),LocalTime.of(23,59));
+        assertTrue(제외_사유(task,preference,List.of(slot),List.of(),List.of(),NOW).contains("학교 시간표 전후의 최소 여유 시간"));
+    }
+    @Test
+    void 원조건이_없거나_Calendar_검증결과가_없으면_충돌을_추측하지_않는다() {
+        var general = 요청_Task_생성(null,null,null,null,null,false,false,null);
+        assertEquals("",제외_사유(general,하루_선호_설정_생성(),List.of(),List.of(),List.of(),NOW));
+        assertEquals("",제외_사유(원조건_Task(),하루_선호_설정_생성(),List.of(),List.of(),null,NOW));
+    }
+    @Test
+    void 안내_계산_전후_후보의_시각과_점수는_변하지_않는다() {
+        var task = 원조건_Task();
+        var block = new BusyBlock(DATE.plusDays(3).atTime(19,0), DATE.plusDays(3).atTime(20,0));
+        var before = policy.generateCandidates(task,하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW);
+        제외_사유(task,하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW);
+        var after = policy.generateCandidates(task,하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW);
+        assertEquals(before, after);
+    }
 }

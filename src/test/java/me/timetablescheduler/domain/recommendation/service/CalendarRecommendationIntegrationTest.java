@@ -106,6 +106,35 @@ class CalendarRecommendationIntegrationTest {
 		tokens.save(CalendarToken.create(user, "test-only-access", "test-only-refresh", LocalDateTime.of(2026, 10, 30, 0, 0)));
 	}
 
+	@Test
+	void 원조건이_Calendar와_겹치면_실제_사유와_대안을_함께_안내한다() {
+		연결_설정();
+		var date = LocalDate.of(2026, 10, 22);
+		var requested = tasks.save(Task.create(user, "공부", TaskCategory.STUDY, 120, date,
+			null, null, null, null, null, TaskPriority.NORMAL, "목요일 19시 공부", false, false, java.time.LocalTime.of(19, 0)));
+		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
+			.thenReturn(List.of(new me.timetablescheduler.domain.recommendation.policy.BusyBlock(date.atTime(19, 0), date.atTime(20, 0))));
+		var result = service.recommend(user.getId(), requested.getId());
+		assertThat(result.message()).contains("Google Calendar", "겹쳐", "다른 대안");
+		assertThat(result.recommendations()).isNotEmpty().noneMatch(r -> r.recommendedStartAt().equals(date.atTime(19, 0)));
+		assertThat(result.recommendations()).allMatch(r -> r.status() == RecommendationStatus.PROPOSED);
+		이벤트_미생성_검증();
+	}
+
+	@Test
+	void 필수_원조건이_충돌하면_사유를_안내하되_대안을_추천했다고_하지_않는다() {
+		연결_설정();
+		var date = LocalDate.of(2026, 10, 22);
+		var requested = tasks.save(Task.create(user, "공부", TaskCategory.STUDY, 120, date,
+			null, null, null, null, null, TaskPriority.NORMAL, "목요일 19시만", true, true, java.time.LocalTime.of(19, 0)));
+		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
+			.thenReturn(List.of(new me.timetablescheduler.domain.recommendation.policy.BusyBlock(date.atTime(19, 0), date.atTime(20, 0))));
+		var result = service.recommend(user.getId(), requested.getId());
+		assertThat(result.message()).contains("Google Calendar", "겹쳐").doesNotContain("다른 대안을 추천");
+		assertThat(result.recommendations()).isEmpty();
+		이벤트_미생성_검증();
+	}
+
 	private void Task_미확정_검증() {
 		var stored = tasks.findById(task.getId()).orElseThrow();
 		assertThat(stored.getStatus()).isEqualTo(TaskStatus.UNSCHEDULED);
