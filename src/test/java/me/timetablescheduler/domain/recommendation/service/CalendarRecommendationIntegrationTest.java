@@ -102,6 +102,25 @@ class CalendarRecommendationIntegrationTest {
 		이벤트_미생성_검증();
 	}
 
+    @Test
+    void 확정_일정과_Calendar가_겹치면_사용자용_문장으로_함께_안내한다() {
+        연결_설정();
+        var date = LocalDate.of(2026, 10, 22);
+        var requested = tasks.save(Task.create(user, "공부", TaskCategory.STUDY, 120, date,
+            null, null, null, null, null, TaskPriority.NORMAL, "목요일 19시 공부", false, false, java.time.LocalTime.of(19, 0)));
+        var scheduled = Task.create(user, "기존 공부", TaskCategory.STUDY, 120, date,
+            null, null, null, null, null, TaskPriority.NORMAL, "기존 일정");
+        scheduled.schedule(date.atTime(19, 0), date.atTime(21, 0));
+        tasks.save(scheduled);
+        when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
+            .thenReturn(List.of(new me.timetablescheduler.domain.recommendation.policy.BusyBlock(date.atTime(19, 0), date.atTime(20, 0))));
+        var result = service.recommend(user.getId(), requested.getId());
+        assertThat(result.message()).isEqualTo("요청하신 시간에는 다른 일정이 있어요.\n"
+            + "이미 확정된 일정과 Google 캘린더 일정이 겹쳐 다른 가능한 시간을 추천했어요.");
+        assertThat(result.recommendations()).isNotEmpty();
+        이벤트_미생성_검증();
+    }
+
 	private void 연결_설정() {
 		tokens.save(CalendarToken.create(user, "test-only-access", "test-only-refresh", LocalDateTime.of(2026, 10, 30, 0, 0)));
 	}
@@ -115,7 +134,7 @@ class CalendarRecommendationIntegrationTest {
 		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
 			.thenReturn(List.of(new me.timetablescheduler.domain.recommendation.policy.BusyBlock(date.atTime(19, 0), date.atTime(20, 0))));
 		var result = service.recommend(user.getId(), requested.getId());
-		assertThat(result.message()).contains("Google Calendar", "겹쳐", "다른 대안");
+		assertThat(result.message()).contains("Google 캘린더", "겹쳐", "다른 가능한 시간");
 		assertThat(result.recommendations()).isNotEmpty().noneMatch(r -> r.recommendedStartAt().equals(date.atTime(19, 0)));
 		assertThat(result.recommendations()).allMatch(r -> r.status() == RecommendationStatus.PROPOSED);
 		이벤트_미생성_검증();
@@ -130,7 +149,7 @@ class CalendarRecommendationIntegrationTest {
 		when(calendarClient.getBusyBlocks(anyString(), anyString(), any(), any()))
 			.thenReturn(List.of(new me.timetablescheduler.domain.recommendation.policy.BusyBlock(date.atTime(19, 0), date.atTime(20, 0))));
 		var result = service.recommend(user.getId(), requested.getId());
-		assertThat(result.message()).contains("Google Calendar", "겹쳐").doesNotContain("다른 대안을 추천");
+		assertThat(result.message()).contains("Google 캘린더", "겹쳐").doesNotContain("추천했어요");
 		assertThat(result.recommendations()).isEmpty();
 		이벤트_미생성_검증();
 	}

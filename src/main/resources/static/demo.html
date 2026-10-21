@@ -574,6 +574,7 @@
 				grid-template-columns: 1fr;
 			}
 		}
+			.recommendation-message { white-space: pre-line; }
 	</style>
 </head>
 <body>
@@ -805,7 +806,7 @@
 				<h2>추천 후보</h2>
 				<span class="badge neutral" id="recommendationCount">0개</span>
 			</div>
-			<p id="recommendationMessage" class="subtle" role="status" aria-live="polite"></p>
+			<p id="recommendationMessage" class="subtle recommendation-message" role="status" aria-live="polite"></p>
 			<div id="recommendationList" class="recommendation-list"></div>
 		</section>
 

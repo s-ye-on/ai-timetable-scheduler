@@ -88,11 +88,11 @@ public class RecommendationService {
 
 		String exclusion = topCandidates.stream().anyMatch(candidate -> candidate.matchType() == RecommendationMatchType.EXACT)
 			? "" : recommendationPolicy.explainOriginalConditionExclusion(task, preference,
-				timetableSlots, scheduledTasks, calendarBusyBlocks, selectionTime);
+				timetableSlots, scheduledTasks, calendarBusyBlocks, selectionTime, !topCandidates.isEmpty());
 
 		if (topCandidates.isEmpty()) {
 			return new RecommendationResponse.Generate(exclusion == null || exclusion.isBlank() ? NO_RECOMMENDATION_MESSAGE
-				: "추천 가능한 시간이 없습니다. " + exclusion, List.of());
+				: exclusion, List.of());
 		}
 
 		List<Recommendation> recommendations = new ArrayList<>();
@@ -118,7 +118,7 @@ public class RecommendationService {
 			.toList();
 
 		return new RecommendationResponse.Generate(exclusion == null || exclusion.isBlank() ? RECOMMENDATION_CREATED_MESSAGE
-			: "요청하신 조건에 맞는 후보 대신 다른 대안을 추천했어요. " + exclusion, recommendationResponses);
+			: exclusion, recommendationResponses);
 	}
 
 	public List<RecommendationResponse.Read> readProposedByTask(Long userId, Long taskId) {

@@ -973,7 +973,7 @@ test("분석·복원 화면은 정확한 목표 시각과 필수 조건을 요�
 
 
 test("서버가_확인한_원조건_제외_사유를_표시하고_입력_변경시_지운다", async () => {
-    const message = "요청하신 조건에 맞는 후보 대신 다른 대안을 추천했어요. Google Calendar 일정과 겹쳐요.";
+    const message = "요청하신 시간에는 다른 일정이 있어요.\n이미 확정된 일정과 Google 캘린더 일정이 겹쳐 다른 가능한 시간을 추천했어요.";
     const harness = createHarness({ fetchImpl: async () => jsonResponse(200, { message, recommendations: [recommendation(77)] }) });
     harness.element("naturalMessage").value = "공부";
     harness.call(`state.currentTask = ${JSON.stringify(task(42))}; state.parsedInput = "공부";`);

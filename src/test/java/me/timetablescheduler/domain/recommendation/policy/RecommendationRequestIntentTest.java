@@ -126,14 +126,14 @@ class RecommendationRequestIntentTest {
     }
     private String 제외_사유(Task task, Preference preference, List<TimetableSlot> slots,
         List<Task> scheduled, List<BusyBlock> calendar, LocalDateTime now) {
-        return policy.explainOriginalConditionExclusion(task, preference, slots, scheduled, calendar, now);
+        return policy.explainOriginalConditionExclusion(task, preference, slots, scheduled, calendar, now, false);
     }
     @Test
     void 학교_시간표와_직접_겹친_원조건은_수업_충돌만_안내한다() {
         var slot = TimetableSlot.create(user, "수업", DayOfWeek.THURSDAY, "강의실", LocalTime.of(19,30), LocalTime.of(20,30));
         String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(slot), List.of(), List.of(), NOW);
-        assertTrue(reason.contains("학교 시간표와 겹쳐요"));
-        assertFalse(reason.contains("Google Calendar"));
+        assertTrue(reason.contains("학교 시간표가 겹쳐요"));
+        assertFalse(reason.contains("Google 캘린더"));
         assertFalse(reason.contains("여유 시간"));
     }
     @Test
@@ -141,7 +141,7 @@ class RecommendationRequestIntentTest {
         var scheduled = 요청_Task_생성(null,null,null,null,null,false,false,null);
         scheduled.schedule(DATE.plusDays(3).atTime(20,0), DATE.plusDays(3).atTime(22,0));
         String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(), List.of(scheduled), List.of(), NOW);
-        assertTrue(reason.contains("이미 확정된 Task와 겹쳐요"));
+        assertTrue(reason.contains("이미 확정된 일정이 겹쳐요"));
         assertFalse(reason.contains("학교 시간표"));
     }
     @Test
@@ -150,7 +150,7 @@ class RecommendationRequestIntentTest {
             30, ScheduleDensity.BALANCED, DeadlineTiming.ASAP);
         var near = new BusyBlock(DATE.plusDays(3).atTime(18,0), DATE.plusDays(3).atTime(18,45));
         String reason = 제외_사유(원조건_Task(), preference, List.of(), List.of(), List.of(near), NOW);
-        assertTrue(reason.contains("Google Calendar 일정 전후의 최소 여유 시간이 부족"));
+        assertTrue(reason.contains("Google 캘린더 일정 전후의 최소 여유 시간이 부족"));
         assertFalse(reason.contains("겹쳐요"));
         var boundary = new BusyBlock(near.startAt(), DATE.plusDays(3).atTime(18,30));
         assertEquals("", 제외_사유(원조건_Task(), preference, List.of(), List.of(), List.of(boundary), NOW));
@@ -163,15 +163,14 @@ class RecommendationRequestIntentTest {
         assertTrue(제외_사유(원조건_Task(), preference, List.of(slot), List.of(), List.of(), NOW).contains("학교 시간표 전후의 최소 여유 시간"));
         var scheduled = 요청_Task_생성(null,null,null,null,null,false,false,null);
         scheduled.schedule(DATE.plusDays(3).atTime(16,45), DATE.plusDays(3).atTime(18,45));
-        assertTrue(제외_사유(원조건_Task(), preference, List.of(), List.of(scheduled), List.of(), NOW).contains("이미 확정된 Task 전후의 최소 여유 시간"));
+        assertTrue(제외_사유(원조건_Task(), preference, List.of(), List.of(scheduled), List.of(), NOW).contains("이미 확정된 일정 전후의 최소 여유 시간"));
     }
     @Test
     void 여러_출처의_실제_충돌은_함께_안내한다() {
         var slot = TimetableSlot.create(user, "수업", DayOfWeek.THURSDAY, "강의실", LocalTime.of(19,0), LocalTime.of(20,0));
         var block = new BusyBlock(DATE.plusDays(3).atTime(20,0), DATE.plusDays(3).atTime(21,0));
         String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(), List.of(slot), List.of(), List.of(block), NOW);
-        assertTrue(reason.contains("학교 시간표와 겹쳐요"));
-        assertTrue(reason.contains("Google Calendar 일정과 겹쳐요"));
+        assertTrue(reason.contains("학교 시간표와 Google 캘린더 일정이 겹쳐요"));
     }
     @Test
     void 일부_원조건만_충돌하고_유효한_원조건이_있으면_전체_충돌처럼_안내하지_않는다() {
@@ -184,7 +183,7 @@ class RecommendationRequestIntentTest {
         var block = new BusyBlock(DATE.plusDays(3).atTime(19,0), DATE.plusDays(3).atTime(20,0));
         String reason = 제외_사유(원조건_Task(), 하루_선호_설정_생성(),List.of(),List.of(),List.of(block), DATE.plusDays(3).atTime(19,0));
         assertTrue(reason.contains("이미 지났어요"));
-        assertFalse(reason.contains("Google Calendar"));
+        assertFalse(reason.contains("Google 캘린더"));
     }
     @Test
     void 가용_시간_밖의_원조건은_Calendar_충돌로_추측하지_않는다() {
@@ -192,7 +191,7 @@ class RecommendationRequestIntentTest {
         var block = new BusyBlock(DATE.plusDays(3).atTime(23,0), DATE.plusDays(4).atTime(1,0));
         String reason = 제외_사유(task,하루_선호_설정_생성(),List.of(),List.of(),List.of(block),NOW);
         assertTrue(reason.contains("가용 시간"));
-        assertFalse(reason.contains("Google Calendar"));
+        assertFalse(reason.contains("Google 캘린더"));
     }
     @Test
     void 인접_날짜의_수업에_닿는_여유_시간도_동일하게_안내한다() {

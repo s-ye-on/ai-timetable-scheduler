@@ -109,7 +109,7 @@ public class RecommendationPolicy {
 	/** 현재 추천 요청의 조회 결과만 사용한다. 기존 추천 이력의 사유를 재구성하지 않는다. */
 	public String explainOriginalConditionExclusion(Task task, Preference preference,
 		List<TimetableSlot> timetableSlots, List<Task> scheduledTasks,
-		List<BusyBlock> calendarBusyBlocks, LocalDateTime now) {
+		List<BusyBlock> calendarBusyBlocks, LocalDateTime now, boolean hasAlternatives) {
 		boolean hasRequest = task.getPreferredDate() != null || task.getPreferredDayOfWeek() != null
 			|| task.getPreferredStartTime() != null || (task.getPreferredTimeRange() != null
 				&& task.getPreferredTimeRange() != PreferredTimeRange.ANYTIME);
@@ -121,6 +121,7 @@ public class RecommendationPolicy {
 			? List.of(task.getPreferredDate()) : allowedDates.stream()
 				.filter(date -> matchesRequestedDate(task, date)).toList();
 		Set<String> reasons = new LinkedHashSet<>();
+		Set<String> conflictingSources = new LinkedHashSet<>();
 		for (LocalDate date : requestedDates) {
 			for (LocalTime time : candidateStartTimes(task, preference, date)) {
 				LocalDateTime start = date.atTime(time);
@@ -139,30 +140,40 @@ public class RecommendationPolicy {
 					continue;
 				}
 				Set<String> conflicts = new LinkedHashSet<>();
+				Set<String> gapReasons = new LinkedHashSet<>();
 				int gap = preference.getMinimumGapMinutes();
-				addConflictReason(conflicts, "학교 시간표", start, end, gap,
+				addConflictReason(conflicts, gapReasons, "학교 시간표", start, end, gap,
 					buildSelectionBusyBlocks(start, end, gap, timetableSlots, List.of(), List.of(), task));
-				addConflictReason(conflicts, "이미 확정된 Task", start, end, gap,
+				addConflictReason(conflicts, gapReasons, "이미 확정된 일정", start, end, gap,
 					buildSelectionBusyBlocks(start, end, gap, List.of(), scheduledTasks, List.of(), task));
-				addConflictReason(conflicts, "Google Calendar 일정", start, end, gap,
+				addConflictReason(conflicts, gapReasons, "Google 캘린더 일정", start, end, gap,
 					buildSelectionBusyBlocks(start, end, gap, List.of(), List.of(), calendarBusyBlocks, task));
 				// 원조건 중 하나라도 유효하면 일부 후보의 충돌을 전체 미추천 사유로 오인하지 않는다.
-				if (conflicts.isEmpty()) return "";
-				reasons.addAll(conflicts);
+				if (conflicts.isEmpty() && gapReasons.isEmpty()) return "";
+				conflictingSources.addAll(conflicts);
+				reasons.addAll(gapReasons);
 			}
 		}
-		if (reasons.isEmpty()) {
-			return "요청하신 조건에서 탐색 범위·허용 기간·소요 시간·가용 시간을 모두 만족하는 후보를 찾지 못했어요.";
+		if (!conflictingSources.isEmpty()) {
+			String sources = conflictingSources.stream().reduce((left, right) ->
+				left + (left.endsWith("시간표") ? "와 " : "과 ") + right).orElseThrow();
+			String message = "요청하신 시간에는 다른 일정이 있어요.\n" + sources
+				+ (sources.endsWith("시간표") ? "가" : "이")
+				+ (hasAlternatives ? " 겹쳐 다른 가능한 시간을 추천했어요." : " 겹쳐요.");
+			return message + (reasons.isEmpty() ? "" : "\n" + String.join(" ", reasons));
 		}
-		return "추천 생성 시 원조건 후보에서 확인한 제외 사유: " + String.join(" ", reasons);
+		String message = reasons.isEmpty()
+			? "요청하신 조건에서 탐색 범위·허용 기간·소요 시간·가용 시간을 모두 만족하는 후보를 찾지 못했어요."
+			: String.join(" ", reasons);
+		return message + (hasAlternatives ? " 다른 가능한 시간을 추천했어요." : " 추천 가능한 시간이 없어요.");
 	}
 
-	private void addConflictReason(Set<String> reasons, String source, LocalDateTime start,
+	private void addConflictReason(Set<String> conflicts, Set<String> gapReasons, String source, LocalDateTime start,
 		LocalDateTime end, int gap, List<BusyBlock> blocks) {
 		if (conflictsWithBusyBlocks(start, end, blocks, 0)) {
-			reasons.add(source + (source.equals("Google Calendar 일정") ? "과" : "와") + " 겹쳐요.");
+			conflicts.add(source);
 		} else if (gap > 0 && conflictsWithBusyBlocks(start, end, blocks, gap)) {
-			reasons.add(source + " 전후의 최소 여유 시간이 부족해요.");
+			gapReasons.add(source + " 전후의 최소 여유 시간이 부족해요.");
 		}
 	}
 
