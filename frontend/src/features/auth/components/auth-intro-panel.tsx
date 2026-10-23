@@ -6,8 +6,10 @@ export function AuthBrand({ mobile = false }: { mobile?: boolean }) {
   </a>;
 }
 
-export function AuthIntroPanel() {
-  return <aside className="auth-intro" aria-label="Campus Planner 소개">
+interface AuthIntroPanelProps { hideFooter?: boolean }
+
+export function AuthIntroPanel({ hideFooter = false }: AuthIntroPanelProps) {
+  return <aside className={`auth-intro${hideFooter ? ' auth-intro-without-footer' : ''}`} aria-label="Campus Planner 소개">
     <AuthBrand />
     <div className="auth-intro-copy">
       <p className="auth-eyebrow">개인 맞춤형 일정 추천 서비스</p>
@@ -26,6 +28,6 @@ export function AuthIntroPanel() {
         <div className="auth-art-note"><AuthIcon name="check" /><span>하고 싶은 일도, 딱 맞는 시간에.</span></div>
       </div>
     </div>
-    <p className="auth-intro-foot">작은 계획이 모여, 더 나다운 한 학기.<span>수업 시간표와 자연어 일정 추천을 한곳에서.</span></p>
+    {!hideFooter && <p className="auth-intro-foot">작은 계획이 모여, 더 나다운 한 학기.<span>수업 시간표와 자연어 일정 추천을 한곳에서.</span></p>}
   </aside>;
 }

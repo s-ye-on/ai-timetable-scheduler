@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AuthApiError, authClient } from '@/features/auth/api/auth-client';
 import type { AuthClient } from '@/features/auth/api/auth-client';
-import { AUTHENTICATED_HOME_PATH } from '@/features/auth/auth.constants';
+import { AUTHENTICATED_HOME_PATH, AUTH_ROUTES } from '@/features/auth/auth.constants';
 import { AuthBrand, AuthIntroPanel } from '@/features/auth/components/auth-intro-panel';
 import { AuthIcon } from '@/features/auth/components/auth-icon';
 import type { LoginField, LoginFieldErrors, UserProfile } from '@/features/auth/types/auth.types';
@@ -145,8 +145,7 @@ export function LoginPage({ client = authClient, navigate = navigateTo }: LoginP
               </button>
               {busy && <div className="auth-status" role="status" aria-live="polite"><span className="progress-track" aria-hidden="true" /><span>{restoring ? '저장된 로그인 정보를 확인하고 있어요.' : '로그인 정보를 확인하고 있어요. 잠시만 기다려 주세요.'}</span></div>}
             </form>
-            <p className="auth-switch"><span>Campus Planner가 처음인가요?</span><button type="button" disabled aria-describedby="signup-note">회원가입</button></p>
-            <p className="auth-signup-note" id="signup-note">회원가입 화면은 준비 중이에요.</p>
+            <p className="auth-switch"><span>Campus Planner가 처음인가요?</span><a href={AUTH_ROUTES.signup}>회원가입</a></p>
           </section>}
         </div>
         <footer className="auth-foot">Campus Planner · 나의 하루를, 나의 속도로.</footer>

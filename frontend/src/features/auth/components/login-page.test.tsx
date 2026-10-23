@@ -32,8 +32,9 @@ describe('로그인_화면', () => {
     expect(screen.queryByText('예시 계정 안내')).not.toBeInTheDocument();
     expect(screen.queryByText('student@campus.example')).not.toBeInTheDocument();
     expect(screen.queryByText('campus2026')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled();
-    expect(screen.queryByRole('link', { name: '회원가입' })).not.toBeInTheDocument();
+    // 2단계에서 실제 회원가입 화면을 구현했으므로 준비 중 버튼을 실제 경로로 교체한다.
+    expect(screen.getByRole('link', { name: '회원가입' })).toHaveAttribute('href', '/signup');
+    expect(screen.queryByRole('button', { name: '회원가입' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('이메일')).toHaveValue('');
     expect(screen.getByLabelText('비밀번호', { exact: true })).toHaveValue('');
   });

@@ -16,5 +16,11 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegistrationCredentials extends LoginCredentials {
+  name: string;
+}
+
 export type LoginField = keyof LoginCredentials;
 export type LoginFieldErrors = Partial<Record<LoginField, string>>;
+export type RegistrationField = keyof RegistrationCredentials;
+export type AuthFieldErrors = Partial<Record<RegistrationField, string>>;

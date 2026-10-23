@@ -1,14 +1,22 @@
 import { AUTH_STORAGE_KEYS } from '@/features/auth/auth.constants';
-import type { AuthTokens, LoginCredentials, LoginFieldErrors, UserProfile } from '@/features/auth/types/auth.types';
+import type { AuthTokens, LoginCredentials, AuthFieldErrors, RegistrationCredentials, UserProfile } from '@/features/auth/types/auth.types';
 
 export class AuthApiError extends Error {
   constructor(
     message: string,
     readonly status = 0,
-    readonly fieldErrors: LoginFieldErrors = {},
+    readonly fieldErrors: AuthFieldErrors = {},
   ) {
     super(message);
     this.name = 'AuthApiError';
+  }
+}
+
+/** 계정 생성은 성공했으므로 등록 요청을 재전송하지 않고 인증 확인만 재시도한다. */
+export class RegistrationCompletedError extends AuthApiError {
+  constructor() {
+    super('회원가입은 완료됐지만 자동 로그인 상태를 확인하지 못했어요. 다시 확인하거나 로그인해 주세요.');
+    this.name = 'RegistrationCompletedError';
   }
 }
 
@@ -23,11 +31,16 @@ async function responseBody(response: Response): Promise<unknown> {
   try { return await response.json(); } catch { return null; }
 }
 
-function authError(status: number, body: unknown): AuthApiError {
-  const fields: LoginFieldErrors = {};
+function authError(status: number, body: unknown, registration = false): AuthApiError {
+  if (registration && status === 409 && isRecord(body) && body.code === 'CONFLICT_EMAIL') {
+    return new AuthApiError('이메일을 확인해 주세요.', status, {
+      email: '이미 사용 중인 이메일이에요. 다른 이메일을 입력하거나 로그인해 주세요.',
+    });
+  }
+  const fields: AuthFieldErrors = {};
   if (status === 400 && isRecord(body) && Array.isArray(body.fieldErrors)) {
     for (const error of body.fieldErrors) {
-      if (isRecord(error) && (error.field === 'email' || error.field === 'password')
+      if (isRecord(error) && (error.field === 'email' || error.field === 'password' || (registration && error.field === 'name'))
         && typeof error.message === 'string') fields[error.field] = error.message;
     }
   }
@@ -71,16 +84,35 @@ export class AuthClient {
   }
 
   async login(credentials: LoginCredentials): Promise<UserProfile> {
+    return this.authenticate('/api/auth/login', { email: credentials.email.trim(), password: credentials.password });
+  }
+
+  async register(credentials: RegistrationCredentials): Promise<UserProfile> {
+    return this.authenticate('/api/auth/register', {
+      name: credentials.name.trim(), email: credentials.email.trim(), password: credentials.password,
+    }, true);
+  }
+
+  private async authenticate(path: string, credentials: LoginCredentials | RegistrationCredentials, registration = false): Promise<UserProfile> {
     this.clearSession();
     const revision = this.revision;
-    const response = await this.send('/api/auth/login', {
-      method: 'POST', body: JSON.stringify({ email: credentials.email.trim(), password: credentials.password }),
-    });
+    let response: Response;
+    try {
+      response = await this.send(path, { method: 'POST', body: JSON.stringify(credentials) });
+    } catch (error) {
+      if (registration) throw new AuthApiError('가입 여부를 확인하지 못했어요. 네트워크를 확인해 주세요. 이미 가입되었다면 로그인할 수 있어요.');
+      throw error;
+    }
     const body = await responseBody(response);
-    if (!response.ok) throw authError(response.status, body);
+    if (!response.ok) throw authError(response.status, body, registration);
     if (revision !== this.revision) throw new AuthApiError('로그인 상태가 변경되었습니다. 다시 시도해 주세요.');
-    this.storeTokens(parseTokens(body));
-    return this.getProfile();
+    try {
+      this.storeTokens(parseTokens(body));
+      return await this.getProfile();
+    } catch (error) {
+      if (registration) throw new RegistrationCompletedError();
+      throw error;
+    }
   }
 
   async getProfile(): Promise<UserProfile> {
