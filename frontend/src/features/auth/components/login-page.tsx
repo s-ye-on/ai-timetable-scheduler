@@ -30,6 +30,7 @@ export function LoginPage({ client = authClient, navigate = navigateTo }: LoginP
   const emailInput = useRef<HTMLInputElement>(null);
   const passwordInput = useRef<HTMLInputElement>(null);
   const expired = new URLSearchParams(window.location.search).get('reason') === 'expired';
+  const logoutUnconfirmed = new URLSearchParams(window.location.search).get('reason') === 'logout-unconfirmed';
 
   useEffect(() => {
     mounted.current = true;
@@ -112,6 +113,7 @@ export function LoginPage({ client = authClient, navigate = navigateTo }: LoginP
               <p>오늘의 수업과 하고 싶은 일을<br />내 플래너에서 이어가세요.</p>
             </div>
             {expired && <div className="auth-banner" role="alert"><strong>다시 로그인해 주세요.</strong><p>로그인 유효 시간이 지났어요. 다시 로그인한 뒤 이어서 이용해 주세요.</p></div>}
+            {logoutUnconfirmed && <div className="auth-banner" role="alert"><strong>이 기기에서 로그아웃했어요.</strong><p>서버의 로그아웃 처리 여부는 확인하지 못했어요. 네트워크 상태를 확인해 주세요.</p></div>}
             <div ref={summary} className="auth-error-summary" role="alert" tabIndex={-1} hidden={!errorMessage}>
               <strong>{errorMessage}</strong>
               {Object.values(fieldErrors).some(Boolean) && <ul>
