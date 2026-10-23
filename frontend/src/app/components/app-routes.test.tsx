@@ -56,7 +56,7 @@ describe('보호된_앱_라우팅', () => {
     await screen.findByLabelText('주요 탐색');
     const user = userEvent.setup();
     await user.click(screen.getByRole('link', { name: /^내 시간표$/ }));
-    expect(await screen.findByRole('heading', { name: '내 시간표' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: '내 시간표 관리' })).toBeVisible();
     expect(document.title).toBe('내 시간표 - Campus Planner');
     expect(screen.getByRole('link', { name: '내 시간표' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('main')).toHaveFocus();

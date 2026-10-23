@@ -8,6 +8,7 @@ import type { UserProfile } from '@/features/auth/types/auth.types';
 import { getLocation, navigateApp, resolveAppRoute, subscribeLocation } from '@/app/app-routing';
 import type { AppRoute } from '@/app/app-routing';
 import { AppShell } from '@/app/components/app-shell';
+import { TimetablePage } from '@/features/timetable/components/timetable-page';
 
 export function AppRoutes({ client = authClient }: { client?: AuthClient }) {
   const location = useSyncExternalStore(subscribeLocation, getLocation);
@@ -83,13 +84,13 @@ function SessionCheck({ client, route, location, retry }: { client: AuthClient; 
   </SessionNotice>;
   if (!profile) return <SessionNotice title="로그인 상태를 확인하고 있어요." />;
   return <AppShell key={profile.id} profile={profile} route={route} location={location} onLogout={logout}>
-    <section className="card card-pad app-pending" aria-labelledby="pending-title">
+    {route.screen === 'timetable' ? <TimetablePage client={client} /> : <section className="card card-pad app-pending" aria-labelledby="pending-title">
       <span className="section-kicker">REACT 이식 진행 중</span>
       <h1 id="pending-title">{route.title}</h1>
       <p>{route.screen === 'not-found' ? '주소를 확인하거나 홈으로 돌아가 주세요.' : '이 화면의 기능은 후속 단계에서 연결할 예정이에요. 지금은 기존 플래너에서 이용해 주세요.'}</p>
       <div className="actions"><a className="btn btn-primary" href="/demo.html">기존 플래너 이용하기</a>
         {route.screen === 'not-found' && <a className="btn btn-secondary" href="/#home">홈으로 돌아가기</a>}</div>
-    </section>
+    </section>}
   </AppShell>;
 }
 
