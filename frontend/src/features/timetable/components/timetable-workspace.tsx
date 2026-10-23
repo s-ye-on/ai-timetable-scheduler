@@ -7,7 +7,7 @@ import { TimetableWeek, TimetableCourseCard } from '@/features/timetable/compone
 import { TimetableDialog } from '@/features/timetable/components/timetable-dialog';
 
 /** M3에서도 이동·온보딩 정책을 주입하지 않고 그대로 사용할 수 있는 수업 관리 영역. */
-export function TimetableWorkspace({ api }: { api: TimetableApi }) {
+export function TimetableWorkspace({ api, onBusyChange }: { api: TimetableApi; onBusyChange?: (busy: boolean) => void }) {
   const [slots, setSlots] = useState<TimetableSlot[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -21,6 +21,7 @@ export function TimetableWorkspace({ api }: { api: TimetableApi }) {
   const readGeneration = useRef(0);
   const detailGeneration = useRef(0);
   const mutation = useRef(false);
+  useEffect(() => { onBusyChange?.(pending); return () => onBusyChange?.(false); }, [pending, onBusyChange]);
   const overview = useRef<HTMLDivElement>(null);
   const focusOverview = () => overview.current?.querySelector<HTMLButtonElement>('.course-add-button')?.focus({ preventScroll: true });
   const load = useCallback(async () => {

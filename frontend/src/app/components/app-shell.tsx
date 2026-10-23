@@ -57,7 +57,7 @@ export function AppShell({ profile, route, location, onLogout, children }: AppSh
         <a className="brand" href="/#home" aria-label="Campus Planner 홈">{brand}</a>
         {navigation.map((group) => <nav className="nav-group" aria-label={group.name} key={group.name}>
           <p className="nav-label">{group.label}</p><div className="nav-list">{group.items.map((item) => <a key={item.screen}
-            className={`nav-item${route.screen === item.screen ? ' active' : ''}`} href={item.href} aria-label={item.label}
+            className={`nav-item${route.screen === item.screen ? ' active' : ''}`} href={item.screen === 'onboarding' ? `/#onboarding/2?mode=manage&returnTo=${route.returnTo || (route.screen === 'planner' || route.screen === 'timetable' ? route.screen : 'home')}` : item.href} aria-label={item.label}
             aria-current={route.screen === item.screen ? 'page' : undefined}><AppIcon name={item.icon} /><span>{item.label}</span></a>)}</div>
         </nav>)}
         <div className="sidebar-bottom">{profileButton('sidebar')}</div>

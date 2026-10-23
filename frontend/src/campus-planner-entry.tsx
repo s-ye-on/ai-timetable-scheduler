@@ -5,6 +5,7 @@ import '@/styles/campus-theme.css';
 import '@/styles/auth-layout.css';
 import '@/styles/app-layout.css';
 import '@/styles/timetable-layout.css';
+import '@/styles/onboarding-layout.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode><AppRoutes /></StrictMode>,

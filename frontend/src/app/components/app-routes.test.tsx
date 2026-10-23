@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/app/components/app-routes';
 import { AuthClient } from '@/features/auth/api/auth-client';
 import { AUTH_STORAGE_KEYS } from '@/features/auth/auth.constants';
+import { createSettingsFixture } from '@/test/settings-api-fixture';
 
 const profile = { id: 1, name: '첫학생', email: 'first@example.com' };
 const second = { id: 2, name: '다른학생', email: 'second@example.com' };
@@ -40,15 +41,18 @@ describe('보호된_앱_라우팅', () => {
     expect(await screen.findByLabelText('주요 탐색')).toBeVisible();
   });
 
-  it('직접_진입과_새로고침은_현재_URL을_복원하되_미구현_기능을_호출하지_않는다', async () => {
+  it('직접_진입과_새로고침은_일반_선호_관리_문맥과_API_상태를_복원한다', async () => {
     seed(); location('/#onboarding/2?mode=manage&returnTo=planner');
-    const { transport, unmount } = mount();
-    expect(await screen.findByRole('heading', { name: '선호 · 연동' })).toBeVisible();
-    expect(screen.getByText(/후속 단계에서 연결/)).toBeVisible();
-    expect(screen.getByRole('link', { name: '기존 플래너 이용하기' })).toHaveAttribute('href', '/demo.html');
+    const fixture = createSettingsFixture();
+    const { transport, unmount } = mount(fixture.transport);
+    expect(await screen.findByRole('heading', { name: '나의 선호 · 연동' })).toBeVisible();
+    expect(await screen.findByLabelText('일정 사이 최소 여유 시간')).toHaveValue(10);
+    expect(screen.getByRole('button', { name: /선호 저장하고 돌아가기/ })).toBeVisible();
     unmount(); mount(transport);
-    expect(await screen.findByRole('heading', { name: '선호 · 연동' })).toBeVisible();
-    expect(transport.mock.calls.every(([path]) => path === '/api/auth/me')).toBe(true);
+    expect(await screen.findByRole('heading', { name: '나의 선호 · 연동' })).toBeVisible();
+    expect(await screen.findByLabelText('일정 사이 최소 여유 시간')).toHaveValue(10);
+    expect(window.location.hash).toBe('#onboarding/2?mode=manage&returnTo=planner');
+    expect(transport.mock.calls.every(([path]) => ['/api/auth/me', '/preferences', '/api/calendar/status'].includes(String(path)))).toBe(true);
   });
 
   it('메뉴_이동과_뒤로_가기가_제목_선택_초점에_반영된다', async () => {
