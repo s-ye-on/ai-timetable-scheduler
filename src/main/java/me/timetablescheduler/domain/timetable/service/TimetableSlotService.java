@@ -34,7 +34,8 @@ public class TimetableSlotService {
 			request.dayOfWeek(),
 			request.location(),
 			request.startTime(),
-			request.endTime()
+			request.endTime(),
+			request.color()
 		);
 
 		return toReadResponse(slotRepository.save(timetableSlot));
@@ -65,7 +66,8 @@ public class TimetableSlotService {
 			request.dayOfWeek(),
 			request.location(),
 			request.startTime(),
-			request.endTime()
+			request.endTime(),
+			request.color()
 		);
 
 		return toReadResponse(timetableSlot);
@@ -113,7 +115,8 @@ public class TimetableSlotService {
 			timetableSlot.getDayOfWeek(),
 			timetableSlot.getLocation(),
 			timetableSlot.getStartTime(),
-			timetableSlot.getEndTime()
+			timetableSlot.getEndTime(),
+			timetableSlot.getColor()
 		);
 	}
 }

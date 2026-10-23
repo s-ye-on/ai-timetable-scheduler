@@ -36,6 +36,10 @@ public class TimetableSlot {
 	@Column(length = 100)
 	private String location;
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 16)
+	private TimetableColor color;
+
 	@Column(nullable = false)
 	private LocalTime startTime;
 
@@ -54,7 +58,8 @@ public class TimetableSlot {
 		DayOfWeek dayOfWeek,
 		String location,
 		LocalTime startTime,
-		LocalTime endTime
+		LocalTime endTime,
+		TimetableColor color
 	) {
 		validateRequiredFields(user, subjectName, dayOfWeek, startTime, endTime);
 		validateTimeRange(startTime, endTime);
@@ -63,6 +68,7 @@ public class TimetableSlot {
 		this.subjectName = subjectName;
 		this.dayOfWeek = dayOfWeek;
 		this.location = location;
+		this.color = color == null ? TimetableColor.BLUE : color;
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.createdAt = OffsetDateTime.now();
@@ -77,7 +83,14 @@ public class TimetableSlot {
 		LocalTime startTime,
 		LocalTime endTime
 	) {
-		return new TimetableSlot(user, subjectName, dayOfWeek, location, startTime, endTime);
+		return create(user, subjectName, dayOfWeek, location, startTime, endTime, null);
+	}
+
+	public static TimetableSlot create(
+		User user, String subjectName, DayOfWeek dayOfWeek, String location,
+		LocalTime startTime, LocalTime endTime, TimetableColor color
+	) {
+		return new TimetableSlot(user, subjectName, dayOfWeek, location, startTime, endTime, color);
 	}
 
 	public void update(
@@ -87,12 +100,22 @@ public class TimetableSlot {
 		LocalTime startTime,
 		LocalTime endTime
 	) {
+		update(subjectName, dayOfWeek, location, startTime, endTime, null);
+	}
+
+	public void update(
+		String subjectName, DayOfWeek dayOfWeek, String location,
+		LocalTime startTime, LocalTime endTime, TimetableColor color
+	) {
 		validateRequiredFields(this.user, subjectName, dayOfWeek, startTime, endTime);
 		validateTimeRange(startTime, endTime);
 
 		this.subjectName = subjectName;
 		this.dayOfWeek = dayOfWeek;
 		this.location = location;
+		if (color != null) {
+			this.color = color;
+		}
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.updatedAt = OffsetDateTime.now();

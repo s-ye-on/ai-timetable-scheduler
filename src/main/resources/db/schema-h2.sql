@@ -39,12 +39,14 @@ CREATE TABLE IF NOT EXISTS timetable_slot (
     subject_name VARCHAR(100) NOT NULL,
     day_of_week VARCHAR(10) NOT NULL,
     location VARCHAR(100),
+    color VARCHAR(16) DEFAULT 'BLUE' NOT NULL,
     start_time TIME(6) NOT NULL,
     end_time TIME(6) NOT NULL,
     created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     CONSTRAINT fk_timetable_slot_user FOREIGN KEY (user_id) REFERENCES users (id),
-    CONSTRAINT ck_timetable_slot_day_of_week CHECK (day_of_week IN ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'))
+    CONSTRAINT ck_timetable_slot_day_of_week CHECK (day_of_week IN ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY')),
+    CONSTRAINT ck_timetable_slot_color CHECK (color IN ('BLUE', 'MINT', 'PEACH', 'LAVENDER', 'ROSE', 'LEMON', 'LIME', 'AQUA', 'APRICOT', 'SLATE'))
 );
 
 CREATE TABLE IF NOT EXISTS task (

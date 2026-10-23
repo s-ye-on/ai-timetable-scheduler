@@ -1,5 +1,7 @@
 package me.timetablescheduler.domain.timetable.dto;
 
+import me.timetablescheduler.domain.timetable.TimetableColor;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -25,8 +27,13 @@ public sealed interface TimetableSlotRequest
 		LocalTime startTime,
 
 		@NotNull(message = "종료 시간은 필수입니다.")
-		LocalTime endTime
+		LocalTime endTime,
+
+		TimetableColor color
 	) implements TimetableSlotRequest {
+		public Create(String subjectName, DayOfWeek dayOfWeek, String location, LocalTime startTime, LocalTime endTime) {
+			this(subjectName, dayOfWeek, location, startTime, endTime, null);
+		}
 	}
 
 	record Update(
@@ -44,7 +51,12 @@ public sealed interface TimetableSlotRequest
 		LocalTime startTime,
 
 		@NotNull(message = "종료 시간은 필수입니다.")
-		LocalTime endTime
+		LocalTime endTime,
+
+		TimetableColor color
 	) implements TimetableSlotRequest {
+		public Update(String subjectName, DayOfWeek dayOfWeek, String location, LocalTime startTime, LocalTime endTime) {
+			this(subjectName, dayOfWeek, location, startTime, endTime, null);
+		}
 	}
 }
