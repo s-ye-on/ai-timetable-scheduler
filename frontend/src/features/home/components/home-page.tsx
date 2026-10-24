@@ -8,7 +8,7 @@ import { TimetableApi } from '@/features/timetable/api/timetable.api';
 import { TaskReadApi, scheduledTasks } from '@/features/tasks/api/task-read.api';
 import { taskDateLabel, taskTimeLabel, seoulToday } from '@/features/tasks/task-time';
 import { TaskSyncQuery } from '@/features/tasks/components/task-sync-badge';
-import { PlannerComposerPreview } from '@/features/tasks/components/planner-composer-preview';
+import { PlannerComposer } from '@/features/tasks/components/planner-composer';
 import { HomeTimetable } from '@/features/home/components/home-timetable';
 import { useRemoteRead } from '@/shared/hooks/use-remote-read';
 import { RemoteReadNotice } from '@/shared/components/remote-read-notice';
@@ -22,7 +22,7 @@ export function HomePage({ client, profile }: { client: SettingsClient; profile:
   const date = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(now);
   return <div className="home-page planning-ui"><div className="page-heading"><div className="home-greeting"><span className="greeting-dot" aria-hidden="true" /><div>
     <h1>{profile.name}님, 오늘도 나답게.</h1><p>수업도, 하고 싶은 일도. 나에게 맞는 속도로 계획해요.</p></div></div><time className="date-label" dateTime={seoulToday(now)}><AppIcon name="timetable" />{date}</time></div>
-    <PlannerComposerPreview />
+    <PlannerComposer client={client} />
     <div className="home-grid"><HomeTimetable api={apis.timetable} now={now} /><aside className="right-rail">
       <ScheduledTasks api={apis.tasks} /><HomeCalendar api={apis.calendar} preferenceApi={apis.preferences} />
     </aside></div>

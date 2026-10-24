@@ -2,7 +2,7 @@ import { TASK_STATUSES, RECOMMENDATION_STATUSES } from '@/features/tasks/task.ty
 import type { TaskRead, TaskReadClient, RecommendationRead } from '@/features/tasks/task.types';
 import { localDateTimeKey, validLocalDate, validLocalDateTime } from '@/features/tasks/task-time';
 
-function parseTask(body: unknown): TaskRead {
+export function parseTask(body: unknown): TaskRead {
   const task = body as TaskRead | null;
   if (!task || typeof task !== 'object' || !Number.isSafeInteger(task.id) || task.id <= 0 || typeof task.title !== 'string' || !task.title.trim()
     || !TASK_STATUSES.includes(task.status) || !Number.isInteger(task.durationMinutes) || task.durationMinutes <= 0
@@ -16,7 +16,7 @@ function parseTask(body: unknown): TaskRead {
     || task.preferredStartTime !== null && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?$/.test(task.preferredStartTime)) throw new Error('Invalid task response');
   return task;
 }
-function parseHistory(body: unknown, taskId: number): RecommendationRead[] {
+export function parseHistory(body: unknown, taskId: number): RecommendationRead[] {
   if (!Array.isArray(body)) throw new Error('Invalid recommendation history');
   return body.map((item: RecommendationRead) => {
     if (!item || !Number.isSafeInteger(item.id) || item.id <= 0 || item.taskId !== taskId || !RECOMMENDATION_STATUSES.includes(item.status)

@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { TaskRead, TaskReadClient, RecommendationRead } from '@/features/tasks/task.types';
 import { TaskReadApi } from '@/features/tasks/api/task-read.api';
 import { TaskSyncBadge } from '@/features/tasks/components/task-sync-badge';
-import { PlannerComposerPreview } from '@/features/tasks/components/planner-composer-preview';
+import { PlannerComposer } from '@/features/tasks/components/planner-composer';
+import { TaskPlanningApi, type RecommendationGeneration } from '@/features/tasks/api/task-planning.api';
+import { usePlannerAction } from '@/features/tasks/hooks/use-planner-action';
+import { plannerError } from '@/features/tasks/planner-error';
+import { RecommendationCandidates, MATCH_LABELS } from '@/features/tasks/components/recommendation-candidates';
+import { CalendarApi } from '@/features/calendar/api/calendar.api';
 import { useRemoteRead } from '@/shared/hooks/use-remote-read';
 import { RemoteReadNotice } from '@/shared/components/remote-read-notice';
 import { TimetableIcon } from '@/features/timetable/components/timetable-icon';
@@ -13,7 +18,6 @@ import { visibleRecommendationReason } from '@/features/tasks/recommendation-rea
 const TASK_LABELS = { UNSCHEDULED: '미확정', SCHEDULED: '일정 확정됨', COMPLETED: '완료된 할 일', CANCELED: '취소된 할 일' };
 const CATEGORIES = { STUDY: '공부', ASSIGNMENT: '과제', APPOINTMENT: '약속', PERSONAL: '개인 일정' };
 const STATUS_LABELS = { PROPOSED: '저장된 후보 · 최신 검증 전', SELECTED: '선택됨 · 동기화 확인 필요', REJECTED: '제외된 후보', EXPIRED: '만료된 후보', SYNCED: 'Calendar 동기화 완료', SYNC_FAILED: 'Calendar 동기화 실패' };
-const MATCH_LABELS = { EXACT: '원조건 일치', TIME_CHANGED: '시간 변경', DATE_CHANGED: '날짜 변경', DATE_AND_TIME_CHANGED: '날짜·시간 변경', GENERAL: '원조건 없음' };
 
 export function PlannerPage({ client, taskId }: { client: TaskReadClient; taskId?: number }) {
   const api = useMemo(() => new TaskReadApi(client), [client]);
@@ -21,7 +25,7 @@ export function PlannerPage({ client, taskId }: { client: TaskReadClient; taskId
   const [reopen, setReopen] = useState(0);
   const onResolved = useCallback((task: TaskRead) => { if (task.id === taskId) setResolved(task); }, [taskId]);
   return <div className="planner-layout planning-ui"><SavedTasks key={`list:${taskId || 'none'}:${reopen}`} api={api} activeId={taskId} resolved={resolved?.id === taskId ? resolved : null} onReopen={() => { setResolved(null); setReopen((value) => value + 1); }} />
-    {taskId ? <RestoredTask key={`detail:${taskId}:${reopen}`} api={api} id={taskId} onResolved={onResolved} /> : <><div className="page-heading"><div><h1>나에게 맞는 시간 찾기</h1><p>저장한 할 일을 열어 조건과 추천 이력을 확인해 보세요.</p></div></div><PlannerComposerPreview /></>}
+    {taskId ? <RestoredTask key={`detail:${taskId}:${reopen}`} api={api} client={client} id={taskId} onResolved={onResolved} /> : <><div className="page-heading"><div><h1>나에게 맞는 시간 찾기</h1><p>편하게 입력하거나 저장한 할 일을 열어 이어서 계획해요.</p></div></div><PlannerComposer client={client} /></>}
   </div>;
 }
 function SavedTasks({ api, activeId, resolved, onReopen }: { api: TaskReadApi; activeId?: number; resolved: TaskRead | null; onReopen: () => void }) {
@@ -32,19 +36,28 @@ function SavedTasks({ api, activeId, resolved, onReopen }: { api: TaskReadApi; a
     {tasks && (tasks.length ? <><p className="saved-tasks-help">분석해 둔 할 일을 선택해 이어서 계획해요.</p><ul className="task-list saved-task-list">{tasks.map((task) => <li className="task-row" key={task.id}>
       <span className="task-symbol color-lavender"><TimetableIcon name="book" /></span><div className="task-text"><a href={`/#planner?taskId=${task.id}`} aria-current={activeId === task.id ? 'true' : undefined} onClick={(event) => { if (activeId === task.id) { event.preventDefault(); onReopen(); } }}>
         <strong>{task.title}</strong><p>{task.durationMinutes}분 · 분석 결과 다시 보기</p><span className="badge neutral">미확정</span></a></div></li>)}</ul></>
-      : <div className="empty"><span className="empty-symbol"><TimetableIcon name="book" /></span><h3>저장한 미확정 할 일이 없어요</h3><p>기존 플래너에서 일정을 분석하면 여기에 저장돼요.</p></div>)}
+      : <div className="empty"><span className="empty-symbol"><TimetableIcon name="book" /></span><h3>저장한 미확정 할 일이 없어요</h3><p>일정을 분석하고 저장하면 여기에 표시돼요.</p></div>)}
     <button type="button" className="link-btn" onClick={query.refresh} disabled={query.loading}>할 일 목록 새로고침</button>
   </div></details>;
 }
-function RestoredTask({ api, id, onResolved }: { api: TaskReadApi; id: number; onResolved: (task: TaskRead) => void }) {
+function RestoredTask({ api, client, id, onResolved }: { api: TaskReadApi; client: TaskReadClient; id: number; onResolved: (task: TaskRead) => void }) {
   const readTask = useCallback(() => api.read(id), [api, id]); const readHistory = useCallback(() => api.history(id), [api, id]);
   const taskQuery = useRemoteRead(readTask); const history = useRemoteRead(readHistory); const task = taskQuery.data;
+  const planning = useMemo(() => new TaskPlanningApi(client), [client]);
+  const calendarApi = useMemo(() => new CalendarApi(client), [client]);
+  const readCalendar = useCallback(() => calendarApi.status(), [calendarApi]); const calendar = useRemoteRead(readCalendar);
+  const generation = usePlannerAction<RecommendationGeneration>();
+  const failure = generation.error ? plannerError(generation.error, 'generation') : null;
   useEffect(() => { if (task) onResolved(task); }, [task, onResolved]);
-  function refresh() { taskQuery.refresh(); history.refresh(); }
-  const candidates = history.data?.filter((item) => item.status === 'PROPOSED').sort((a, b) => a.rank - b.rank || a.id - b.id);
+  function refresh() { if (generation.pending) return; generation.invalidate(); taskQuery.refresh(); history.refresh(); calendar.refresh(); }
+  function generate() {
+    if (!task || task.status !== 'UNSCHEDULED' || taskQuery.loading || history.loading || failure?.uncertain) return;
+    void generation.run(() => planning.generate(id), () => { taskQuery.refresh(); history.refresh(); calendar.refresh(); });
+  }
+  const candidates = !generation.pending && !generation.error ? history.data?.filter((item) => item.status === 'PROPOSED').sort((a, b) => a.rank - b.rank || a.id - b.id) : null;
   const previous = history.data?.filter((item) => item.status !== 'PROPOSED');
   return <>
-    <a className="return-link" href="/#home"><TimetableIcon name="back" />홈으로 돌아가기</a>
+    <div className="planner-nav"><a className="return-link" href="/#home"><TimetableIcon name="back" />홈으로 돌아가기</a><a className="return-link" href="/#planner">새 일정 입력하기<TimetableIcon name="next" /></a></div>
     <div className="page-heading"><div><h1>내 일정에 딱 맞는 시간</h1><p>서버에 저장된 조건과 추천 이력을 다시 확인해요.</p></div></div>
     <RemoteReadNotice {...taskQuery} label="할 일 상세를" onRetry={refresh} />
     {task && <><div className="restored-inline" role="status"><TimetableIcon name="check" />저장된 할 일을 다시 불러왔어요.</div>
@@ -60,14 +73,21 @@ function RestoredTask({ api, id, onResolved }: { api: TaskReadApi; id: number; o
           <div><dt>허용 기간</dt><dd>{task.preferredStartDate || '시작 제한 없음'} ~ {task.preferredEndDate || '종료 제한 없음'}</dd></div><div><dt>마감일</dt><dd>{task.deadline || '마감 미지정'}</dd></div>
           <div><dt>중요도</dt><dd>{{ HIGH: '높음', NORMAL: '보통', LOW: '낮음' }[task.priority]}</dd></div>
           {task.description && <div className="full"><dt>저장된 설명</dt><dd>{task.description}</dd></div>}
-        </dl><div className="analysis-actions"><p>이 화면은 저장된 작업을 확인하는 단계예요. 추천 생성과 일정 등록은 기존 플래너에서 이용해 주세요.</p><a className="btn btn-secondary" href="/demo.html">기존 플래너 이용하기</a></div>
+        </dl><div className="analysis-actions"><p>조건을 확인한 후 추천을 생성해요. 분석·추천만으로 일정이 확정되지 않아요.</p>
+          {task.status === 'UNSCHEDULED' && <button className="btn btn-primary" type="button" onClick={generate} disabled={generation.pending || taskQuery.loading || history.loading || !!history.error || !!failure?.uncertain}>{generation.pending ? '가능한 시간 찾는 중…' : candidates?.length ? '다시 추천받기' : '추천 시간 찾기'}</button>}</div>
       </section>
-      <section className="section-gap" aria-labelledby="history-title"><div className="result-heading"><div><h2 id="history-title">저장된 추천 이력</h2><p>후보는 최신 충돌 검증을 마친 상태가 아니에요. 이 화면에서 선택하거나 등록하지 않아요.</p></div><button type="button" className="btn btn-secondary btn-sm" onClick={refresh} disabled={taskQuery.loading || history.loading}>작업 상태 새로고침</button></div>
+      <div className="notice" role="status">{calendar.data === false ? 'Google Calendar 미연동 상태예요. Google 일정은 충돌 검사에 포함되지 않아요. 추천은 가능하며 최종 등록에는 연결이 필요해요.' : calendar.data === true ? 'Google Calendar 일정을 반영해 추천해요. 후보를 확정할 때에는 최신 조건을 다시 검증해야 해요.' : 'Google Calendar 연결 상태를 확인 중이거나 확인하지 못했어요. 연결 여부를 추측하지 않으며, 추천 시 서버에서 일정을 확인해요.'}</div>
+      {generation.pending && <p className="notice" role="status">수업·선호와 현재 일정을 확인해 추천하고 있어요.</p>}
+      {failure && <div className="notice error" role="alert"><div><strong>{failure.title}</strong><p>{failure.message}</p><button className="btn btn-secondary btn-sm" type="button" onClick={refresh}>저장된 작업 상태 확인하기</button></div></div>}
+      <section className="section-gap" aria-labelledby="history-title"><div className="result-heading"><div><h2 id="history-title">저장된 추천 이력</h2><p>확정 직전의 최신 충돌 검증은 아직이에요. 최종 등록은 후속 단계에서 연결해요.</p></div><button type="button" className="btn btn-secondary btn-sm" onClick={refresh} disabled={generation.pending || taskQuery.loading || history.loading}>작업 상태 새로고침</button></div>
+        <p className="fit-help">추천 적합도는 규칙 기반 점수를 100점 척도로 표시한 값이며, 성공 확률이 아니에요.</p>
+        {generation.data && <p className="notice recommendation-message" role="status">{generation.data.message}</p>}
         <RemoteReadNotice {...history} label="추천 이력을" onRetry={refresh} />
-        {history.data && (history.data.length ? <>
-          {candidates!.length > 0 && <h3 className="history-group-title">저장된 추천 후보</h3>}{candidates!.map((item) => <RecommendationHistoryRow key={item.id} item={item} />)}
+        {candidates && candidates.length === 0 && generation.data && <div className="card empty"><h3>조건에 맞는 추천 시간이 없어요</h3><p>필수 조건은 임의로 바꾸지 않았어요. 새 요청을 입력하거나 조건과 선호를 확인해 주세요.</p></div>}
+        {history.data && !generation.pending && !generation.error && (history.data.length ? <>
+          {!!candidates?.length && <><h3 className="history-group-title">저장된 추천 후보</h3><RecommendationCandidates items={candidates} /></>}
           {previous!.length > 0 && <h3 className="history-group-title">이전 처리 이력</h3>}{previous!.map((item) => <RecommendationHistoryRow key={item.id} item={item} />)}
-        </> : <div className="card empty"><h3>저장된 추천 이력이 없어요</h3><p>추천 후보를 생성한 것으로 표시하지 않았어요.</p></div>)}
+        </> : !generation.data && <div className="card empty"><h3>저장된 추천 이력이 없어요</h3><p>추천 후보를 생성한 것으로 표시하지 않았어요.</p></div>)}
       </section>
     </>}
   </>;

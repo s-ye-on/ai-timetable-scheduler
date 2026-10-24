@@ -1,5 +1,28 @@
 /* Open Design index.html의 홈·저장 작업 레이아웃. 새 기능의 디자인은 추가하지 않는다. */
 .planning-ui{min-width:0}
+.planning-ui.planner-layout{max-width:1060px;margin:auto}
+.planning-ui .planner-nav{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.planning-ui .candidate-list{display:grid;gap:16px}
+.planning-ui .candidate{background:white;border:1px solid var(--line);border-radius:16px;padding:24px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:20px;align-items:start;min-width:0}
+.planning-ui .rank-num{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#edf1ff;color:var(--primary);font-size:16px;font-weight:650}
+.planning-ui .candidate-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.planning-ui .candidate-meta .badge{white-space:normal}
+.planning-ui .candidate-time{font-size:24px;font-weight:700;letter-spacing:-.04em;line-height:1.35}
+.planning-ui .candidate-date{font-size:14px;color:var(--muted);margin-bottom:6px}
+.planning-ui .candidate-reason{font-size:13px;color:#5a6c86;margin-top:12px;overflow-wrap:anywhere}
+.planning-ui .candidate-match{font-size:13px;color:var(--primary);margin-top:12px}
+.planning-ui .candidate-change{font-size:12px;color:#765319;background:#fff5df;padding:8px 12px;border-radius:8px;margin-top:12px;display:inline-block}
+.planning-ui .candidate-side{display:grid;justify-items:end;gap:16px;min-width:132px}
+.planning-ui .candidate-side .od-stat{text-align:right;gap:0;display:grid}
+.planning-ui .fit-value{font-size:25px;font-weight:700;color:var(--primary);letter-spacing:-.04em}
+.planning-ui .fit-value small{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+.planning-ui .fit-caption{font-size:11px;color:var(--muted)}
+.planning-ui .fit-help{font-size:12px;color:var(--muted);margin:16px 0}
+.planning-ui .recommendation-message{white-space:pre-line;overflow-wrap:anywhere}
+.planning-ui .analysis-header .task-symbol{width:48px;height:48px;border-radius:13px}
+.planning-ui .analysis-header .task-symbol .od-icon{--od-icon-size:24px}
+.planning-ui .task-detail .condition-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.planning-ui .composer .field-error:empty{display:none}
 .planning-ui .page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}
 .planning-ui .page-heading h1{font-size:30px}
 .planning-ui .page-heading p{margin-top:8px;font-size:14px;color:var(--muted)}
@@ -95,6 +118,11 @@
  .planning-ui .task-text strong{font-size:15px}.planning-ui .task-text p{font-size:14px;line-height:1.5}.planning-ui .task-text .badge{font-size:12px}
  .planning-ui .saved-tasks-panel{padding:0 20px}.planning-ui .saved-tasks-panel>summary{gap:8px}.planning-ui .saved-tasks-help{font-size:14px}
  .planning-ui .task-detail{padding:20px}.planning-ui .analysis-header{align-items:flex-start;gap:12px;flex-wrap:wrap}.planning-ui .analysis-header h2{font-size:21px}
+ .planning-ui .task-detail .condition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .planning-ui .candidate{grid-template-columns:32px minmax(0,1fr);padding:20px;gap:12px}.planning-ui .rank-num{width:32px;height:32px;border-radius:10px;font-size:14px}
+ .planning-ui .candidate-meta .badge{font-size:10px}.planning-ui .candidate-date{font-size:12px}.planning-ui .candidate-reason{font-size:12px}
+ .planning-ui .candidate-change{font-size:11px;padding:8px}.planning-ui .candidate-side{grid-column:2;justify-items:start;min-width:0;margin-top:8px}
+ .planning-ui .candidate-side .od-stat{text-align:left}.planning-ui .fit-value{font-size:24px}
  .planning-ui .condition-grid{gap:20px 16px}.planning-ui .condition-grid dd{font-size:14px}.planning-ui .condition-grid dt{font-size:11px}
  .planning-ui .analysis-actions{flex-direction:column;align-items:stretch;gap:16px}.planning-ui .analysis-actions .btn{width:100%}
  .planning-ui .result-heading{flex-direction:column}.planning-ui .result-heading h2{font-size:20px}.planning-ui .history-row{padding:16px;font-size:12px}
