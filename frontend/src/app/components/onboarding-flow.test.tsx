@@ -36,8 +36,8 @@ it('세_선택_단계를_모두_건너뛰면_Calendar_미연결과_기본_선호
   await user.click(screen.getByRole('link', { name: '저장하지 않고 건너뛰기' }));
   expect(await screen.findByText('아직 연결하지 않았어요')).toBeVisible();
   await user.click(screen.getByRole('link', { name: '나중에 연결하고 시작하기' }));
-  expect(await screen.findByRole('heading', { name: '내 홈' })).toBeVisible();
-  expect(screen.getByText(/후속 단계에서 연결/)).toBeVisible();
+  expect(await screen.findByRole('heading', { name: '학생님, 오늘도 나답게.' })).toBeVisible();
+  expect(await screen.findByText('아직 확정된 일정이 없어요')).toBeVisible();
   expect(fixture.getPreference()).toEqual(DEFAULT_PREFERENCE);
   expect(fixture.transport.mock.calls.some(([path, options]) => path === '/api/calendar/oauth/url' || path === '/recommendations' || options?.method === 'PUT')).toBe(false);
 });

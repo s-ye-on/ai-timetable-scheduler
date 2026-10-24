@@ -65,7 +65,7 @@ describe('보호된_앱_라우팅', () => {
     expect(screen.getByRole('link', { name: '내 시간표' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('main')).toHaveFocus();
     await act(async () => { window.history.back(); });
-    await waitFor(() => expect(screen.getByRole('heading', { name: '내 홈' })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('heading', { name: '첫학생님, 오늘도 나답게.' })).toBeVisible());
   });
 
   it('잘못된_URL은_가짜_기능_대신_복귀_안내를_표시한다', async () => {
@@ -81,7 +81,7 @@ describe('보호된_앱_라우팅', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBe('fixture-access');
     await userEvent.click(screen.getByRole('button', { name: '다시 확인' }));
     expect(await screen.findByLabelText('주요 탐색')).toBeVisible();
-    expect(transport.mock.calls.map(([path]) => path)).toEqual(['/api/auth/me', '/api/auth/me']);
+    expect(transport.mock.calls.map(([path]) => path)).toEqual(['/api/auth/me', '/api/auth/me', '/timetable-slots', '/tasks', '/preferences', '/api/calendar/status']);
   });
 
   it('통신_실패는_인증_만료와_구분하고_재시도한다', async () => {
@@ -166,9 +166,13 @@ describe('보호된_앱_라우팅', () => {
 
   it('확인된_앱의_백그라운드_인증_만료도_이전_화면을_즉시_제거한다', async () => {
     seed();
-    const { client } = mount(vi.fn<typeof fetch>().mockResolvedValueOnce(json(profile)).mockResolvedValue(json({}, 401)));
+    let expired = false;
+    const fixture = createSettingsFixture(); const original = fixture.transport.getMockImplementation()!;
+    const { client } = mount(vi.fn<typeof fetch>().mockImplementation((path, options) => expired ? Promise.resolve(json({}, 401))
+      : path === '/api/auth/me' ? Promise.resolve(json(profile)) : original(path, options)));
     await screen.findByLabelText('주요 탐색');
     expect(document.body).not.toHaveClass('auth-page');
+    expired = true;
     await act(async () => { await client.authenticatedRequest('/tasks').catch(() => {}); });
     expect(await screen.findByRole('heading', { name: '다시 만나 반가워요.' })).toBeVisible();
     expect(screen.queryByLabelText('주요 탐색')).not.toBeInTheDocument();
@@ -220,8 +224,9 @@ describe('보호된_앱_라우팅', () => {
     expect(await screen.findByRole('heading', { name: '다시 만나 반가워요.' })).toBeVisible();
     expect(screen.queryByText('첫학생')).not.toBeInTheDocument();
     expect(localStorage.getItem(AUTH_STORAGE_KEYS.taskId)).toBeNull();
-    expect(transport.mock.calls[1][0]).toBe('/api/auth/logout');
-    expect(transport.mock.calls[1][1]?.method).toBe('POST');
+    const logoutCalls = transport.mock.calls.filter(([path]) => path === '/api/auth/logout');
+    expect(logoutCalls).toHaveLength(1);
+    expect(logoutCalls[0][1]?.method).toBe('POST');
     if (!success) expect(screen.getByText('이 기기에서 로그아웃했어요.')).toBeVisible();
   });
 });

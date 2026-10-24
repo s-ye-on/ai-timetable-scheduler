@@ -6,6 +6,7 @@ import '@/styles/auth-layout.css';
 import '@/styles/app-layout.css';
 import '@/styles/timetable-layout.css';
 import '@/styles/onboarding-layout.css';
+import '@/styles/planner-layout.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode><AppRoutes /></StrictMode>,

@@ -9,6 +9,7 @@ export function createSettingsFixture() {
   const transport = vi.fn<typeof fetch>().mockImplementation(async (path, options) => {
     if (path === '/api/auth/me') return fixtureJson({ id: 1, name: '학생', email: 'fixture@example.com' });
     if (path === '/timetable-slots') return fixtureJson([]);
+    if (path === '/tasks') return fixtureJson([]);
     if (path === '/preferences') {
       if (options?.method === 'PUT') preference = { ...preference, ...JSON.parse(String(options.body)), customized: true };
       if (options?.method === 'DELETE') preference = { ...DEFAULT_PREFERENCE };

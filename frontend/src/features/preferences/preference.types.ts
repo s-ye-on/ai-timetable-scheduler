@@ -2,6 +2,7 @@ import type { AuthClient } from '@/features/auth/api/auth-client';
 
 export type SettingsClient = Pick<AuthClient, 'authenticatedRequest'>;
 export const TIME_RANGES = ['ANYTIME', 'MORNING', 'LUNCH', 'AFTERNOON', 'EVENING'] as const;
+export const PERIOD_LABELS: Record<string, string> = { ANYTIME: '상관없음', MORNING: '오전', LUNCH: '점심', AFTERNOON: '오후', EVENING: '저녁' };
 export const DENSITIES = ['COMPACT', 'BALANCED', 'RELAXED'] as const;
 export const DEADLINE_TIMINGS = ['ASAP', 'BALANCED', 'NEAR_DEADLINE'] as const;
 export interface PreferenceValues {

@@ -1,0 +1,102 @@
+/* Open Design index.html의 홈·저장 작업 레이아웃. 새 기능의 디자인은 추가하지 않는다. */
+.planning-ui{min-width:0}
+.planning-ui .page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}
+.planning-ui .page-heading h1{font-size:30px}
+.planning-ui .page-heading p{margin-top:8px;font-size:14px;color:var(--muted)}
+.planning-ui .date-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);white-space:nowrap}
+.planning-ui .home-greeting{display:flex;align-items:flex-start;gap:12px}
+.planning-ui .greeting-dot{margin-top:9px;width:10px;height:10px;border-radius:50%;background:#e7b768;box-shadow:0 0 0 5px #fff4da;flex:none}
+.planning-ui .hero{padding:32px;background:#eef2ff;border:1px solid #dde5ff;border-radius:20px;display:grid;gap:24px;position:relative}
+.planning-ui .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.planning-ui .hero h2{font-size:28px;letter-spacing:-.055em}
+.planning-ui .hero h2 em{font-style:normal;color:var(--primary)}
+.planning-ui .hero p{font-size:14px;color:#5f6f90;margin-top:8px}
+.planning-ui .hero-symbol{display:flex;align-items:center;justify-content:center;gap:8px;flex:none;align-self:center;padding-right:8px}
+.planning-ui .hero-symbol i{display:block;width:40px;height:48px;border-radius:10px;background:#cbd8ff;transform:rotate(-9deg);border:3px solid white}
+.planning-ui .hero-symbol i:nth-child(2){width:48px;height:64px;background:var(--primary);transform:rotate(6deg);display:grid;place-items:center;color:#fff}
+.planning-ui .hero-symbol i:last-child{background:#d5eee7;transform:rotate(13deg);width:32px;height:40px}
+.planning-ui .hero-symbol .od-icon{--od-icon-size:24px}
+.planning-ui .composer{background:white;border:1px solid #d9e1f4;border-radius:14px;padding:20px;box-shadow:0 6px 12px #405fc005}
+.planning-ui .composer label{display:flex;align-items:center;gap:8px;color:#455777;font-size:12px;font-weight:600;margin-bottom:12px}
+.planning-ui .composer label .od-icon{--od-icon-size:16px;color:var(--primary)}
+.planning-ui .composer textarea{border:0;border-radius:0;padding:0;min-height:68px;font-size:17px;line-height:1.7;resize:vertical;display:block;background:white}
+.planning-ui .composer textarea::placeholder{color:#8492ac}
+.planning-ui .composer-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;border-top:1px solid #edf0f6;padding-top:16px}
+.planning-ui .composer-footer .small{font-size:12px;color:var(--muted)}
+.planning-ui .hero>.link-btn{justify-self:start;padding:0}
+.planning-ui .hero-bottom{display:flex;gap:12px;align-items:center;font-size:12px;color:#5f7198}
+.planning-ui .hero-bottom .od-icon{--od-icon-size:16px}
+.planning-ui .home-grid{display:grid;grid-template-columns:minmax(0,1fr) 304px;gap:24px;margin-top:28px;align-items:start}
+.planning-ui .right-rail{display:grid;gap:20px;min-width:0}
+.planning-ui .right-rail h2{font-size:17px}
+.planning-ui .rail-card{padding:24px;min-width:0}
+.planning-ui .rail-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.planning-ui .rail-title .tiny{color:var(--muted)}
+.planning-ui .task-list{display:grid;gap:0}
+.planning-ui .task-row{display:flex;align-items:flex-start;gap:12px;padding:16px 0;border-bottom:1px solid #edf0f6;min-width:0}
+.planning-ui .task-row:first-child{padding-top:0}
+.planning-ui .task-row:last-child{border-bottom:0;padding-bottom:0}
+.planning-ui .task-symbol{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex:none}
+.planning-ui .task-symbol .od-icon{--od-icon-size:16px}
+.planning-ui .task-text{display:grid;gap:6px;min-width:0;flex:1;overflow-wrap:anywhere}
+.planning-ui .task-text strong{font-size:14px}
+.planning-ui .task-text p{font-size:11px;color:var(--muted)}
+.planning-ui .task-text .badge{justify-self:start;font-size:11px;padding:2px 6px;white-space:normal}
+.planning-ui .task-text>a{padding:0;border:0;background:none;text-align:left;color:var(--text);min-height:44px;display:grid;gap:6px;width:100%}
+.planning-ui .task-text>a[aria-current=true]{color:var(--primary)}
+.planning-ui .task-text .link-btn{font-size:12px;justify-content:start;white-space:normal}
+.planning-ui .connection-heading{gap:12px;margin-bottom:16px}
+.planning-ui .connection-symbol{display:grid;place-items:center;width:36px;height:36px;background:#edf3ff;color:#4764a3;border-radius:10px;flex:none}
+.planning-ui .connection-title{font-size:14px}
+.planning-ui .rail-card>p{font-size:12px;line-height:1.8;color:var(--muted)}
+.planning-ui .rail-card>.btn{margin-top:16px;min-height:44px;width:100%;font-size:12px;white-space:normal}
+.planning-ui .preference-note{display:flex;gap:8px;font-size:12px;color:var(--muted);margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.planning-ui .preference-note .od-icon{--od-icon-size:16px;color:#8392ad}
+.planning-ui .notice .btn{white-space:normal}
+.planning-ui .saved-tasks-panel{margin-bottom:24px;padding:0 24px}
+.planning-ui .saved-tasks-panel>summary{display:flex;align-items:center;gap:12px;min-height:64px;padding:16px 0;cursor:pointer;list-style:none;font-size:16px;line-height:1.5}
+.planning-ui .saved-tasks-panel>summary::-webkit-details-marker{display:none}
+.planning-ui .saved-tasks-panel>summary>.od-icon{color:var(--primary);flex:none}
+.planning-ui .saved-tasks-panel>summary>.od-icon:last-child{margin-left:auto}
+.planning-ui .saved-tasks-panel[open]>summary>.od-icon:last-child{transform:rotate(90deg)}
+.planning-ui .saved-tasks-count{color:var(--muted);font-size:14px;white-space:nowrap}
+.planning-ui .saved-tasks-body{padding-bottom:20px}
+.planning-ui .saved-tasks-help{font-size:14px;color:var(--muted);margin-bottom:20px}
+.planning-ui .restored-inline{font-size:13px;color:var(--success);display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.planning-ui .analysis-header{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.planning-ui .analysis-header h2{font-size:22px}
+.planning-ui .analysis-header p{font-size:13px;color:var(--muted);margin-top:4px}
+.planning-ui .analysis-header>.badge{white-space:normal}
+.planning-ui .condition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:24px 0}
+.planning-ui .condition-grid>div{min-width:0}
+.planning-ui .condition-grid dt{font-size:12px;color:var(--muted);margin-bottom:6px}
+.planning-ui .condition-grid dd{margin:0;font-size:15px;overflow-wrap:anywhere}
+.planning-ui .analysis-actions{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-top:24px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.planning-ui .analysis-actions .btn{flex:none}
+.planning-ui .scheduled-detail{display:grid;gap:12px;margin-top:20px;justify-items:start}
+.planning-ui .result-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px}
+.planning-ui .result-heading p{font-size:13px;color:var(--muted);margin-top:8px}
+.planning-ui .history-group-title{font-size:16px;margin:20px 0 12px}
+.planning-ui .history-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0;padding:20px;font-size:14px}
+.planning-ui .history-row p{width:100%;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.planning-ui .history-row>.badge{white-space:normal}
+.home-timetable .home-class-card{display:grid;width:100%;min-height:120px;align-content:start;gap:8px;padding:16px;border:1px solid transparent;border-radius:12px;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:keep-all}
+.home-timetable .home-timetable-footer{padding:16px 20px;border-top:1px solid var(--line)}
+.home-timetable .home-timetable-footer .btn{width:100%}
+@media(max-width:1200px){.planning-ui .home-grid{grid-template-columns:minmax(0,1fr) 256px;gap:20px}.planning-ui .rail-card{padding:20px}.planning-ui .hero{padding:24px}.planning-ui .hero h2{font-size:26px}}
+@media(max-width:1023px){.planning-ui .home-grid{grid-template-columns:1fr}.planning-ui .right-rail{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767px){
+ .planning-ui .page-heading{margin-bottom:24px;align-items:flex-start}.planning-ui .page-heading h1{font-size:25px}.planning-ui .page-heading p{font-size:13px;max-width:32ch}.planning-ui .date-label{display:none}
+ .planning-ui .home-greeting{gap:10px}.planning-ui .greeting-dot{margin-top:8px;width:8px;height:8px;box-shadow:0 0 0 4px #fff4da}
+ .planning-ui .hero{padding:24px 20px;border-radius:16px;gap:20px}.planning-ui .hero h2{font-size:25px;line-height:1.45}.planning-ui .hero p{font-size:13px;max-width:30ch}.planning-ui .hero-symbol{display:none}
+ .planning-ui .composer{padding:16px}.planning-ui .composer textarea{font-size:16px;min-height:96px}.planning-ui .composer-footer{flex-direction:column;align-items:stretch;gap:12px}.planning-ui .composer-footer .small{font-size:11px}.planning-ui .composer-footer .btn{width:100%;font-size:13px}
+ .planning-ui .hero-bottom{font-size:11px}.planning-ui .hero>.link-btn{font-size:13px;white-space:normal}
+ .planning-ui .home-grid{margin-top:24px;gap:20px}.planning-ui .right-rail{grid-template-columns:1fr;gap:20px}.planning-ui .rail-card{padding:24px}.planning-ui .right-rail h2{font-size:18px}
+ .planning-ui .task-text strong{font-size:15px}.planning-ui .task-text p{font-size:14px;line-height:1.5}.planning-ui .task-text .badge{font-size:12px}
+ .planning-ui .saved-tasks-panel{padding:0 20px}.planning-ui .saved-tasks-panel>summary{gap:8px}.planning-ui .saved-tasks-help{font-size:14px}
+ .planning-ui .task-detail{padding:20px}.planning-ui .analysis-header{align-items:flex-start;gap:12px;flex-wrap:wrap}.planning-ui .analysis-header h2{font-size:21px}
+ .planning-ui .condition-grid{gap:20px 16px}.planning-ui .condition-grid dd{font-size:14px}.planning-ui .condition-grid dt{font-size:11px}
+ .planning-ui .analysis-actions{flex-direction:column;align-items:stretch;gap:16px}.planning-ui .analysis-actions .btn{width:100%}
+ .planning-ui .result-heading{flex-direction:column}.planning-ui .result-heading h2{font-size:20px}.planning-ui .history-row{padding:16px;font-size:12px}
+}
+@media(max-width:389px){.planning-ui .hero{padding:20px 16px}.planning-ui .hero h2{font-size:24px}}

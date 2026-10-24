@@ -10,6 +10,8 @@ import type { AppRoute } from '@/app/app-routing';
 import { AppShell } from '@/app/components/app-shell';
 import { TimetablePage } from '@/features/timetable/components/timetable-page';
 import { OnboardingPage } from '@/features/onboarding/components/onboarding-page';
+import { HomePage } from '@/features/home/components/home-page';
+import { PlannerPage } from '@/features/tasks/components/planner-page';
 
 export function AppRoutes({ client = authClient }: { client?: AuthClient }) {
   const location = useSyncExternalStore(subscribeLocation, getLocation);
@@ -85,7 +87,7 @@ function SessionCheck({ client, route, location, retry }: { client: AuthClient; 
   </SessionNotice>;
   if (!profile) return <SessionNotice title="로그인 상태를 확인하고 있어요." />;
   return <AppShell key={profile.id} profile={profile} route={route} location={location} onLogout={logout}>
-    {route.screen === 'timetable' ? <TimetablePage client={client} /> : route.screen === 'onboarding' ? <OnboardingPage key={route.href} client={client} route={route} /> : <section className="card card-pad app-pending" aria-labelledby="pending-title">
+    {route.screen === 'home' ? <HomePage client={client} profile={profile} /> : route.screen === 'planner' ? <PlannerPage client={client} taskId={route.taskId} /> : route.screen === 'timetable' ? <TimetablePage client={client} /> : route.screen === 'onboarding' ? <OnboardingPage key={route.href} client={client} route={route} /> : <section className="card card-pad app-pending" aria-labelledby="pending-title">
       <span className="section-kicker">REACT 이식 진행 중</span>
       <h1 id="pending-title">{route.title}</h1>
       <p>{route.screen === 'not-found' ? '주소를 확인하거나 홈으로 돌아가 주세요.' : '이 화면의 기능은 후속 단계에서 연결할 예정이에요. 지금은 기존 플래너에서 이용해 주세요.'}</p>

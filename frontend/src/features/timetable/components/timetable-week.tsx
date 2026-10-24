@@ -16,11 +16,13 @@ const dateLabel = (date: string) => `${Number(date.slice(5, 7))}월 ${Number(dat
 interface TimetableWeekProps {
   slots: TimetableSlot[]; day: TimetableDay; onDay: (day: TimetableDay) => void; disabled: boolean;
   onAdd: () => void; onDetail: (slot: TimetableSlot) => void; onEdit: (slot: TimetableSlot) => void; onDelete: (slot: TimetableSlot) => void;
+  readOnly?: boolean; referenceNow?: Date;
 }
 export function TimetableWeek(props: TimetableWeekProps) {
   const { slots, day, onDay, disabled, onAdd, onDetail } = props;
   const [offset, setOffset] = useState(0);
-  const [now] = useState(() => new Date());
+  const [mountedNow] = useState(() => new Date());
+  const now = props.referenceNow || mountedNow;
   const today = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'long' }).format(now).toUpperCase();
   const dates = weekDates(now, offset);
   const weekdaySlots = slots.filter((slot) => TIMETABLE_DAYS.indexOf(slot.dayOfWeek) < 5);
@@ -32,12 +34,14 @@ export function TimetableWeek(props: TimetableWeekProps) {
     <div className="card-head"><div><h2 className="week-title">이번 주 수업</h2><div className="week-toolbar">
       <button className="icon-btn" type="button" onClick={() => setOffset(offset - 1)} aria-label="지난주"><TimetableIcon name="back" /></button>
       <span>{dateLabel(dates[0])} – {dateLabel(dates[4])}</span><button className="icon-btn" type="button" onClick={() => setOffset(offset + 1)} aria-label="다음 주"><TimetableIcon name="next" /></button>
-    </div></div><button className="btn btn-soft btn-sm course-add-button" type="button" onClick={onAdd} disabled={disabled}><TimetableIcon name="plus" />수업 추가</button></div>
-    <div className="course-preview-note">등록한 수업 {slots.length}개 · 수업마다 색상을 지정할 수 있어요</div>
+    </div></div>{props.readOnly ? <a className="link-btn" href="/#timetable">수업 등록<TimetableIcon name="plus" /></a> : <button className="btn btn-soft btn-sm course-add-button" type="button" onClick={onAdd} disabled={disabled}><TimetableIcon name="plus" />수업 추가</button>}</div>
+    {!props.readOnly && <div className="course-preview-note">등록한 수업 {slots.length}개 · 수업마다 색상을 지정할 수 있어요</div>}
     {legends.length > 0 && <div className="legend-row" aria-label="수업 색상 범례">{legends.map((slot) => <span key={JSON.stringify([slot.subjectName, slot.color])}><i className={`legend-dot color-${slot.color.toLowerCase()}`} />{slot.subjectName}</span>)}</div>}
     <div className="course-mobile-days"><div className="home-day-tabs" role="group" aria-label="시간표 요일 선택">{TIMETABLE_DAYS.map((value) => <button className={`home-day-tab${value === day ? ' active' : ''}`} key={value} type="button" aria-label={DAY_LABELS[value]} aria-pressed={value === day} onClick={() => onDay(value)}>{DAY_LABELS[value]}{value === today && <span className="home-day-today">오늘</span>}</button>)}</div>
       <section className="home-day-content" aria-label="선택한 요일 수업" aria-live="polite"><div className="home-day-heading"><h3>{DAY_LABELS[day]}요일 수업</h3><span className="home-class-count">{daily.length}개 수업</span></div>
-        {daily.length ? <ul className="course-day-list">{daily.map((slot) => <TimetableCourseCard {...props} slot={slot} key={slot.id} />)}</ul> : <div className="home-day-empty"><span className="empty-symbol"><TimetableIcon name="book" /></span><p>{slots.length ? '이날은 등록된 수업이 없어요' : '아직 등록된 수업이 없어요'}</p><span>다른 요일을 확인하거나 수업을 추가해 보세요.</span><button className="btn btn-secondary" type="button" onClick={onAdd} disabled={disabled}>수업 추가하기</button></div>}
+        {daily.length ? <ul className="course-day-list">{daily.map((slot) => props.readOnly ? <li key={slot.id}><button type="button" className={`home-class-card color-${slot.color.toLowerCase()}`} onClick={() => onDetail(slot)}>
+          <span>{displayTime(slot.startTime)}–{displayTime(slot.endTime)}</span><strong>{slot.subjectName}</strong><span>{slot.location || '장소 미등록'}</span></button></li> : <TimetableCourseCard {...props} slot={slot} key={slot.id} />)}</ul> : <div className="home-day-empty"><span className="empty-symbol"><TimetableIcon name="book" /></span><p>{slots.length ? '이날은 등록된 수업이 없어요' : '아직 등록된 수업이 없어요'}</p><span>다른 요일을 확인하거나 수업을 추가해 보세요.</span><button className="btn btn-secondary" type="button" onClick={onAdd} disabled={disabled}>수업 추가하기</button></div>}
+        {props.readOnly && <div className="home-timetable-footer"><a className="btn btn-secondary" href="/#timetable">전체 시간표 보기<TimetableIcon name="next" /></a></div>}
       </section>
     </div>
     <div className="desktop-week">
