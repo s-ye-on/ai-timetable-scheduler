@@ -32,12 +32,12 @@ final class LlmEvaluationRunner {
     }
 
     static Map<String,Object> dataset(String version) throws IOException {
-        if (!Set.of("v1", "v2").contains(version)) throw new IOException("UNKNOWN_DATASET_VERSION");
+        Integer expectedCount = Map.of("v1",40,"v2",46,"v3",56).get(version);
+        if (expectedCount==null) throw new IOException("UNKNOWN_DATASET_VERSION");
         try (InputStream in=LlmEvaluationRunner.class.getResourceAsStream("/llm/golden-dataset-"+version+".json")) {
             if (in==null) throw new IOException("GOLDEN_DATASET_MISSING");
             Map<String,Object> data=read(new String(in.readAllBytes(),StandardCharsets.UTF_8));
             List<Object> cases=list(data.get("cases"));
-            int expectedCount = version.equals("v1") ? 40 : 46;
             if (cases.size()!=expectedCount) throw new IOException("INVALID_CASE_COUNT");
             for (int i=0;i<expectedCount;i++) if (!String.format("G%02d",i+1).equals(map(cases.get(i)).get("id"))) throw new IOException("INVALID_CASE_IDS");
             return data;
@@ -52,7 +52,7 @@ final class LlmEvaluationRunner {
         manifest.put("datasetVersion",data.get("datasetVersion")); manifest.put("datasetSha256",hash(MAPPER.writeValueAsString(data)));
         manifest.put("datasetHashFormat", "Jackson canonical serialization of loaded dataset");
         manifest.put("configuredModel",properties.model()); manifest.put("repeats",repeats);
-        manifest.put("runnerVersion","2.0.0");
+        manifest.put("runnerVersion","2.1.0");
         manifest.put("plannedRequests",list(data.get("cases")).size()*repeats); manifest.put("codeCommit",codeCommit());
         manifest.put("javaScope","LlmParsingService + Task.create (no persistence, no HTTP 201 verification)");
         manifest.put("semanticPolicy","Known title aliases / canonical clarification only; all other meanings require manual review");

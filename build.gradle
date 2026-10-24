@@ -63,6 +63,7 @@ tasks.register('llmEval', Test) {
     systemProperty 'llm.eval.task', 'live'
     systemProperty 'llm.eval.enabled', providers.gradleProperty('runLlmEval').getOrElse('false')
     systemProperty 'llm.eval.repeats', providers.gradleProperty('evalRepeats').getOrElse('1')
+    systemProperty 'llm.eval.dataset', providers.gradleProperty('evalDataset').getOrElse('v2')
     systemProperty 'llm.eval.output', layout.buildDirectory.dir('llm-evaluation').get().asFile.absolutePath
     outputs.upToDateWhen { false }
     outputs.doNotCacheIf('실제 API 평가 결과를 빌드 캐시로 재사용하지 않는다') { true }

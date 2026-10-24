@@ -25,7 +25,8 @@ it('비어있거나_500자를_초과하는_입력은_분석하지_않는다', as
 
 it.each([
   ['MISSING_LLM_TITLE', 400, '어떤 일정을 계획하고 계신가요? 일정 이름을 포함하여 알려주세요.'],
-  ['LLM_CLARIFICATION_REQUIRED', 400, '날짜나 시간을 확인해야 해요.'],
+  ['MISSING_LLM_CATEGORY', 400, '일정 내용을 분류하지 못했어요. 영화 감상·운동·독서도 요청할 수 있어요. 내용을 조금 더 구체적으로 적어 주세요.'],
+  ['LLM_CLARIFICATION_REQUIRED', 400, '계획할 활동이나 날짜·시간 조건을 확인해 주세요. 원하는 활동, 오전·오후와 꼭 지켜야 할 조건을 명확하게 입력해 주세요.'],
   ['UNSUPPORTED_LLM_START_SECONDS', 400, '초 단위 시작 시간은 지원하지 않아요.'],
   ['UNSUPPORTED_LLM_RELATIVE_START_RANGE', 400, '최소 시작 시각 조건은 지원하지 않아요.'],
   ['OPENAI_API_FAILED', 502, 'AI 분석 서비스에 연결하지 못했어요'],

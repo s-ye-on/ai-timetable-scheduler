@@ -45,6 +45,21 @@ class OpenAiIntentPromptTest {
 
     @ParameterizedTest
     @MethodSource("대조_예시")
+    void 안정_프롬프트는_43건_통과_실측_당시의_전송_내용과_일치한다(Fixture fixture) throws Exception {
+        server.expect(requestTo("https://openai.test/v1/responses"))
+            .andExpect(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                // 2026-10-25 01:02 Golden v3 실측, 기준일 2026-10-19의 promptSha256.
+                assertThat(프롬프트_해시(body.path("instructions").asString()))
+                    .isEqualTo("187e6cc23370c02a4ba731ce80c73231aea0d14618770fb252b4903dad46b843");
+            })
+            .andRespond(withSuccess(응답_감싸기(mapper.writeValueAsString(fixture.response())), MediaType.APPLICATION_JSON));
+        처리_검증(fixture);
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @MethodSource("대조_예시")
     void 실제_요청에_전달한_대조_예시는_필수_선호와_활동명_계약을_만족한다(Fixture fixture) {
         server.expect(requestTo("https://openai.test/v1/responses"))
             .andExpect(request -> {
@@ -69,6 +84,84 @@ class OpenAiIntentPromptTest {
                 return withSuccess(응답_감싸기(output.toString()), MediaType.APPLICATION_JSON).createResponse(request);
             });
         처리_검증(fixture);
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "영화 감상하고 싶어|PERSONAL",
+        "운동하고 싶어|PERSONAL",
+        "취미로 소설 읽기|PERSONAL",
+        "영화 수업 복습|STUDY",
+        "영화 감상문 과제 작성|ASSIGNMENT",
+        "친구와 영화 관람 약속|APPOINTMENT"
+    })
+    void 활동_분류_지침을_전달하고_Stub의_분류와_기본_60분을_보존한다(String input, TaskCategory category) {
+        var expected = new ParsedTaskResponse(input, category, null, null, null, null, null,
+            null, null, input, false, false, null, null);
+        server.expect(requestTo("https://openai.test/v1/responses"))
+            .andExpect(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                String instructions = body.path("instructions").asString();
+                assertThat(instructions).contains(
+                    "category는 허용하는 활동의 목록이 아니라", "<category_examples>", "</category_examples>",
+                    "PERSONAL은 영화 감상·운동·취미 독서·휴식", "요청의 주된 목적에 따라 분류",
+                    "함께하는 사람보다 과제 수행이라는 목적을 우선", "활동 자체가 없는 경우와 구분");
+                assertThat(body.at("/text/format/schema/required").size()).isEqualTo(16);
+                assertThat(body.path("input").asString()).isEqualTo(input);
+            })
+            .andRespond(withSuccess(응답_감싸기(mapper.writeValueAsString(expected)), MediaType.APPLICATION_JSON));
+        var actual = service.parseTask(new LlmParseRequest(input));
+        assertThat(actual.title()).isEqualTo(input);
+        assertThat(actual.category()).isEqualTo(category);
+        assertThat(actual.durationMinutes()).isEqualTo(60);
+        assertThat(actual.preferredDate()).isNull();
+        assertThat(actual.preferredTimeRange()).isNull();
+        assertThat(actual.dateRequired()).isFalse();
+        assertThat(actual.timeRequired()).isFalse();
+        assertThat(actual.clarificationReason()).isNull();
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "나 내일 오후 두시에 친구랑 점심 식사하고싶어|false|false",
+        "내일 오후 두시에만 친구랑 점심 식사할 수 있어|false|true",
+        "내일만 오후 두시에 친구랑 점심 식사하고싶어|true|false",
+        "반드시 내일 오후 두시에만 친구랑 점심 식사할 수 있어|true|true"
+    })
+    void 친구와_점심_식사는_14시_선호와_각각의_필수_조건을_보존한다(String source,
+        boolean dateRequired, boolean timeRequired) {
+        var raw = new ParsedTaskResponse("친구와 점심 식사", TaskCategory.APPOINTMENT, null,
+            LocalDate.of(2026,10,20), null, null, PreferredTimeRange.AFTERNOON, null, null,
+            "친구와 식사", dateRequired, timeRequired, LocalTime.of(14,0), null);
+        server.expect(requestTo("https://openai.test/v1/responses"))
+            .andExpect(request -> {
+                JsonNode body = mapper.readTree(((MockClientHttpRequest) request).getBodyAsString());
+                String instructions = body.path("instructions").asString();
+                assertThat(instructions).contains(
+                    "정확한 시작 시각의 존재와 시간의 필수 여부는 독립적",
+                    "일반 날짜·시간 요청은 필수 표현이 없으면 임의로 true로 만들지 마세요",
+                    "날짜와 시간의 필수 여부는 각각 판단",
+                    "relativeStartMode=EXACT", "기간만 있으면 preferredDate/preferredDayOfWeek는 null, dateRequired=false",
+                    "선호 날짜와 필수 기간을 함께 추출",
+                    "PERSONAL은 영화 감상·운동·취미 독서·휴식");
+                assertThat(body.path("input").asString()).isEqualTo(source);
+                assertThat(body.at("/text/format/strict").asBoolean()).isTrue();
+            })
+            .andRespond(withSuccess(응답_감싸기(mapper.writeValueAsString(raw)), MediaType.APPLICATION_JSON));
+        var actual = service.parseTask(new LlmParseRequest(source));
+        assertThat(actual.title()).isEqualTo("친구와 점심 식사");
+        assertThat(actual.category()).isEqualTo(TaskCategory.APPOINTMENT);
+        assertThat(actual.preferredDate()).isEqualTo(LocalDate.of(2026,10,20));
+        assertThat(actual.preferredStartTime()).isEqualTo(LocalTime.of(14,0));
+        assertThat(actual.preferredTimeRange()).isEqualTo(PreferredTimeRange.AFTERNOON);
+        assertThat(actual.dateRequired()).isEqualTo(dateRequired);
+        assertThat(actual.timeRequired()).isEqualTo(timeRequired);
+        assertThat(actual.durationMinutes()).isEqualTo(60);
+        assertThat(actual.description()).isEqualTo(source);
+        assertThat(raw.description()).isEqualTo("친구와 식사");
+        assertThat(actual.clarificationReason()).isNull();
         server.verify();
     }
 
@@ -223,6 +316,16 @@ class OpenAiIntentPromptTest {
         assertThat(start).as("필수/선호·활동명 대조 예시가 실제 전송 프롬프트에 있어야 한다").isNotNegative();
         assertThat(end).isGreaterThan(start);
         return mapper.readTree(instructions.substring(start + "<contrast_examples>".length(), end));
+    }
+
+    private String 프롬프트_해시(String instructions) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(instructions.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException error) {
+            throw new AssertionError("SHA-256 검증을 실행할 수 없습니다.", error);
+        }
     }
 
     private JsonNode 예시_선택(JsonNode examples, String input) {

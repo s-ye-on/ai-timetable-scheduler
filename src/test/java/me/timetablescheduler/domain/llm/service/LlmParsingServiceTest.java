@@ -20,6 +20,24 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LlmParsingServiceTest {
 
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.NullAndEmptySource
+	@org.junit.jupiter.params.provider.ValueSource(strings = {" ", "영화 감상", "원문을 요약한 잘못된 설명"})
+	void LLM_설명이_변경되거나_누락되어도_사용자_원문을_그대로_보존한다(String description) {
+		String source = "내가 내일 세계영화이야기 영화보는 것 오후 중에 시간 추천해줘";
+		ParsedTaskResponse raw = 응답_빌더_생성().분류(TaskCategory.PERSONAL).설명(description).생성();
+		var actual = 응답을_반환하는_서비스_생성(raw).parseTask(new LlmParseRequest(source));
+		assertEquals(source, actual.description());
+		assertEquals(description, raw.description());
+	}
+
+	@Test
+	void 사용자_원문이_500자를_초과하면_LLM_설명이_짧아도_거절한다() {
+		var service = 응답을_반환하는_서비스_생성(응답_빌더_생성().설명("짧은 설명").생성());
+		var error = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("가".repeat(501))));
+		assertEquals(ExceptionCode.INVALID_LLM_PARSE_RESULT, error.getExceptionCode());
+	}
+
 	@Test
 	void 정상_파싱결과를_그대로_반환한다() {
 		ParsedTaskResponse parsed = 응답_빌더_생성()
@@ -39,7 +57,7 @@ class LlmParsingServiceTest {
 		assertEquals(LocalDate.of(2026, 5, 5), result.preferredDate());
 		assertEquals(PreferredTimeRange.AFTERNOON, result.preferredTimeRange());
 		assertEquals(TaskPriority.HIGH, result.priority());
-		assertEquals("중요한 과제", result.description());
+		assertEquals("5월 5일 오후에 과제 90분", result.description());
 	}
 
 	@Test
@@ -139,7 +157,7 @@ class LlmParsingServiceTest {
 	}
 
 	@Test
-	void LLM_결과의_제목과_설명이_Task_컬럼_최대_길이면_허용한다() {
+	void 제목과_저장할_사용자_원문이_Task_컬럼_최대_길이면_허용한다() {
 		ParsedTaskResponse parsed = 응답_빌더_생성()
 			.제목("가".repeat(100))
 			.설명("가".repeat(500))
@@ -147,7 +165,7 @@ class LlmParsingServiceTest {
 			.생성();
 		LlmParsingService service = 응답을_반환하는_서비스_생성(parsed);
 
-		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("화요일에 과제"));
+		ParsedTaskResponse result = service.parseTask(new LlmParseRequest("가".repeat(500)));
 
 		assertEquals("가".repeat(100), result.title());
 		assertEquals("가".repeat(500), result.description());
@@ -167,14 +185,14 @@ class LlmParsingServiceTest {
 	}
 
 	@Test
-	void LLM_결과의_설명이_Task_컬럼_길이를_넘으면_거부한다() {
+	void 저장할_사용자_원문이_Task_컬럼_길이를_넘으면_거부한다() {
 		ParsedTaskResponse parsed = 응답_빌더_생성()
 			.설명("가".repeat(501))
 			.선호_요일(DayOfWeek.TUESDAY)
 			.생성();
 		LlmParsingService service = 응답을_반환하는_서비스_생성(parsed);
 
-		LlmException exception = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("화요일에 과제")));
+		LlmException exception = assertThrows(LlmException.class, () -> service.parseTask(new LlmParseRequest("가".repeat(501))));
 
 		assertEquals(ExceptionCode.INVALID_LLM_PARSE_RESULT, exception.getExceptionCode());
 	}

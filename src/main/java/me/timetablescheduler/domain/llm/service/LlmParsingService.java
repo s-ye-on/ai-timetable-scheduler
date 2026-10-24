@@ -267,9 +267,8 @@ public class LlmParsingService {
 
 		TaskPriority priority = parsed.priority() == null ? TaskPriority.NORMAL : parsed.priority();
 
-		String description = parsed.description() == null || parsed.description().isBlank()
-			? originalMessage
-			: parsed.description();
+		// 설명은 LLM의 요약·변경 결과가 아닌 실제 요청 원문을 저장한다.
+		String description = originalMessage;
 
 		return new ParsedTaskResponse(
 			parsed.title(),

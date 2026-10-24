@@ -2,7 +2,7 @@
 
 ## 1. 구현 범위
 
-Runner는 [Golden Dataset 40개](llm-evaluation-golden-dataset.md)를 실제 서비스의 모델·프롬프트·Structured Outputs로 평가한다. **이번 구현·검증에서는 실제 OpenAI·Google API를 호출하지 않았으며, 실제 LLM 정확도는 아직 측정하지 않았다.**
+Runner는 [Golden Dataset](llm-evaluation-golden-dataset.md)을 실제 서비스의 모델·프롬프트·Structured Outputs로 평가한다. v1(40개)·v2(46개)·v3(56개)를 지원하며 기본값은 기존 v2다. **이번 v3 지원·검증에서는 실제 OpenAI·Google API를 호출하지 않았다.** 과거 실측 기록은 보존하며, 이번 프롬프트의 실제 정확도 개선 여부는 재평가가 필요하다.
 
 JUnit·Gradle을 사용하며 프로덕션 Java·추천 엔진·DB·화면과 Golden 정답은 변경하지 않는다.
 
@@ -43,15 +43,16 @@ taskCreatable은 **도메인 객체 생성 가능 여부**다. Repository 저장
 - LLM_EVAL_ALLOW_API=true 환경변수
 - -PrunLlmEval=true 옵션
 - 반복 횟수는 기본 1회 또는 -PevalRepeats=3
+- 데이터셋은 기본 v2이며 -PevalDataset=v1 또는 -PevalDataset=v3으로 선택한다.
 
 키가 이미 환경변수에 주입되어 있다는 전제의 명령:
 
 ~~~sh
-LLM_EVAL_ALLOW_API=true ./gradlew llmEval -PrunLlmEval=true
-LLM_EVAL_ALLOW_API=true ./gradlew llmEval -PrunLlmEval=true -PevalRepeats=3
+LLM_EVAL_ALLOW_API=true ./gradlew llmEval -PrunLlmEval=true -PevalDataset=v3
+LLM_EVAL_ALLOW_API=true ./gradlew llmEval -PrunLlmEval=true -PevalDataset=v3 -PevalRepeats=3
 ~~~
 
-각각 40회·120회 요청을 시도하며 비용이 발생한다. 자동 API 재시도는 추가하지 않는다. Gradle과 JUnit의 실행 승인을 모두 통과해야 하며, 평가 결과를 Gradle 캐시로 대체하지 않는다.
+v3에서는 각각 56회·168회 요청을 시도하며 비용이 발생한다. v1은 40회·120회, 기본 v2는 46회·138회다. 자동 API 재시도는 추가하지 않는다. Gradle과 JUnit의 실행 승인을 모두 통과해야 하며, 평가 결과를 Gradle 캐시로 대체하지 않는다. 지원하지 않는 데이터셋은 첫 요청 전에 거절한다.
 
 설정은 Spring Boot ConfigData/Binder로 읽는다. 기본 위치는 src/main/resources/application.properties와 application.yaml이다. OPENAI_MODEL, OPENAI_BASE_URL, SPRING_CONFIG_LOCATION, SPRING_PROFILES_ACTIVE 등 기존 Spring 설정 방식을 사용할 수 있다. 테스트용 application.properties를 서비스 설정으로 오인하지 않도록 기본 위치를 명시하며 프로파일 설정도 반영한다. 키는 반드시 OPENAI_API_KEY에서 가져온다.
 
@@ -86,7 +87,7 @@ Spring ApplicationContext·서버·JWT·DB는 기동하지 않는다. 실제 Run
 
 ## 5. 결과 파일과 버전 비교
 
-실행마다 build/llm-evaluation/날짜시각-고유값/에 저장한다. 기본 build 경로는 Git 대상에서 제외된다.
+실행마다 build/llm-evaluation/날짜시각-고유값/에 새 디렉터리를 만들어 저장하므로 이전 결과를 덮어쓰지 않는다. 기본 build 경로는 Git 대상에서 제외되며 Gradle clean으로 삭제된다. 영구 보관이 필요한 결과는 검토 후 docs/llm-evaluation/results/ 등 build 밖으로 복사한다.
 
 | 파일 | 내용 |
 |---|---|
@@ -123,6 +124,6 @@ HTTP 오류 본문·Authorization·요청 헤더·환경변수 목록·예외 �
 node --test src/test/javascript/demo-ui-state.test.cjs
 ~~~
 
-MockRestServiceServer로 실제 OpenAiClient의 통신을 대체한다. 40개×1회/3회 canonical 응답, 고정 날짜 프롬프트·Java 결과, 오류 후 계속 진행, 필수·정확 시각 오류, 수동 검토·계약 분모, 키 제거·CSV, 설정 프로파일·호출 게이트를 검사한다.
+MockRestServiceServer로 실제 OpenAiClient의 통신을 대체한다. v2 46개·v3 56개 각각 1회/3회 canonical 응답, v1 로드 호환성, v2 사례의 v3 보존, 고정 날짜 프롬프트·Java 결과, 오류 후 계속 진행, 필수·정확 시각 오류, 수동 검토·계약 분모, 키 제거·CSV, 설정 프로파일·호출 게이트를 검사한다. G55는 활동명 누락(MISSING_LLM_TITLE), G56은 활동 선택 확인(LLM_CLARIFICATION_REQUIRED)을 분류 누락보다 먼저 처리하며 Task를 생성하지 않는지 별도로 확인한다.
 
 실제 평가 전 모델·키·비용·반복 횟수를 확인하고 첫 실행은 1회로 한다. MANUAL과 실패 원인을 검토한다. Stub 통과는 실제 모델의 언어 해석 정확도를 증명하지 않는다.

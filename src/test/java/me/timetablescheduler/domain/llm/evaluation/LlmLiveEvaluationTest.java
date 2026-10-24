@@ -1,5 +1,6 @@
 package me.timetablescheduler.domain.llm.evaluation;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.file.Path;
@@ -21,15 +22,20 @@ class LlmLiveEvaluationTest {
     @Test
     void 명시적으로_승인한_실제_LLM_평가만_실행한다() throws Exception {
         int repeats = validatePermission(System.getProperties(), System.getenv());
+        Map<String,Object> data = dataset(System.getProperties());
         OpenAiProperties properties = configuration(System.getenv("OPENAI_API_KEY"));
         var httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NEVER).build();
         var factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(Duration.ofSeconds(60));
         Path result = new LlmEvaluationRunner(properties, RestClient.builder().requestFactory(factory))
-            .run(LlmEvaluationRunner.dataset(), repeats,
+            .run(data, repeats,
                 Path.of(System.getProperty("llm.eval.output", "build/llm-evaluation")), "LIVE");
         System.out.println("평가 결과: " + result.toAbsolutePath());
+    }
+
+    static Map<String,Object> dataset(Properties options) throws IOException {
+        return LlmEvaluationRunner.dataset(options.getProperty("llm.eval.dataset", "v2"));
     }
 
     static int validatePermission(Properties options, Map<String,String> environment) {

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -28,9 +29,9 @@ class LlmEvaluationRunnerTest {
         new OpenAiProperties(KEY,"stub-service-model","https://openai.test/v1"),builder);
 
     @ParameterizedTest
-    @ValueSource(ints={1,3})
-    void 전체_데이터셋을_고정_시각으로_평가하고_반복별_결과를_저장한다(int repeats) throws Exception {
-        Map<String,Object> data=LlmEvaluationRunner.dataset();
+    @CsvSource({"v2,46,1", "v2,46,3", "v3,56,1", "v3,56,3"})
+    void 전체_데이터셋을_고정_시각으로_평가하고_반복별_결과를_저장한다(String version, int count, int repeats) throws Exception {
+        Map<String,Object> data=LlmEvaluationRunner.dataset(version);
         for(Object item:list(data.get("cases"))) for(int i=0;i<repeats;i++) {
             Map<String,Object> c=map(item);
             String date=OffsetDateTime.parse(text(map(c.get("reference")).get("requestedAt"))).toLocalDate().toString();
@@ -42,7 +43,7 @@ class LlmEvaluationRunnerTest {
         Path output=runner.run(data,repeats,directory,"STUB");
         server.verify();
         List<Object> cases=list(MAPPER.readValue(Files.readString(output.resolve("cases.json")),Object.class));
-        assertEquals(46*repeats,cases.size());
+        assertEquals(count*repeats,cases.size());
         for(Object item:cases) {
             Map<String,Object> c=map(item);
             assertEquals("PASS",c.get("schemaStatus"),text(c.get("id")));
@@ -55,12 +56,13 @@ class LlmEvaluationRunnerTest {
         Map<String,Object> summary=read(Files.readString(output.resolve("summary.json")));
         assertEquals(1.0,map(summary.get("rawStatus")).get("accuracy"));
         assertEquals(1.0,map(summary.get("javaStatus")).get("accuracy"));
-        assertEquals(46*repeats,Files.readAllLines(output.resolve("cases.jsonl")).size());
+        assertEquals(count*repeats,Files.readAllLines(output.resolve("cases.jsonl")).size());
         assertTrue(Files.exists(output.resolve("cases.csv")));
         assertTrue(Files.exists(output.resolve("fields.csv")));
         assertTrue(Files.readString(output.resolve("summary.csv")).contains("rawStatus.accuracy"));
         assertTrue(Files.exists(output.resolve("manual-review.csv")));
         assertEquals("STUB",read(Files.readString(output.resolve("manifest.json"))).get("mode"));
+        assertEquals(data.get("datasetVersion"),read(Files.readString(output.resolve("manifest.json"))).get("datasetVersion"));
     }
 
     @Test
@@ -276,11 +278,74 @@ class LlmEvaluationRunnerTest {
     }
 
     @Test
+    void G47_원문_변경은_LLM_오답으로_남기고_Java만_원문을_보존한다() throws Exception {
+        Map<String,Object> c=map(list(LlmEvaluationRunner.dataset("v3").get("cases")).get(46));
+        Map<String,Object> changed=raw(c);
+        changed.put("description",text(c.get("input")).substring(3));
+        respond(changed);
+        Map<String,Object> result=runner.evaluate(c,1);
+        assertEquals("FAIL",result.get("rawStatus"));
+        assertEquals(changed.get("description"),map(result.get("actualRaw")).get("description"));
+        assertEquals("PASS",result.get("javaStatus"));
+        assertEquals(c.get("input"),map(map(result.get("actualJava")).get("normalized")).get("description"));
+        server.verify();
+    }
+
+    @Test
+    void v3는_v2의_46개_사례를_그대로_보존하고_56개를_읽는다() throws Exception {
+        Map<String,Object> previous=LlmEvaluationRunner.dataset("v2");
+        Map<String,Object> current=LlmEvaluationRunner.dataset("v3");
+        assertEquals("3.0.0",current.get("datasetVersion"));
+        assertEquals(56,list(current.get("cases")).size());
+        assertEquals(list(previous.get("cases")),list(current.get("cases")).subList(0,46));
+    }
+
+    @Test
     void 이전_데이터셋은_보존하고_새_정책_평가는_v2로_구분한다() throws Exception {
         assertEquals(40,list(LlmEvaluationRunner.dataset("v1").get("cases")).size());
         assertEquals("2.0.0",LlmEvaluationRunner.dataset().get("datasetVersion"));
         assertEquals(46,list(LlmEvaluationRunner.dataset().get("cases")).size());
-        assertThrows(IOException.class,()->LlmEvaluationRunner.dataset("v3"));
+        assertThrows(IOException.class,()->LlmEvaluationRunner.dataset("v4"));
+    }
+
+    @Test
+    void 실제_평가_설정은_기본_v2와_명시적으로_선택한_버전을_구분한다() throws Exception {
+        Properties options=new Properties();
+        assertEquals("2.0.0",LlmLiveEvaluationTest.dataset(options).get("datasetVersion"));
+        for(String version:List.of("v1","v2","v3")) {
+            options.setProperty("llm.eval.dataset",version);
+            assertEquals(LlmEvaluationRunner.dataset(version),LlmLiveEvaluationTest.dataset(options));
+        }
+        options.setProperty("llm.eval.dataset","../v3");
+        assertThrows(IOException.class,()->LlmLiveEvaluationTest.dataset(options));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints={55,56})
+    void 활동_확인_요청은_분류_누락보다_먼저_처리하고_Task를_생성하지_않는다(int number) throws Exception {
+        Map<String,Object> c=map(list(LlmEvaluationRunner.dataset("v3").get("cases")).get(number-1));
+        respond(raw(c));
+        Map<String,Object> result=runner.evaluate(c,1);
+        Map<String,Object> actual=map(result.get("actualJava"));
+        assertEquals(number==55?"MISSING_LLM_TITLE":"LLM_CLARIFICATION_REQUIRED",actual.get("errorCode"));
+        assertEquals(400,actual.get("validationHttpStatus"));
+        assertEquals(false,actual.get("taskCreatable"));
+        assertNull(actual.get("normalized"));
+        assertEquals("PASS",result.get("javaStatus"));
+        server.verify();
+    }
+
+    @Test
+    void 새_평가_보고서는_이전_결과를_덮어쓰지_않는다() throws Exception {
+        Map<String,Object> c=caseAt(7);
+        respond(raw(c));respond(raw(c));
+        Map<String,Object> data=Map.of("datasetVersion","stub","cases",List.of(c));
+        Path first=runner.run(data,1,directory,"STUB");
+        byte[] original=Files.readAllBytes(first.resolve("summary.json"));
+        Path second=runner.run(data,1,directory,"STUB");
+        assertNotEquals(first,second);
+        assertArrayEquals(original,Files.readAllBytes(first.resolve("summary.json")));
+        server.verify();
     }
 
     private Map<String,Object> caseAt(int number) throws IOException {

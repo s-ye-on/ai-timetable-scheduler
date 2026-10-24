@@ -126,6 +126,12 @@ public class OpenAiClient {
 			- 활동명은 날짜·시간의 구체성과 별개로 추출하세요. "공부", "과제"처럼 포괄적인 활동도 유효한 제목입니다.
 			- "공부하고 싶어", "과제할 시간"에도 활동이 있습니다. 과목명·과제명이 없다는 이유로 title을 null로 만들지 마세요.
 			- 활동 자체가 없는 날짜·시각 요청에서만 title과 category를 null로 두고 활동명을 확인하세요. 없는 활동을 지어내지는 마세요.
+			- category는 허용하는 활동의 목록이 아니라 일정을 정리하기 위한 내부 분류입니다. 영화 감상·운동·독서 등 일반적인 활동도 정상 요청입니다.
+			- STUDY는 수업 복습·시험 대비 등 학습, ASSIGNMENT는 과제·제출물 완성, APPOINTMENT는 다른 사람과의 만남·약속·예약된 모임이 주된 목적입니다.
+			- PERSONAL은 영화 감상·운동·취미 독서·휴식 등 일반 개인 활동을 포함합니다. 개인 업무에만 한정하지 마세요.
+			- 활동이 명확한 일반 개인 일정은 다른 세 분류에 해당하지 않는다는 이유로 category를 null로 만들지 말고 PERSONAL로 분류하세요. Java가 분류를 보완한다고 가정하지 마세요.
+			- 같은 활동도 요청의 주된 목적에 따라 분류하세요. 과목명이나 작품명만으로 학습·과제를 추정하지 말고, 누군가와 함께한다는 이유만으로 약속으로 분류하지 마세요.
+			- 서로 다른 활동 중 무엇을 할지 정하지 못했다면 하나를 선택하지 마세요. title에는 언급된 대안을 보존하고 category는 null로 두며, clarificationReason으로 어떤 활동을 계획할지 확인하세요. 활동 자체가 없는 경우와 구분하세요.
 			- 날짜·시간을 지정하지 않은 활동 요청도 정상입니다. 날짜 필드와 시간 필드는 null, dateRequired와 timeRequired는 false이며 그 누락만으로 clarificationReason을 만들지 마세요.
 			- "반드시", "에만 가능"처럼 명시한 필수 조건은 보존하세요. 일반 날짜·시간 요청은 필수 표현이 없으면 임의로 true로 만들지 마세요. 단, relativeStartMode=EXACT는 이 서비스의 고정 시작 정책이므로 두 필수 플래그 모두 true입니다.
 			- 정확한 시작 시각의 존재와 시간의 필수 여부는 독립적입니다. 시각을 말했다는 이유만으로 timeRequired=true로 만들지 마세요.
@@ -140,7 +146,7 @@ public class OpenAiClient {
 
 			필드 규칙:
 			- title: 원문에 있는 활동을 짧은 한국어 제목으로 보존하세요. 공부·과제만 있어도 각각 "공부"·"과제"입니다. 활동 자체를 알 수 없을 때만 null입니다.
-			- category: STUDY, ASSIGNMENT, APPOINTMENT, PERSONAL 중 하나입니다. 불명확하면 null입니다.
+			- category: 위의 주된 목적 기준으로 STUDY, ASSIGNMENT, APPOINTMENT, PERSONAL 중 하나를 선택하세요. 명확한 개인 활동의 세부 분류가 애매하다는 이유만으로 null을 반환하지 마세요. 활동이 없거나 서로 다른 활동의 선택이 미정이면 null로 두고 확인하세요.
 			- durationMinutes: 30분 단위의 양수입니다. 사용자가 말하지 않았으면 null입니다.
 			- preferredDate: 특정 날짜가 하나 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- preferredDayOfWeek: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY 중 하나입니다. 없으면 null입니다.
@@ -158,6 +164,19 @@ public class OpenAiClient {
 			- deadline: 마감일이 있으면 yyyy-MM-dd 형식으로 설정하고, 아니면 null입니다.
 			- priority: LOW, NORMAL, HIGH 중 하나입니다. 불명확하면 null입니다.
 			- description: 사용자의 원문 메시지를 그대로 넣으세요.
+
+			분류 대조 예시: 아래 화살표는 category 판단만 설명합니다. 실제 응답은 기존 16필드 JSON 객체 하나이며 날짜·시간·소요 시간 등 원문의 조건을 별도로 보존하세요.
+			<category_examples>
+			- "주말에 혼자 영화 한 편 보기" → PERSONAL
+			- "영화 수업 내용을 복습하려고 장면 분석하기" → STUDY
+			- "영화 비평 과제 제출을 위해 작품 감상하기" → ASSIGNMENT
+			- "친구와 극장에서 만나는 영화 약속" → APPOINTMENT
+			- "취미로 추리소설 읽기" → PERSONAL
+			- "문학 시험 대비로 소설 분석하기" → STUDY
+			- "친구와 함께 과제 자료 정리하기" → ASSIGNMENT. 함께하는 사람보다 과제 수행이라는 목적을 우선합니다.
+			- "뭘 할지는 모르겠고 내일 시간만 정해줘" → title=null, category=null. 활동명을 확인합니다.
+			- "산책할지 공부할지 아직 모르겠어" → 두 활동을 title에 보존하고 category=null, clarificationReason으로 활동 선택을 확인합니다.
+			</category_examples>
 
 			대조 예시: 같은 활동에서도 날짜 필수·시간 필수는 독립적입니다.
 			아래 input/output은 설명용입니다. 실제 응답은 해당 output과 같은 16필드 객체 하나만 반환하고, 예시의 날짜나 활동을 현재 요청에 복사하지 마세요.
