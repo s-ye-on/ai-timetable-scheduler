@@ -34,3 +34,13 @@ it.each([
 it('표시만_140점_기준으로_소수점_한자리_환산한다', () => {
   expect([0, 70, 87, 130, 140].map(recommendationFit)).toEqual([0, 50, 62.1, 92.9, 100]);
 });
+
+it.each(['SYNCED', 'SYNC_FAILED', 'SELECTED'] as const)('등록_%s_응답을_성공으로_뭉개지_않고_서버_상태대로_반환한다', async (status) => {
+  const item = fixtureRecommendation(1, status);
+  const request = vi.fn().mockResolvedValue(item);
+  expect(await new TaskPlanningApi({ authenticatedRequest: request }).select(1, 10)).toEqual(item);
+  expect(request.mock.calls).toEqual([['/recommendations/10/select', { method: 'POST' }]]);
+});
+it.each([null, {}, fixtureRecommendation(2, 'SYNCED'), fixtureRecommendation(1, 'PROPOSED'), fixtureRecommendation(1, 'SYNCED', 11)])('잘못된_등록_응답의_후보_Task_상태를_거절한다_%j', async (body) => {
+  await expect(new TaskPlanningApi({ authenticatedRequest: vi.fn().mockResolvedValue(body) }).select(1,10)).rejects.toThrow();
+});

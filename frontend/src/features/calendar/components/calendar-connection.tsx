@@ -3,8 +3,8 @@ import { CalendarApi, calendarFailure, checkedAuthorizationUrl, OAuthAddressErro
 import { AppIcon } from '@/app/components/app-icon';
 import { TimetableIcon } from '@/features/timetable/components/timetable-icon';
 
-export function CalendarConnection({ api, manage = false, returnHref = '/#home' }: {
-  api: CalendarApi; manage?: boolean; returnHref?: string;
+export function CalendarConnection({ api, manage = false, returnHref = '/#home', onReturn }: {
+  api: CalendarApi; manage?: boolean; returnHref?: string; onReturn?: () => void;
 }) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,9 +74,9 @@ export function CalendarConnection({ api, manage = false, returnHref = '/#home' 
     <div className="notice"><div><strong>최종 일정 등록에는 연결이 필요해요</strong><p>연결하지 않아도 추천 후보까지 볼 수 있어요. Google 일정은 추천에 반영되지 않으며, 내부 일정만 별도로 확정하는 기능은 제공하지 않아요.</p></div></div>
     {connected === true && <p className="small muted calendar-policy">연결 전 생성한 후보는 검증 완료 상태가 아니에요. 재추천하거나 선택 시 최신 조건을 다시 확인해야 해요.</p>}
     <div className="actions">{connected !== true ? <button type="button" className="btn btn-primary" disabled={loading || connected === null || starting || waiting} onClick={() => { void connect(); }}>{starting ? '인증 창 준비 중…' : waiting ? '인증 확인 대기 중' : 'Google Calendar 연결하기'}</button>
-      : <><button type="button" className="btn btn-secondary" disabled={loading || starting || waiting} onClick={() => { void connect(); }}>다시 연결하기</button><a className="btn btn-primary" href={returnHref}>{manage ? '원래 화면으로 돌아가기' : '내 플래너 시작하기'}<TimetableIcon name="next" /></a></>}</div>
+      : <><button type="button" className="btn btn-secondary" disabled={loading || starting || waiting} onClick={() => { void connect(); }}>다시 연결하기</button><a className="btn btn-primary" href={returnHref} onClick={onReturn ? (event) => { event.preventDefault(); onReturn(); } : undefined}>{manage ? '원래 화면으로 돌아가기' : '내 플래너 시작하기'}<TimetableIcon name="next" /></a></>}</div>
     {waiting && <button type="button" className="btn btn-text calendar-cancel" onClick={() => { popup.current?.close(); popup.current = null; setWaiting(false); setReturned(true); void check(); }}>인증 창 닫고 상태 확인</button>}
-    <a className="subtle-link" href={returnHref}>{manage ? '원래 화면으로 돌아가기' : connected === true ? '홈으로 돌아가기' : '나중에 연결하고 시작하기'}</a>
+    <a className="subtle-link" href={returnHref} onClick={onReturn ? (event) => { event.preventDefault(); onReturn(); } : undefined}>{manage ? '원래 화면으로 돌아가기' : connected === true ? '홈으로 돌아가기' : '나중에 연결하고 시작하기'}</a>
     {oauthError && <a className="subtle-link" href="/demo.html">기존 플래너에서 확인하기</a>}
   </section>;
 }

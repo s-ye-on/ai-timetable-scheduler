@@ -59,7 +59,7 @@ it('저장한_할_일에는_UNSCHEDULED만_표시하고_닫거나_다시_열_수
   expect(fixture.transport.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
 
-it('목록을_선택하면_Task와_전체_이력을_재조회하며_내부_점수나_선택_버튼을_노출하지_않는다', async () => {
+it('목록을_선택하면_Task와_전체_이력을_조회하고_최종_등록_전에는_쓰기_요청하지_않는다', async () => {
   const fixture = mount('/#planner', createTaskFixture([fixtureTask(1)], { 1: [fixtureRecommendation(1)] }));
   await userEvent.click(await screen.findByRole('link', { name: /할 일 1/ }));
   expect(await screen.findByRole('region', { name: '할 일 1' })).toBeVisible();
@@ -67,7 +67,8 @@ it('목록을_선택하면_Task와_전체_이력을_재조회하며_내부_점�
   expect(window.location.hash).toBe('#planner?taskId=1');
   expect(screen.getByText('기존 날짜 제한 정책 유지')).toBeVisible();
   expect(screen.queryByText('130')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /선택|확정|재시도/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '이 시간 선택' })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('button', { name: 'Google Calendar에 등록' })).toBeDisabled();
   expect(fixture.transport.mock.calls.map(([path]) => path)).toContain('/tasks/1/recommendations?includeHistory=true');
   expect(fixture.transport.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });

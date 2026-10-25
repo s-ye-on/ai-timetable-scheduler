@@ -128,3 +128,17 @@
  .planning-ui .result-heading{flex-direction:column}.planning-ui .result-heading h2{font-size:20px}.planning-ui .history-row{padding:16px;font-size:12px}
 }
 @media(max-width:389px){.planning-ui .hero{padding:20px 16px}.planning-ui .hero h2{font-size:24px}}
+/* M6: 원본 선택 카드·최종 등록·결과 카드의 스타일을 재사용한다. */
+.planning-ui .candidate.selected{border:2px solid var(--primary);padding:23px;background:#fcfdff}
+.planning-ui .candidate-side .btn{min-width:128px;min-height:44px}
+.planning-ui .confirm-bar{padding:24px;margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.planning-ui .confirm-bar h3{font-size:15px}.planning-ui .confirm-bar p{font-size:12px;color:var(--muted);margin-top:4px}
+.planning-ui .success-card{padding:40px;text-align:center;max-width:760px;margin:28px auto}
+.planning-ui .success-mark{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--mint);color:var(--success);margin:0 auto 24px}
+.planning-ui .success-mark .od-icon{--od-icon-size:32px}.planning-ui .success-card h2{font-size:27px;margin-bottom:12px}
+.planning-ui .success-card>p{font-size:14px;color:var(--muted)}
+.planning-ui .success-detail{padding:24px;margin:28px 0;border:1px solid var(--line);background:#f7f9fe;border-radius:12px;text-align:left}
+.planning-ui .success-detail h3{margin-bottom:8px}.planning-ui .success-detail p{font-size:14px}
+.planning-ui .sync-recovery{display:grid;gap:16px;margin-top:24px}.planning-ui .sync-recovery .btn{justify-self:start}
+.planning-ui .loading-card{padding:40px;display:grid;gap:20px;justify-items:center;text-align:center;margin-top:24px}
+@media(max-width:767px){.planning-ui .candidate.selected{padding:19px}.planning-ui .confirm-bar{padding:20px;align-items:stretch;gap:16px}.planning-ui .confirm-bar .btn{width:100%}.planning-ui .success-card{padding:28px 20px}.planning-ui .success-card h2{font-size:23px}.planning-ui .sync-recovery .btn{width:100%}}

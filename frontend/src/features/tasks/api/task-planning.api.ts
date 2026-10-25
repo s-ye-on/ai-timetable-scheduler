@@ -3,7 +3,7 @@ import { parseHistory, parseTask } from '@/features/tasks/api/task-read.api';
 
 export interface RecommendationGeneration { message: string; recommendations: RecommendationRead[] }
 
-/** 쓰기 요청은 명시적인 사용자 동작에서만 호출한다. 최종 등록 API는 제공하지 않는다. */
+/** 분석·추천·최종 등록은 각각 명시적인 사용자 동작에서만 호출한다. */
 export class TaskPlanningApi {
   constructor(private readonly client: TaskReadClient) {}
   async analyze(message: string): Promise<TaskRead> {
@@ -26,5 +26,11 @@ export class TaskPlanningApi {
       || new Set(recommendations.map((item) => item.id)).size !== recommendations.length
       || new Set(recommendations.map((item) => item.rank)).size !== recommendations.length) throw new Error('Invalid generated candidates');
     return { message: body.message, recommendations };
+  }
+  async select(taskId: number, recommendationId: number): Promise<RecommendationRead> {
+    const body = await this.client.authenticatedRequest(`/recommendations/${recommendationId}/select`, { method: 'POST' });
+    const item = parseHistory([body], taskId)[0];
+    if (item.id !== recommendationId || !['SYNCED', 'SYNC_FAILED', 'SELECTED'].includes(item.status)) throw new Error('Invalid selection response');
+    return item;
   }
 }
