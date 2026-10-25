@@ -105,7 +105,7 @@ export function LoginPage({ client = authClient, navigate = navigateTo }: LoginP
             <h1 ref={successTitle} tabIndex={-1}>로그인되었습니다.</h1>
             <p>{profile.name}님, 오늘의 계획을 이어가세요.</p>
             <a className="btn btn-primary" href={AUTHENTICATED_HOME_PATH}>내 홈으로 이동 <AuthIcon name="arrow" /></a>
-            <p className="field-help">잠시 후 기존 플래너로 이동해요.</p>
+            <p className="field-help">잠시 후 내 홈으로 이동해요.</p>
           </section> : <section>
             <div className="auth-welcome">
               <div className="section-kicker">WELCOME BACK TO YOUR CAMPUS</div>

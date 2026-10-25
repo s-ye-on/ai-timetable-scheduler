@@ -101,15 +101,15 @@ describe('로그인_화면', () => {
     expect(screen.queryByText('private transport data')).not.toBeInTheDocument();
   });
 
-  it('인증_성공_후에만_비밀번호를_지우고_기존_홈으로_이동한다', async () => {
+  it('인증_성공_후에만_비밀번호를_지우고_React_홈으로_이동한다', async () => {
     const transport = vi.fn<typeof fetch>().mockResolvedValueOnce(json(tokens)).mockResolvedValueOnce(json(profile));
     const { navigate } = setup(transport);
     const user = await fillCredentials('short');
     await user.click(screen.getByRole('button', { name: /^로그인$/ }));
     expect(await screen.findByRole('heading', { name: '로그인되었습니다.' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '내 홈으로 이동' })).toHaveAttribute('href', '/demo.html');
+    expect(screen.getByRole('link', { name: '내 홈으로 이동' })).toHaveAttribute('href', '/#home');
     expect(screen.queryByDisplayValue('short')).not.toBeInTheDocument();
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/demo.html'), { timeout: 2500 });
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/#home'), { timeout: 2500 });
   });
 
   it('저장된_인증을_서버에서_확인한_뒤_복원한다', async () => {

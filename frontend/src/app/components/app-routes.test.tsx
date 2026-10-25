@@ -138,7 +138,7 @@ describe('보호된_앱_라우팅', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(button).toHaveFocus();
   });
 
-  it('인증_화면의_스타일_범위와_기존_로그인_성공_목적지를_유지한다', async () => {
+  it('인증_화면_스타일을_보존하고_로그인_성공_후_React_홈을_연결한다', async () => {
     location('/login');
     const transport = vi.fn<typeof fetch>().mockImplementation(async (path) => json(path === '/api/auth/login' ? tokens : profile));
     mount(transport);
@@ -147,12 +147,12 @@ describe('보호된_앱_라우팅', () => {
     await user.type(screen.getByRole('textbox', { name: '이메일' }), profile.email);
     await user.type(screen.getByLabelText('비밀번호', { selector: 'input' }), 'fixture-password');
     await user.click(screen.getByRole('button', { name: /^로그인$/ }));
-    expect(await screen.findByRole('link', { name: '내 홈으로 이동' })).toHaveAttribute('href', '/demo.html');
+    expect(await screen.findByRole('link', { name: '내 홈으로 이동' })).toHaveAttribute('href', '/#home');
     expect(transport.mock.calls.filter(([path]) => path === '/api/auth/login')).toHaveLength(1);
     expect(screen.queryByLabelText('주요 탐색')).not.toBeInTheDocument();
   });
 
-  it('가입_자동로그인은_세션_알림으로_중단되지_않고_기존_플래너를_연결한다', async () => {
+  it('가입_자동로그인은_세션_알림으로_중단되지_않고_React_온보딩을_연결한다', async () => {
     location('/signup');
     const transport = vi.fn<typeof fetch>().mockImplementation(async (path) => json(path === '/api/auth/register' ? tokens : profile));
     mount(transport); const user = userEvent.setup();
@@ -160,7 +160,7 @@ describe('보호된_앱_라우팅', () => {
     await user.type(screen.getByRole('textbox', { name: '이메일' }), profile.email);
     await user.type(screen.getByLabelText('비밀번호', { selector: 'input' }), 'fixture-password');
     await user.click(screen.getByRole('button', { name: /^회원가입$/ }));
-    expect(await screen.findByRole('link', { name: /플래너로 이동/ })).toHaveAttribute('href', '/demo.html');
+    expect(await screen.findByRole('link', { name: /플래너로 이동/ })).toHaveAttribute('href', '/#onboarding/1');
     expect(transport.mock.calls.filter(([path]) => path === '/api/auth/register')).toHaveLength(1);
   });
 

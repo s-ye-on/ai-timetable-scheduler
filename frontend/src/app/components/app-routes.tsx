@@ -40,7 +40,7 @@ export function AppRoutes({ client = authClient }: { client?: AuthClient }) {
     return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('pageshow', restored); };
   }, [client]);
 
-  if (publicRoute) return <AuthRoutes key={`${pathname}:${externalVersion}`} client={client} />;
+  if (publicRoute) return <AuthRoutes key={`${pathname}:${externalVersion}`} client={client} navigate={navigateApp} />;
   const route = pathname === '/' ? resolveAppRoute(window.location.hash) : resolveAppRoute('#not-found');
   return <ProtectedApp key={version} client={client} route={route} location={location} />;
 }

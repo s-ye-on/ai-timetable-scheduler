@@ -37,7 +37,7 @@ export function calendarFailure(error: unknown): string {
   const code = (error as { code?: string } | null)?.code;
   const status = (error as { status?: number } | null)?.status;
   return code === 'GOOGLE_OAUTH_CONFIGURATION_INVALID' ? 'Google Calendar 연결 설정을 확인하지 못했어요. 서버 관리자에게 OAuth 설정 확인을 요청해 주세요.'
-    : code === 'GOOGLE_CALENDAR_RECONNECT_BLOCKED' ? '완료되지 않은 일정 동기화를 먼저 복구한 후 다시 연결해 주세요. 지금은 기존 플래너에서 복구할 수 있어요.'
+    : code === 'GOOGLE_CALENDAR_RECONNECT_BLOCKED' ? '완료되지 않은 일정 동기화를 먼저 복구한 후 다시 연결해 주세요. 홈의 확정된 일정에서 해당 일정을 열어 동기화 상태를 확인해 주세요.'
     : status === 403 ? 'Calendar 연결 상태에 접근할 권한이 없어요.'
     : status === 401 ? '로그인이 만료되었어요. 다시 로그인해 주세요.'
     : '연결 상태를 확인하지 못했어요. 미연결 상태로 단정할 수 없으니 다시 확인해 주세요.';

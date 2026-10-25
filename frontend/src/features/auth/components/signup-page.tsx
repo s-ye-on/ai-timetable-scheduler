@@ -7,10 +7,11 @@ import { AuthBrand, AuthIntroPanel } from '@/features/auth/components/auth-intro
 import { AuthIcon } from '@/features/auth/components/auth-icon';
 import type { AuthFieldErrors, RegistrationCredentials, RegistrationField, UserProfile } from '@/features/auth/types/auth.types';
 
-interface SignupPageProps { client?: AuthClient }
+interface SignupPageProps { client?: AuthClient; navigate?: (path: string) => void }
 const FIELD_ORDER: RegistrationField[] = ['name', 'email', 'password'];
+const navigateTo = (path: string) => window.location.assign(path);
 
-export function SignupPage({ client = authClient }: SignupPageProps) {
+export function SignupPage({ client = authClient, navigate = navigateTo }: SignupPageProps) {
   const [values, setValues] = useState<RegistrationCredentials>({ name: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
@@ -50,6 +51,13 @@ export function SignupPage({ client = authClient }: SignupPageProps) {
       else summary.current?.focus();
     }
   }, [profile, focusRequest]);
+
+  const destination = registrationCompleted ? REGISTRATION_DESTINATION.onboarding : REGISTRATION_DESTINATION.current;
+  useEffect(() => {
+    if (!profile) return;
+    const timer = window.setTimeout(() => navigate(destination), 1800);
+    return () => window.clearTimeout(timer);
+  }, [profile, destination, navigate]);
 
   function validate(field: RegistrationField, value = values[field]): string {
     if (field === 'name') {
@@ -147,8 +155,8 @@ export function SignupPage({ client = authClient }: SignupPageProps) {
             <div className="section-kicker">READY FOR YOUR NEW SEMESTER</div>
             <h1 ref={successTitle} tabIndex={-1}>{registrationCompleted ? '가입을 환영해요!' : '이미 로그인되어 있어요.'}</h1>
             <p>{profile.name}님, 내 플래너에서 계획을 시작해 보세요.</p>
-            <p className="auth-success-note">{registrationCompleted ? '자동 로그인이 완료됐어요. 지금은 기존 플래너에서 시간표를 등록할 수 있어요.' : '기존 플래너에서 계획을 이어갈 수 있어요.'}</p>
-            <a className="btn btn-primary" href={REGISTRATION_DESTINATION.current}>플래너로 이동 <AuthIcon name="arrow" /></a>
+            <p className="auth-success-note">{registrationCompleted ? '자동 로그인이 완료됐어요. 잠시 후 선택형 초기 설정으로 이동해요. 모든 단계는 건너뛸 수 있어요.' : '잠시 후 내 홈에서 계획을 이어갈 수 있어요.'}</p>
+            <a className="btn btn-primary" href={destination}>플래너로 이동 <AuthIcon name="arrow" /></a>
           </section> : <section>
             <div className="auth-welcome">
               <div className="section-kicker">YOUR SEMESTER STARTS HERE</div>

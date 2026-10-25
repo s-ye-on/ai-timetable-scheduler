@@ -142,7 +142,7 @@ describe('회원가입_화면', () => {
     const title = await screen.findByRole('heading', { name: '가입을 환영해요!' });
     expect(title).toHaveFocus();
     expect(screen.getByText(/자동 로그인이 완료됐어요/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '플래너로 이동' })).toHaveAttribute('href', '/demo.html');
+    expect(screen.getByRole('link', { name: '플래너로 이동' })).toHaveAttribute('href', '/#onboarding/1');
     expect(screen.queryByDisplayValue('password-value')).not.toBeInTheDocument();
     expect(transport.mock.calls.map(([path]) => path)).toEqual(['/api/auth/register', '/api/auth/me']);
     expect(localStorage.getItem(AUTH_STORAGE_KEYS.userName)).toBe(profile.name);
@@ -185,6 +185,7 @@ describe('회원가입_화면', () => {
     const { transport } = setup(vi.fn<typeof fetch>().mockResolvedValue(json(profile)));
     expect(screen.getByRole('button', { name: '로그인 상태 확인 중…' })).toBeDisabled();
     await screen.findByRole('heading', { name: '이미 로그인되어 있어요.' });
+    expect(screen.getByRole('link', { name: '플래너로 이동' })).toHaveAttribute('href', '/#home');
     expect(transport.mock.calls.map(([path]) => path)).toEqual(['/api/auth/me']);
     expect(screen.queryByRole('button', { name: /^회원가입$/ })).not.toBeInTheDocument();
   });
