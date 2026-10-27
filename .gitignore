@@ -67,3 +67,13 @@ src/test/resources/application.properties
 data/
 data/*.mv.db
 data/*.trace.dbdata/
+
+# Deployment secrets and certificate files
+**/.env
+**/.env.*
+!**/.env.example
+**/*.env
+*.pem
+*.key
+*.p12
+*.jks

@@ -1,0 +1,91 @@
+name: ${COMPOSE_PROJECT_NAME:-campus-planner}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    image: campus-planner-app:${IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 명시적인 단일 컨테이너 이름으로 app의 다중 scale을 허용하지 않는다.
+    container_name: ${COMPOSE_PROJECT_NAME:-campus-planner}-app
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 40s
+    mem_limit: ${APP_MEMORY_LIMIT:-1280m}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx768m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError}
+      H2_HOST_DATA_DIR: ${H2_DATA_DIR:?H2_DATA_DIR must be an existing absolute directory}
+      H2_DATABASE_PATH: /var/lib/campus-planner/data/timetable-scheduler
+      SPRING_DATASOURCE_USERNAME: ${H2_DB_USERNAME:-sa}
+      SPRING_DATASOURCE_PASSWORD: ${H2_DB_PASSWORD:-}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID:?GOOGLE_CALENDAR_CLIENT_ID is required}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      GOOGLE_CALENDAR_REDIRECT_URI: ${GOOGLE_CALENDAR_REDIRECT_URI:-https://campusplanner.duckdns.org/api/calendar/oauth/callback}
+    expose: ["8080"]
+    volumes:
+      - type: bind
+        source: ${H2_DATA_DIR:?H2_DATA_DIR is required}
+        target: /var/lib/campus-planner/data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --output, /dev/null, http://127.0.0.1:8080/demo.html]
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+    logging: *logging
+
+  web:
+    image: campus-planner-web:${IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    mem_limit: ${WEB_MEMORY_LIMIT:-128m}
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,size=32m
+      - /var/run:rw,size=1m
+      - /tmp:rw,size=16m
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_HTTP_PORT:-80}:80"
+    volumes:
+      - type: bind
+        source: ./deploy/nginx/bootstrap.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ACME_WEBROOT:?ACME_WEBROOT must be an existing absolute directory}
+        target: /var/www/acme
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging: *logging
