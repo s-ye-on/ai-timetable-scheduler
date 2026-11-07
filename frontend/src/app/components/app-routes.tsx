@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { AuthApiError, authClient } from '@/features/auth/api/auth-client';
 import type { AuthClient } from '@/features/auth/api/auth-client';
-import { AUTH_STORAGE_KEYS } from '@/features/auth/auth.constants';
+import { AUTHENTICATED_HOME_PATH, AUTH_STORAGE_KEYS } from '@/features/auth/auth.constants';
 import { AuthRoutes } from '@/features/auth/components/auth-routes';
 import type { ReactNode } from 'react';
 import type { UserProfile } from '@/features/auth/types/auth.types';
@@ -12,6 +12,8 @@ import { TimetablePage } from '@/features/timetable/components/timetable-page';
 import { OnboardingPage } from '@/features/onboarding/components/onboarding-page';
 import { HomePage } from '@/features/home/components/home-page';
 import { PlannerPage } from '@/features/tasks/components/planner-page';
+import { AboutPage } from '@/features/public-pages/components/about-page';
+import { PrivacyPage } from '@/features/public-pages/components/privacy-page';
 
 export function AppRoutes({ client = authClient }: { client?: AuthClient }) {
   const location = useSyncExternalStore(subscribeLocation, getLocation);
@@ -40,9 +42,20 @@ export function AppRoutes({ client = authClient }: { client?: AuthClient }) {
     return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('pageshow', restored); };
   }, [client]);
 
+  if (pathname === '/about') return <AboutPage />;
+  if (pathname === '/privacy') return <PrivacyPage />;
   if (publicRoute) return <AuthRoutes key={`${pathname}:${externalVersion}`} client={client} navigate={navigateApp} />;
+  if (pathname === '/' && !window.location.hash && !window.location.search) return <InitialEntry client={client} />;
   const route = pathname === '/' ? resolveAppRoute(window.location.hash) : resolveAppRoute('#not-found');
   return <ProtectedApp key={version} client={client} route={route} location={location} />;
+}
+
+function InitialEntry({ client }: { client: AuthClient }) {
+  useEffect(() => {
+    // 저장 여부는 진입 경로만 정한다. 토큰 유효성 검증·갱신은 기존 보호 화면에서 수행한다.
+    navigateApp(client.hasSession() ? AUTHENTICATED_HOME_PATH : '/about', true);
+  }, [client]);
+  return <SessionNotice title="페이지로 이동하고 있어요." />;
 }
 
 function ProtectedApp({ client, route, location }: { client: AuthClient; route: AppRoute; location: string }) {
